@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建并发布（Windows NSIS → GitHub Releases）
+        env:
+          # 必须：具有 contents:write 权限的 Personal Access Token（仓库 Settings → Secrets → Actions → GH_TOKEN）
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # 可选：Windows 代码签名（在仓库 Secrets 配置这两项后，去掉下面两行注释即可启用）
+          # WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}            # .pfx 证书文件的 URL 或 base64 内容
+          # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: npm run release -- --win
+
+      - name: 上传构建产物（便于排查）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist

@@ -1,0 +1,40 @@
+#!/bin/bash
+# Lumora pre-commit 护栏（零依赖）。由 tools/install-hooks.js 安装到 .git/hooks/。
+# 把 AGENTS.md 的铁律从"纸面"变成"提交即拦截"。
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo "[pre-commit] 1/3 语法门禁 (check-syntax)"
+node tools/check-syntax.js || { echo "[pre-commit] ✗ 语法检查失败，提交终止"; exit 1; }
+
+echo "[pre-commit] 2/4 双向漏网扫描 (scan-reverse-leaks)"
+node tools/scan-reverse-leaks.js src/main/index.js $(find src -name '*.js' ! -name 'index.js') \
+  || { echo "[pre-commit] ✗ 漏网扫描报警，提交终止"; exit 1; }
+
+echo "[pre-commit] 3/4 漏导入/漏 require 审计 (audit-imports)"
+node tools/audit-imports.js \
+  || { echo "[pre-commit] ✗ 漏导入/require 审计报警，提交终止"; exit 1; }
+
+echo "[pre-commit] 4/4 暂存文件行尾/内联脚本校验"
+bad=0
+while IFS= read -r f; do
+  case "$f" in
+    *.js|*.ts|*.css|*.json|*.md) ;;
+    *) continue ;;
+  esac
+  blob="$(git show ":$f" 2>/dev/null)" || continue
+  if printf '%s' "$blob" | grep -q $'\r'; then
+    echo "  ✗ $f 含 CRLF（铁律#2：源文件必须 LF）"; bad=1
+  fi
+  if printf '%s' "$blob" | grep -nE 'node[[:space:]]+(-e|-c)[[:space:]]'; then
+    echo "  ✗ $f 含 node -e/-c 内联脚本（铁律#3 禁用）"; bad=1
+  fi
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+if [ "$bad" -ne 0 ]; then
+  echo "[pre-commit] ✗ 行尾/内联脚本校验失败，提交终止"; exit 1
+fi
+
+echo "[pre-commit] ✓ 通过"

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumora — AI 内容识别面板（设计预览）</title>
+<style>
+  :root{
+    --accent:#7c8cff; --accent-bright:#9aa5ff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6;
+    --accent-glow:rgba(124,140,255,.45);
+    --surface-0:rgba(14,15,20,.72); --surface-1:rgba(22,24,32,.86); --surface-2:rgba(32,35,46,.94);
+    --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --danger:#e5484d; --warning:#ffb454; --sem-success:#5ee6a8;
+    --shadow-color:rgba(0,0,0,.65); --shadow-color-soft:rgba(0,0,0,.45);
+    --ease:cubic-bezier(0.16,1,0.3,1);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei UI","Hiragino Sans GB",system-ui,sans-serif;
+    --mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);color:var(--text-1);background:#0b0c12;overflow:hidden}
+
+  /* 伪视频背景：暗场画面 + 暗角，模拟播放中状态 */
+  .stage{position:fixed;inset:0;background:
+      radial-gradient(120% 90% at 50% 38%, #1a1d2b 0%, #0e0f17 55%, #070810 100%);}
+  .stage::after{content:"";position:absolute;inset:0;
+    background:radial-gradient(80% 70% at 50% 45%, transparent 40%, rgba(0,0,0,.55) 100%);}
+  .stage .frame-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    color:var(--text-3);font-size:12px;letter-spacing:.04em}
+
+  /* 右上角浮动触发按钮（OSC 风格） */
+  .ai-trigger{position:fixed;top:46px;right:18px;display:flex;align-items:center;gap:8px;
+    padding:8px 13px;border-radius:11px;background:rgba(14,14,20,.72);
+    border:1px solid var(--hairline);color:var(--text-2);cursor:pointer;
+    backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+    transition:background .16s var(--ease),color .16s var(--ease),transform .22s var(--ease),box-shadow .22s var(--ease);
+    box-shadow:0 8px 26px var(--shadow-color-soft);z-index:42}
+  .ai-trigger:hover{background:rgba(124,140,255,.18);color:var(--accent-bright);
+    transform:translateY(-1px);box-shadow:0 0 0 1px rgba(124,140,255,.3),0 8px 26px rgba(124,140,255,.22)}
+  .ai-trigger svg{width:17px;height:17px}
+  .ai-trigger .lbl{font-size:12px;font-weight:600}
+
+  /* ===== AI 内容识别面板（popover 体系，z=48） ===== */
+  .ai-panel{position:fixed;top:46px;right:18px;width:min(380px,calc(100vw - 36px));
+    max-height:78vh;overflow-y:auto;padding:14px;border-radius:14px;
+    background:var(--surface-2);
+    backdrop-filter:blur(28px) saturate(190%);-webkit-backdrop-filter:blur(28px) saturate(190%);
+    border:1px solid var(--hairline-strong);
+    box-shadow:0 18px 52px var(--shadow-color),0 0 0 1px rgba(0,0,0,.35);
+    animation:pop-in .22s var(--ease) both;z-index:48}
+  @keyframes pop-in{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+
+  .ai-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .ai-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600}
+  .ai-title svg{width:18px;height:18px;color:var(--accent-bright)}
+  .ai-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:7px;
+    font-size:10.5px;font-weight:700;letter-spacing:.04em;color:var(--sem-success);
+    background:rgba(94,230,168,.12);border:1px solid rgba(94,230,168,.25)}
+  .ai-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--sem-success);
+    box-shadow:0 0 8px var(--sem-success)}
+
+  .ai-close{width:28px;height:28px;border:none;background:none;border-radius:8px;color:var(--text-3);
+    cursor:pointer;transition:background .16s var(--ease),color .16s var(--ease)}
+  .ai-close:hover{background:rgba(255,255,255,.1);color:var(--text-1)}
+
+  .ai-media{font-size:18px;font-weight:600;line-height:1.3;letter-spacing:-.01em;margin-bottom:2px}
+  .ai-meta{font-size:11px;color:var(--text-3);margin-bottom:12px}
+
+  .ai-section-h{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--text-3);margin:14px 0 8px}
+
+  .ai-synopsis{font-size:13px;line-height:1.6;color:var(--text-2)}
+
+  .ai-tags{display:flex;flex-wrap:wrap;gap:7px}
+  .ai-tag{padding:4px 10px;border-radius:8px;font-size:11.5px;font-weight:500;
+    background:rgba(255,255,255,.055);border:1px solid var(--hairline);color:var(--text-2);
+    transition:background .16s var(--ease),color .16s var(--ease),transform .16s var(--ease)}
+  .ai-tag:hover{background:rgba(124,140,255,.16);color:var(--accent-bright);transform:translateY(-1px)}
+  /* 分类强调：类型用 accent 渐变，情绪用粉，场景用青 */
+  .ai-tag.cat-genre{background:linear-gradient(135deg,rgba(124,140,255,.22),rgba(110,231,255,.14));
+    border-color:rgba(124,140,255,.3);color:#cdd4ff}
+  .ai-tag.cat-mood{background:rgba(255,122,198,.14);border-color:rgba(255,122,198,.28);color:#ffb8e3}
+  .ai-tag.cat-scene{background:rgba(110,231,255,.12);border-color:rgba(110,231,255,.26);color:#aef0ff}
+
+  .ai-confidence{margin-top:14px;display:flex;align-items:center;gap:10px}
+  .ai-bar{flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden}
+  .ai-bar > i{display:block;height:100%;width:82%;
+    background:linear-gradient(90deg,var(--accent-cyan),var(--accent),var(--accent-pink));
+    box-shadow:0 0 10px var(--accent-glow);border-radius:4px}
+  .ai-conf-val{font-family:var(--mono);font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums}
+
+  .ai-actions{display:flex;gap:8px;margin-top:16px}
+  .ai-btn{flex:1;padding:9px 12px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;
+    border:1px solid var(--hairline);background:rgba(255,255,255,.06);color:var(--text-2);
+    transition:background .16s var(--ease),color .16s var(--ease),transform .16s var(--ease)}
+  .ai-btn:hover{background:rgba(255,255,255,.12);color:var(--text-1)}
+  .ai-btn.primary{background:linear-gradient(135deg,rgba(124,140,255,.9),rgba(110,231,255,.85));
+    border-color:transparent;color:#0b0c12}
+  .ai-btn.primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,140,255,.32)}
+
+  /* ===== 加载态 ===== */
+  .ai-loading{display:flex;flex-direction:column;align-items:center;gap:14px;padding:30px 10px}
+  .ai-spinner{width:34px;height:34px;border-radius:50%;
+    border:3px solid rgba(255,255,255,.12);border-top-color:var(--accent);
+    animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .ai-loading .txt{font-size:12.5px;color:var(--text-2);text-align:center;line-height:1.5}
+  .ai-loading .txt b{color:var(--accent-bright);font-weight:600}
+
+  .hint{position:fixed;left:18px;bottom:16px;font-size:11px;color:var(--text-3);max-width:320px;line-height:1.5}
+  .hint kbd{font-family:var(--mono);background:rgba(255,255,255,.06);border:1px solid var(--hairline);
+    border-radius:4px;padding:1px 5px;color:var(--text-2)}
+</style>
+</head>
+<body>
+  <div class="stage"><div class="frame-hint">[ 模拟播放画面 — 用于预览 AI 识别面板叠加效果 ]</div></div>
+
+  <!-- 浮动触发按钮（OSC 上新增的 AI 入口） -->
+  <div class="ai-trigger" onclick="toggleLoading()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>
+      <circle cx="12" cy="12" r="3.4"/>
+    </svg>
+    <span class="lbl">AI 识别</span>
+  </div>
+
+  <!-- 面板：完整态 -->
+  <div class="ai-panel" id="panel">
+    <div class="ai-head">
+      <div class="ai-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>
+          <circle cx="12" cy="12" r="3.4"/>
+        </svg>
+        AI 内容识别
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="ai-badge"><span class="dot"></span>本地模型</span>
+        <button class="ai-close" onclick="document.getElementById('panel').style.display='none'">✕</button>
+      </div>
+    </div>
+
+    <div class="ai-media">星际穿越 Interstellar</div>
+    <div class="ai-meta">时长 169 min · 1080p · 识别于 2026-08-04 20:51</div>
+
+    <div class="ai-section-h">简介</div>
+    <div class="ai-synopsis">近未来，地球环境急剧恶化。前 NASA 飞行员库珀被迫离开家人，加入一支穿越土星附近虫洞的探险队，在遥远的星系中寻找人类的新家园。影片以父女羁绊为主线，交织黑洞、时空相对论与人类的存续命题。</div>
+
+    <div class="ai-section-h">内容标签</div>
+    <div class="ai-tags">
+      <span class="ai-tag cat-genre">科幻</span>
+      <span class="ai-tag cat-genre">太空</span>
+      <span class="ai-tag cat-genre">冒险</span>
+      <span class="ai-tag cat-mood">治愈</span>
+      <span class="ai-tag cat-mood">史诗感</span>
+      <span class="ai-tag cat-scene">太空站</span>
+      <span class="ai-tag cat-scene">黑洞</span>
+      <span class="ai-tag cat-genre">剧情</span>
+      <span class="ai-tag cat-mood">温情</span>
+    </div>
+
+    <div class="ai-confidence">
+      <span class="ai-bar"><i></i></span>
+      <span class="ai-conf-val">82%</span>
+    </div>
+
+    <div class="ai-actions">
+      <button class="ai-btn" onclick="toggleLoading()">重新识别</button>
+      <button class="ai-btn primary">应用为标题</button>
+    </div>
+  </div>
+
+  <script>
+    // 预览用：点击触发按钮在「加载态 / 完整态」间切换
+    function toggleLoading(){
+      const p=document.getElementById('panel');
+      if(p.dataset.mode==='loading'){
+        p.dataset.mode='done';
+        p.innerHTML=fullHTML;
+      }else{
+        p.dataset.mode='loading';
+        p.innerHTML=loadingHTML;
+      }
+    }
+    const fullHTML=document.getElementById('panel').innerHTML;
+    const loadingHTML=`<div class="ai-loading">
+      <div class="ai-spinner"></div>
+      <div class="txt">正在本地分析媒体…<br><b>提取关键帧 → 本地视觉模型推理</b><br>无需联网，隐私不出本机</div>
+    </div>`;
+  </script>
+
+  <div class="hint">预览说明：右上「AI 识别」按钮为 OSC 新增入口；面板沿用 Lumora <b>popover</b> 毛玻璃体系（blur 28px）。点击按钮可切换「加载态 / 完整态」。完整态含本地模型徽标、识别标题、简介、分类标签（类型/情绪/场景三色）、置信度条与操作按钮。</div>
+</body>
+</html>

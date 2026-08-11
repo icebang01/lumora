@@ -1,0 +1,33 @@
+# 统一换行：源文件与文本资源一律 LF（跨平台协作稳定，禁用 CRLF）。
+# 与 AGENTS.md 铁律 #2 一致；钩子会拦截混入的 CRLF。
+* text=auto eol=lf
+
+# 二进制资源：不归一换行，避免损坏。
+*.exe binary
+*.com binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.node binary
+*.mp4 binary
+*.mkv binary
+*.m2ts binary
+*.ts binary
+*.mp3 binary
+*.flac binary
+*.wav binary
+*.aac binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.gz binary
+*.pdf binary
+*.bin binary

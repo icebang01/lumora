@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Lumora 主页 UI 原型 — 三栏参考图版</title>
+<style>
+  :root {
+    --bg-0: #0a0c14;
+    --bg-1: #10131f;
+    --text-1: #f2f4ff;
+    --text-2: rgba(242, 244, 255, .72);
+    --text-3: rgba(242, 244, 255, .45);
+    --hairline: rgba(255, 255, 255, .09);
+    --c-cyan: #6ee7ff;
+    --c-blue: #7c8cff;
+    --c-purple: #8b7bff;
+    --c-pink: #ff7ac6;
+    --grad: linear-gradient(120deg, #6ee7ff 0%, #8b7bff 55%, #ff7ac6 100%);
+    --ease: cubic-bezier(.16, 1, .3, 1);
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    background:
+      radial-gradient(1000px 560px at 50% 38%, rgba(124, 140, 255, .10), transparent 62%),
+      radial-gradient(760px 420px at 18% 62%, rgba(110, 231, 255, .06), transparent 60%),
+      radial-gradient(760px 420px at 82% 62%, rgba(255, 122, 198, .06), transparent 60%),
+      var(--bg-0);
+    color: var(--text-1);
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* ── 三栏舞台 ── */
+  .stage {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    align-items: center;
+    justify-items: center;
+    padding: 0 40px;
+  }
+
+  /* 侧栏：细圆环 + 大箭头 */
+  .side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+    background: none;
+    border: none;
+    color: var(--text-1);
+    cursor: pointer;
+    transition: transform .3s var(--ease);
+  }
+  .side:hover { transform: translateY(-4px); }
+
+  .ring {
+    width: clamp(128px, 15vw, 190px);
+    height: clamp(128px, 15vw, 190px);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .22);
+    display: grid;
+    place-items: center;
+    position: relative;
+    transition: border-color .3s var(--ease), box-shadow .3s var(--ease);
+  }
+  .ring::after {
+    content: '';
+    position: absolute;
+    inset: 7px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, .10);
+  }
+  .side:hover .ring {
+    border-color: rgba(255, 255, 255, .38);
+    box-shadow: 0 0 46px rgba(124, 140, 255, .18);
+  }
+  .ring svg { width: 42%; height: 42%; opacity: .9; }
+
+  .arrow {
+    font-size: 0;
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 255, 255, .88);
+    transition: transform .3s var(--ease), color .3s var(--ease);
+    filter: drop-shadow(0 0 14px rgba(255, 255, 255, .22));
+  }
+  .side--left:hover .arrow { transform: translateX(-5px); color: #fff; }
+  .side--right:hover .arrow { transform: translateX(5px); color: #fff; }
+
+  /* ── 中央品牌区 ── */
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    animation: hero-in .9s var(--ease) both;
+  }
+  @keyframes hero-in {
+    from { opacity: 0; transform: translateY(16px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .play {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: var(--grad);
+    display: grid;
+    place-items: center;
+    position: relative;
+    cursor: pointer;
+    border: none;
+    box-shadow:
+      0 0 0 7px rgba(139, 123, 255, .12),
+      0 0 0 14px rgba(139, 123, 255, .06),
+      0 14px 44px rgba(124, 140, 255, .34);
+    transition: transform .3s var(--ease), box-shadow .3s var(--ease);
+  }
+  .play:hover {
+    transform: scale(1.06);
+    box-shadow:
+      0 0 0 9px rgba(139, 123, 255, .16),
+      0 0 0 18px rgba(139, 123, 255, .08),
+      0 18px 58px rgba(124, 140, 255, .46);
+  }
+  .play:active { transform: scale(.97); }
+  .play svg { width: 34%; height: 34%; margin-left: 4px; }
+
+  .title {
+    font-size: clamp(44px, 5.2vw, 64px);
+    font-weight: 700;
+    letter-spacing: .06em;
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 26px rgba(139, 123, 255, .30));
+    text-indent: .06em; /* 视觉居中补偿 letter-spacing */
+  }
+
+  .hint {
+    font-size: 14px;
+    color: var(--text-3);
+    letter-spacing: .05em;
+  }
+  .hint strong {
+    color: var(--text-2);
+    font-weight: 600;
+  }
+
+  /* ── 三按钮 ── */
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 999px;
+    border: 1px solid var(--hairline);
+    background: rgba(255, 255, 255, .05);
+    color: var(--text-1);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: transform .25s var(--ease), background .25s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, .09);
+    border-color: rgba(255, 255, 255, .16);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .30);
+  }
+  .btn:active { transform: translateY(0); }
+  .btn--primary {
+    background: var(--grad);
+    border: none;
+    box-shadow: 0 8px 26px rgba(124, 140, 255, .30);
+  }
+  .btn--primary:hover {
+    background: var(--grad);
+    box-shadow: 0 12px 34px rgba(124, 140, 255, .44);
+  }
+  .btn svg { flex: 0 0 auto; }
+
+  /* 入场：侧栏稍后浮现 */
+  .side { animation: side-in .9s var(--ease) both; }
+  .side--left  { animation-delay: .12s; }
+  .side--right { animation-delay: .2s; }
+  @keyframes side-in {
+    from { opacity: 0; transform: translateY(14px) scale(.95); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .note {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: var(--text-3);
+    letter-spacing: .03em;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+
+    <!-- 左：音乐播放器入口（细圆环 + 大箭头） -->
+    <button class="side side--left" id="side-music" aria-label="音乐播放器">
+      <span class="ring">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <defs>
+            <linearGradient id="lg-music" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#6ee7ff"/>
+              <stop offset="55%" stop-color="#8b7bff"/>
+              <stop offset="100%" stop-color="#ff7ac6"/>
+            </linearGradient>
+          </defs>
+          <path d="M18 34V18l14-4v14" fill="none" stroke="url(#lg-music)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="34" r="3.6" fill="url(#lg-music)"/>
+          <circle cx="30" cy="30" r="3.6" fill="url(#lg-music)"/>
+        </svg>
+      </span>
+      <span class="arrow" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="48" height="48">
+          <path d="M30 10 14 24l16 14" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+    </button>
+
+    <!-- 中：Lumora 品牌 + 主操作 -->
+    <div class="hero">
+      <button class="play" id="btn-play" aria-label="播放">
+        <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="#fff"/></svg>
+      </button>
+      <h1 class="title">Lumora</h1>
+      <p class="hint">拖入文件，或<strong>双击</strong>打开</p>
+      <div class="actions">
+        <button class="btn btn--primary" id="btn-open">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 6h6l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          打开文件
+        </button>
+        <button class="btn" id="btn-stream">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 12a9 9 0 0 1 14-7.3M21 12a9 9 0 0 1-14 7.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 4.7V9h-4.3M7 19.3V15h4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          网络串流
+        </button>
+        <button class="btn" id="btn-settings">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          设置
+        </button>
+      </div>
+    </div>
+
+    <!-- 右：视频播放器入口 -->
+    <button class="side side--right" id="side-video" aria-label="视频播放器">
+      <span class="ring">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <defs>
+            <linearGradient id="lg-video" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#6ee7ff"/>
+              <stop offset="55%" stop-color="#8b7bff"/>
+              <stop offset="100%" stop-color="#ff7ac6"/>
+            </linearGradient>
+          </defs>
+          <rect x="10" y="14" width="28" height="20" rx="3.5" fill="none" stroke="url(#lg-video)" stroke-width="2.2"/>
+          <path d="M20 20l8 4-8 4z" fill="url(#lg-video)"/>
+        </svg>
+      </span>
+      <span class="arrow" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="48" height="48">
+          <path d="M18 10l16 14-16 14" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+    </button>
+
+  </div>
+
+  <p class="note">原型 v1 · 按参考图：细圆环 + 大箭头侧栏 · 发光播放键 · 渐变字标 · 横排三按钮</p>
+
+  <script>
+    // 原型交互：按钮悬停已有 CSS；点击仅示意
+    document.getElementById('btn-play').addEventListener('click', () => {});
+  </script>
+</body>
+</html>

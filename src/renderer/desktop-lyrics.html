@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>桌面歌词</title>
+  <style>
+    :root {
+      /* 当前行字号（由 ?fs= 初始化，可被 A-/A+ 调整） */
+      --dl-font: 30px;
+      --dl-accent-a: #8fe3ff;
+      --dl-accent-b: #7c8cff;
+      --dl-accent-c: #ff9ed6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;       /* 透明窗口，叠在桌面之上 */
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                   "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      cursor: move;
+      /* 整个窗口体都是拖拽把手（OS 原生拖动，比自定义 mousemove+setBounds 可靠）；
+         控制钮通过 no-drag 排除 */
+      -webkit-app-region: drag;
+      app-region: drag;
+    }
+
+    #dl-stage {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 14px 22px 10px;
+      text-align: center;
+    }
+
+    /* 顶部曲目元信息：歌名 / 歌手 / 专辑 */
+    .dl-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0px;
+      max-width: 100%;
+      margin-bottom: 1px;
+      line-height: 1.2;
+    }
+    .dl-meta-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 8px;
+      max-width: 100%;
+    }
+    .dl-title {
+      font-size: calc(var(--dl-font) * 0.42);
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      text-shadow: 0 1px 5px rgba(0, 0, 0, 0.55);
+    }
+    .dl-artist {
+      font-size: calc(var(--dl-font) * 0.34);
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.72);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+    .dl-album {
+      font-size: calc(var(--dl-font) * 0.3);
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.48);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+    .dl-meta:empty, .dl-meta-row:empty,
+    .dl-title:empty, .dl-artist:empty, .dl-album:empty { display: none; }
+
+    /* 当前行：未唱字暗灰白、已唱字网易云蓝——一层颜色（不叠渐变） */
+    .dl-current {
+      font-size: var(--dl-font);
+      font-weight: 800;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      color: rgba(255, 255, 255, .78);
+      filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
+    }
+
+    /* 逐字着色：已唱字用当前样式播放键色 --dl-accent（未唱字保持暗灰白） */
+    .dl-current .dl-char {
+      transition: color .25s ease, -webkit-text-fill-color .25s ease, text-shadow .25s ease;
+    }
+    .dl-current .dl-char.lit {
+      color: var(--dl-accent, #4d8dff);
+      -webkit-text-fill-color: var(--dl-accent, #4d8dff);
+      text-shadow: 0 0 14px color-mix(in srgb, var(--dl-accent, #4d8dff) 65%, transparent);
+    }
+
+    /* 下一行：暗调小字，提示即将到来 */
+    .dl-next {
+      font-size: calc(var(--dl-font) * 0.56);
+      font-weight: 600;
+      line-height: 1.2;
+      color: rgba(255, 255, 255, 0.5);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    }
+
+    /* 翻译行：更小、更暗 */
+    .dl-trans {
+      font-size: calc(var(--dl-font) * 0.44);
+      font-weight: 500;
+      line-height: 1.2;
+      color: rgba(255, 255, 255, 0.4);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    }
+
+    .dl-next:empty, .dl-trans:empty { display: none; }
+
+    /* 无歌词占位 */
+    .dl-empty {
+      font-size: calc(var(--dl-font) * 0.62);
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.45);
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    }
+
+    /* 行切换时的轻量弹出动画 */
+    .pop { animation: dl-pop 0.28s ease; }
+    @keyframes dl-pop {
+      from { opacity: 0.3; transform: translateY(7px); }
+      to   { opacity: 1;   transform: translateY(0); }
+    }
+
+    /* 控制钮簇：右上角，悬停才显现，避免一直挡视野 */
+    .dl-controls {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      /* 控制钮必须能点击，从拖拽区排除 */
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+    }
+    body:hover .dl-controls { opacity: 1; }
+
+    .dl-btn {
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(18, 20, 32, 0.6);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 24px;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .dl-btn:hover { background: rgba(124, 140, 255, 0.85); }
+    .dl-btn:active { transform: scale(0.92); }
+    .dl-btn svg { width: 13px; height: 13px; display: block; }
+
+    /* 尊重「减少动态效果」系统偏好 */
+    @media (prefers-reduced-motion: reduce) {
+      .pop { animation: none; }
+      .dl-controls { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="dl-stage">
+    <div class="dl-meta" id="dl-meta">
+      <div class="dl-meta-row">
+        <div class="dl-title" id="dl-title"></div>
+        <div class="dl-artist" id="dl-artist"></div>
+      </div>
+      <div class="dl-album" id="dl-album"></div>
+    </div>
+    <div class="dl-current" id="dl-current" role="status" aria-live="polite"></div>
+    <div class="dl-next" id="dl-next"></div>
+    <div class="dl-trans" id="dl-trans"></div>
+    <div class="dl-empty" id="dl-empty" hidden>♪ 暂无歌词</div>
+  </div>
+
+  <div class="dl-controls" id="dl-controls">
+    <button class="dl-btn" id="dl-font-minus" title="缩小字号" aria-label="缩小字号">
+      <svg viewBox="0 0 24 24"><path d="M5 11h14v2H5z" fill="currentColor"/></svg>
+    </button>
+    <button class="dl-btn" id="dl-font-plus" title="放大字号" aria-label="放大字号">
+      <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" fill="currentColor"/></svg>
+    </button>
+    <button class="dl-btn" id="dl-close" title="关闭桌面歌词" aria-label="关闭桌面歌词">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var FONT_MIN = 16, FONT_MAX = 72;
+      var currentEl = document.getElementById('dl-current');
+      var nextEl = document.getElementById('dl-next');
+      var transEl = document.getElementById('dl-trans');
+      var emptyEl = document.getElementById('dl-empty');
+      var metaEl = document.getElementById('dl-meta');
+      var titleEl = document.getElementById('dl-title');
+      var artistEl = document.getElementById('dl-artist');
+      var albumEl = document.getElementById('dl-album');
+      var lumen = window.lumen;
+
+      // 初始字号（来自主进程传入的 ?fs=）
+      var fs = 30;
+      try {
+        var fsParam = new URLSearchParams(location.search).get('fs');
+        if (fsParam) {
+          var n = parseInt(fsParam, 10);
+          if (!isNaN(n)) fs = Math.max(FONT_MIN, Math.min(FONT_MAX, n));
+        }
+      } catch (e) { /* 默认 30 */ }
+      document.documentElement.style.setProperty('--dl-font', fs + 'px');
+
+      function applyFont(size) {
+        fs = Math.max(FONT_MIN, Math.min(FONT_MAX, size));
+        document.documentElement.style.setProperty('--dl-font', fs + 'px');
+      }
+
+      // 更新单行文本（仅在变化时触发弹出动画）
+      function setLine(el, text) {
+        var t = text || '';
+        if (el.textContent !== t) {
+          el.textContent = t;
+          el.classList.remove('pop');
+          void el.offsetWidth; // 重启动画
+          el.classList.add('pop');
+        }
+      }
+
+      function setMeta(el, text) {
+        var t = text || '';
+        if (el.textContent !== t) el.textContent = t;
+      }
+
+      // ---- 逐字着色：chars 数组拆 span，prog 消息只更新已唱字点亮 ----
+      var dlSpans = [];
+
+      function buildChars(chars, lit) {
+        var joined = chars.join('');
+        if (currentEl.textContent === joined && dlSpans.length === chars.length) {
+          applyLit(lit || 0);
+          return;
+        }
+        currentEl.textContent = '';
+        currentEl.classList.remove('pop');
+        void currentEl.offsetWidth;
+        currentEl.classList.add('pop');
+        dlSpans = [];
+        for (var i = 0; i < chars.length; i++) {
+          var s = document.createElement('span');
+          s.textContent = chars[i];
+          s.className = 'dl-char' + (i < lit ? ' lit' : '');
+          currentEl.appendChild(s);
+          dlSpans.push(s);
+        }
+      }
+
+      function applyLit(lit) {
+        lit = Math.max(0, Math.min(dlSpans.length, lit || 0));
+        for (var i = 0; i < dlSpans.length; i++) {
+          if (dlSpans[i].classList.contains('lit') !== (i < lit)) {
+            dlSpans[i].classList.toggle('lit', i < lit);
+          }
+        }
+      }
+
+      function render(data) {
+        data = data || {};
+        // 当前样式播放键色：驱动逐字着色跟随（桌面窗口无 body.music-style-*，由主渲染进程转发）
+        if (data.accent) {
+          document.documentElement.style.setProperty('--dl-accent', data.accent);
+        }
+        // 纯逐字进度消息（字级低频）：只更新已唱字点亮，不重建 DOM
+        if (data.prog !== undefined && dlSpans.length) {
+          applyLit(data.prog);
+          return;
+        }
+        var line = data.line || '';
+        // 顶部元信息：歌名 / 歌手 / 专辑（无歌词时也展示）
+        setMeta(titleEl, data.title || '');
+        setMeta(artistEl, data.artist || '');
+        setMeta(albumEl, data.album || '');
+        var hasMeta = !!(data.title || data.artist || data.album);
+        metaEl.style.display = hasMeta ? 'flex' : 'none';
+        if (!line) {
+          currentEl.textContent = '';
+          nextEl.textContent = '';
+          transEl.textContent = '';
+          dlSpans = [];
+          emptyEl.hidden = hasMeta; // 有元信息时隐藏占位，展示歌曲名
+          return;
+        }
+        emptyEl.hidden = true;
+        if (data.chars && data.chars.length) {
+          buildChars(data.chars, data.lit || 0);
+        } else {
+          setLine(currentEl, line);
+          dlSpans = [];
+        }
+        setLine(nextEl, data.next || '');
+        setLine(transEl, data.trans || '');
+      }
+
+      // ---- 接收主渲染进程转发来的歌词 ----
+      if (lumen && typeof lumen.on === 'function') {
+        try { lumen.on('desktop-lyrics:data', render); } catch (e) { /* noop */ }
+      }
+
+      // ---- 控制钮 ----
+      var fontMinus = document.getElementById('dl-font-minus');
+      var fontPlus = document.getElementById('dl-font-plus');
+      var closeBtn = document.getElementById('dl-close');
+
+      if (fontMinus) fontMinus.addEventListener('click', function (e) {
+        e.stopPropagation();
+        applyFont(fs - 2);
+        if (lumen && lumen.desktopLyricsFontSize) lumen.desktopLyricsFontSize(-2);
+      });
+      if (fontPlus) fontPlus.addEventListener('click', function (e) {
+        e.stopPropagation();
+        applyFont(fs + 2);
+        if (lumen && lumen.desktopLyricsFontSize) lumen.desktopLyricsFontSize(2);
+      });
+      if (closeBtn) closeBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (lumen && lumen.desktopLyricsClose) lumen.desktopLyricsClose();
+      });
+
+      // 注：窗口拖动已改由 CSS -webkit-app-region: drag / no-drag 交给 OS 原生处理，
+      // 比 frameless+focusable:false 窗口下的自定义 mousemove 拖拽更可靠。
+
+      // 初始占位
+      emptyEl.hidden = false;
+    })();
+  </script>
+</body>
+</html>

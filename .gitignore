@@ -1,0 +1,29 @@
+# 依赖与二进制（bin/ 由 tools/fetch-ffmpeg.js 下载生成）
+node_modules/
+bin/
+
+# 运行时数据（config/ 是应用运行时目录：player.conf 自动生成、watch_later 播放记录）
+config/
+
+# 测试媒体（testmedia 由 tools/gen-testmedia.js 生成；testmedia-real 为手工拷贝的大媒体）
+testmedia/
+testmedia-real/
+
+# 测试产物
+smoke-result.txt
+
+# 覆盖率报告（c8 生成，非源码）
+coverage/
+
+# 日志与临时文件
+*.log
+*.orig
+*.bak
+.DS_Store
+
+# 构建产物（由 npm run build/dist 生成，无需入仓）
+dist/
+
+# 其他工具的内部状态
+.workbuddy/
+tools/align-git-history.sh

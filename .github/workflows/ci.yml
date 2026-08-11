@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+      - name: 语法门禁（全仓 node --check，ESM 自动降级 .mjs）
+        run: npm run lint:syntax
+      - name: 单元测试（node:test，零依赖纯逻辑）
+        run: npm run test:unit
+      - name: 优化专项测试（opt-tests，68 项）
+        run: npm run test:opt
+      - name: 类型检查（src/shared 契约层，checkJs）
+        run: npm run typecheck
+      - name: 生成测试媒体
+        run: npm run gen-testmedia
+      - name: 冒烟测试（22 项，隔离 userData）
+        run: npm run test:smoke
+
+  # GUI 端到端测试(CDP 驱动 13 项):独立作业,隔离偶发抖动,不阻塞单元测试快反馈
+  # windows-latest 自带显示器,Electron 可正常起窗口 + mpv 解码,与 test:smoke 同环境
+  gui:
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+      - name: 生成测试媒体
+        run: npm run gen-testmedia
+      - name: GUI 自动化测试（CDP 驱动 13 项）
+        run: npm run test:gui

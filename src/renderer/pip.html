@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Lumora 画中画</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      background: transparent;
+      user-select: none;
+    }
+    .pip-wrap {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .pip-bar {
+      height: 28px;
+      flex-shrink: 0;
+      background: rgba(20, 20, 25, .78);
+      backdrop-filter: blur(14px) saturate(160%);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      display: flex; align-items: center;
+      padding: 0 6px 0 8px;
+      color: rgba(255,255,255,.9);
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity .18s ease;
+    }
+    .pip-wrap:hover .pip-bar,
+    .pip-bar.dragging { opacity: 1; }
+    .pip-title {
+      flex: 1;
+      margin: 0 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: grab;
+    }
+    .pip-title:active, .pip-bar.dragging .pip-title { cursor: grabbing; }
+    .pip-btn {
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 5px;
+      cursor: pointer;
+      color: rgba(255,255,255,.85);
+      transition: background .12s, color .12s;
+    }
+    .pip-btn:hover { background: rgba(255,255,255,.16); color: #fff; }
+    .pip-btn svg { width: 12px; height: 12px; fill: currentColor; }
+    .pip-content {
+      flex: 1;
+      background: transparent;
+    }
+    .hidden { display: none !important; }
+    .resize-handle {
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      width: 16px;
+      height: 16px;
+      cursor: nwse-resize;
+      color: rgba(255,255,255,.55);
+      opacity: 0;
+      transition: opacity .18s ease, color .12s;
+      z-index: 10;
+    }
+    .pip-wrap:hover .resize-handle { opacity: 1; }
+    .resize-handle:hover { color: #fff; }
+    .resize-handle svg { width: 100%; height: 100%; fill: currentColor; }
+  </style>
+</head>
+<body>
+  <div class="pip-wrap" id="wrap">
+    <div class="pip-bar" id="bar">
+      <div class="pip-btn" id="btn-pause" title="播放 / 暂停">
+        <svg id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="icon-pause" class="hidden" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+      </div>
+      <div class="pip-title" id="title">Lumora 画中画</div>
+      <div class="pip-btn" id="btn-restore" title="回到主窗口">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="5" width="14" height="13" rx="1.5"/>
+          <rect x="10" y="9" width="12" height="9" rx="1" fill="rgba(255,255,255,.22)" stroke="none"/>
+          <path d="M18 13.5H9M12 10.5l-3 3 3 3" stroke="#fff"/>
+        </svg>
+      </div>
+      <div class="pip-btn" id="btn-close" title="关闭浮窗">✕</div>
+    </div>
+    <div class="pip-content" id="content"></div>
+    <div class="resize-handle" id="resize" title="拖拽调整大小">
+      <svg viewBox="0 0 24 24"><path d="M16 16l6-6M14 20l8-8M20 22l4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const api = window.electronPip;
+
+    // 播放/暂停
+    $('btn-pause').addEventListener('click', () => api.command('pause'));
+    // 点击画面：单击暂停/播放，双击回到主窗口（与 YouTube 画中画逻辑一致）
+    let clickTimer = null;
+    $('content').addEventListener('click', () => {
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        api.command('restore');
+      } else {
+        clickTimer = setTimeout(() => { clickTimer = null; api.command('pause'); }, 230);
+      }
+    });
+    // 还原 / 关闭都是退出 PiP
+    $('btn-restore').addEventListener('click', () => api.command('restore'));
+    $('btn-close').addEventListener('click', () => api.command('close'));
+
+    // 拖动：用 pointer capture 让鼠标移出小窗口时仍能继续拖动
+    const bar = $('bar');
+    let dragging = false;
+    let dragStartX = 0, dragStartY = 0;
+
+    bar.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.pip-btn')) return; // 点按钮不拖
+      dragging = true;
+      dragStartX = e.screenX;
+      dragStartY = e.screenY;
+      bar.classList.add('dragging');
+      bar.setPointerCapture(e.pointerId);
+      api.dragStart();
+    });
+
+    bar.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.screenX - dragStartX;
+      const dy = e.screenY - dragStartY;
+      if (dx !== 0 || dy !== 0) api.moveBy(dx, dy);
+    });
+
+    bar.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      bar.classList.remove('dragging');
+      try { bar.releasePointerCapture(e.pointerId); } catch {}
+      api.dragEnd();
+    });
+
+    // 右下角拖拽缩放，保持原始宽高比
+    const resize = $('resize');
+    const MIN_W = 240;
+    const aspect = window.innerWidth / window.innerHeight;
+    let resizing = false;
+    let rStartX = 0, rStartW = 0;
+
+    resize.addEventListener('pointerdown', (e) => {
+      resizing = true;
+      rStartX = e.screenX;
+      rStartW = window.innerWidth;
+      resize.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    resize.addEventListener('pointermove', (e) => {
+      if (!resizing) return;
+      const dx = e.screenX - rStartX;
+      let w = Math.max(MIN_W, rStartW + dx);
+      const maxW = Math.min(window.screen.availWidth, window.screen.availHeight * aspect) - 48;
+      if (w > maxW) w = maxW;
+      const h = Math.round(w / aspect);
+      api.resize(w, h);
+    });
+    resize.addEventListener('pointerup', (e) => {
+      if (!resizing) return;
+      resizing = false;
+      try { resize.releasePointerCapture(e.pointerId); } catch {}
+    });
+
+    // 主进程推送的播放状态 / 标题
+    api.onUpdate((data) => {
+      if (data.title != null) $('title').textContent = data.title || 'Lumora 画中画';
+      if (data.paused != null) {
+        $('icon-play').classList.toggle('hidden', !data.paused);
+        $('icon-pause').classList.toggle('hidden', !!data.paused);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+{
+  "name": "lumora",
+  "productName": "Lumora",
+  "version": "0.1.0",
+  "description": "A GPU-accelerated, keyboard-driven media player built on mpv (system/GPU decode) with an Electron + WebGL2 UI",
+  "main": "src/main/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "prepare": "node tools/install-hooks.js",
+    "test:cov": "c8 --reporter=text --reporter=lcov node --test \"test/unit/*.test.js\"",
+    "test:cov:report": "c8 --all --include='src/**/*.js' --reporter=html --reporter=text node --test \"test/unit/*.test.js\"",
+    "test": "npm run lint:syntax && npm run test:unit && npm run test:opt && npm run typecheck && npm run test:smoke",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
+    "test:opt": "node tools/opt-tests.js",
+    "test:smoke": "node tools/run-smoke.js testmedia/sdr-1080p.mp4",
+    "test:gui": "node tools/run-gui-test.js",
+    "test:gui:manual": "node tools/gui-test.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint:syntax": "node tools/check-syntax.js",
+    "lint:imports": "node tools/audit-imports.js",
+    "gen-testmedia": "node tools/gen-testmedia.js",
+    "fetch-deps": "node tools/fetch-ffmpeg.js",
+    "dist": "electron-builder --publish=never",
+    "release": "electron-builder --publish=always"
+  },
+  "keywords": [
+    "player",
+    "ffmpeg",
+    "webgl"
+  ],
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "c8": "^10.1.2",
+    "electron": "^33.4.11",
+    "electron-builder": "^24.13.3",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "electron-updater": "^6.3.0",
+    "iconv-lite": "^0.6.3",
+    "multicast-dns": "^7.2.5",
+    "node-unrar-js": "^2.0.2",
+    "opencc-js": "^1.4.1",
+    "ws": "^8.18.0",
+    "yauzl": "^3.4.0"
+  },
+  "build": {
+    "appId": "com.lumora.player",
+    "productName": "Lumora",
+    "icon": "build/icons/media.ico",
+    "files": [
+      "src/**/*",
+      "config/**/*",
+      "bin/**/*",
+      "scripts/**/*",
+      "node_modules/**/*"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "mp4",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "mkv",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "webm",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "avi",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "mov",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "flv",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "ts",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "m2ts",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "wmv",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "mpg",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "mpeg",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "m4v",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "3gp",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "ogv",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "mp3",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "flac",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "aac",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "wav",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "ogg",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "opus",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "m4a",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      },
+      {
+        "ext": "wma",
+        "name": "Lumora 媒体文件",
+        "role": "Viewer",
+        "icon": "build/icons/media.ico"
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github"
+      }
+    ]
+  }
+}

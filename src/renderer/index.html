@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src ws://127.0.0.1:* http://127.0.0.1:*; worker-src 'self' blob:;">
+<title>Lumora</title>
+<link rel="stylesheet" href="style.css?v=58">
+</head>
+<body>
+
+<!-- ffmpeg 解码管线：视频由渲染端 WebGL2 直接绘制到此画布（仅 engine=ffmpeg 时显示）。
+     mpv 后端不需要它 —— mpv 通过 --wid 直接渲染到 videoWin 的 HWND，画面从透明 UI 层底下透上来。 -->
+<canvas id="video-canvas"></canvas>
+
+<!-- ffmpeg 引擎的字幕覆盖层：文本字幕由渲染端按媒体时间写入此层。
+     mpv 引擎自己渲染字幕，此层保持隐藏（仅 engine-ffmpeg 且非空时显示）。 -->
+<div id="subtitle-overlay"></div>
+<!-- 第二字幕层（双字幕）：与主字幕同构，靠底部抬高一截区分。 -->
+<div id="subtitle-overlay-2"></div>
+
+<!-- 弹幕层：全窗口 Canvas2D，按媒体时间渲染滚动/顶部/底部弹幕。
+     始终铺底于字幕与 UI 之下（z-index:5），仅在用户开启弹幕后绘制。 -->
+<canvas id="danmaku-canvas"></canvas>
+
+<!-- 视频模式空态背景层：进入视频模式但尚未加载文件时铺满窗口显示不透明深色，
+     避免底层 videoWin（mpv 透出层）透明而露出桌面。加载视频后立即隐藏，
+     让 videoWin / ffmpeg 画布的视频透出。始终 pointer-events:none，不拦截交互。 -->
+<div id="video-idle-bg" aria-hidden="true"></div>
+
+<!-- 音乐播放舞台：纯音频播放时的沉浸式「音乐播放器」界面（替代黑画面）。
+     仅 body.audio-mode 时可见。舞台本身 pointer-events:none，但底部 #music-controls
+     重新开启 pointer-events:auto，作为音频模式专属控制条（替代视频 OSC）。
+     控制条内的 [data-cmd] 按钮由 osc.js 的 _bindButtons() 自动绑定，复用同一套播放逻辑。 -->
+<div id="music-stage" class="hidden" aria-hidden="true">
+  <div class="ms-backdrop"></div>
+  <!-- 氛围光层：在模糊封面之上叠加缓慢漂移的彩色光斑，打破纯色背景的「太干净」感 -->
+  <div class="ms-ambient" aria-hidden="true"></div>
+  <div class="ms-content">
+    <!-- 静态辉光层：巨幅彩胶盘的金色投影，独立于旋转盘体，避免每帧重绘（见 .ms-art-glow） -->
+    <div class="ms-art-glow" aria-hidden="true"></div>
+    <!-- 左栏：方形圆角封面 / 黑胶唱机底座（vinyl 样式下为实体唱机，其它样式下为普通封面） -->
+    <div class="ms-art" id="m-art">
+      <!-- 纯 CSS/SVG 唱机底座：参考 QQ Music 白色圆角方形 + 凹陷银色转盘 -->
+      <div class="ms-turntable-base" aria-hidden="true">
+        <div class="ms-platter" aria-hidden="true">
+          <div class="ms-vinyl" aria-hidden="true"></div>
+        </div>
+        <!-- 唱臂：支点在底座右上角，唱头落在唱片上边缘 -->
+        <div class="ms-tonearm" aria-hidden="true"></div>
+      </div>
+      <!-- 专辑封面：独立于唱机底座，避免非黑胶样式下被 display:none 底座吞掉 -->
+      <div class="ms-cover"></div>
+    </div>
+    <!-- 真实 FFT 频谱：叠在封面底部，随播放实时跳动（vinyl 样式下隐藏，保持唱机界面清爽） -->
+    <canvas id="m-spectrum" class="ms-spectrum" aria-hidden="true"></canvas>
+    <!-- 右栏：曲目信息（上）+ credits + 歌词（下，与封面同屏常显、左对齐、原文+翻译） -->
+    <div class="ms-right">
+      <div class="ms-meta">
+        <div class="ms-title"></div>
+        <div class="ms-artist empty"></div>
+        <div class="ms-album empty"></div>
+      </div>
+      <!-- credits 块：词/曲/编曲/制作人/和声/混音，独立于滚动歌词区；
+           随第一行歌词激活后平滑淡出折叠，避免歌词滚动时上下间距跳动。 -->
+      <div class="ms-lyrics-credits" id="m-lyrics-credits" hidden></div>
+      <!-- 歌词视图（Apple Music 风格逐字高亮；与封面同屏常显，不再需要按钮展开） -->
+      <div class="ms-lyrics-wrap" id="m-lyrics-wrap">
+        <div class="ms-lyrics" id="m-lyrics"></div>
+        <div class="ms-lyrics-bar" aria-label="歌词时间偏移">
+          <button class="mlo-btn" data-offset="-5" title="歌词提前 5 秒" aria-label="歌词提前 5 秒">-5s</button>
+          <button class="mlo-btn" data-offset="-0.5" title="歌词提前 0.5 秒" aria-label="歌词提前 0.5 秒">-0.5s</button>
+          <span class="mlo-value" id="m-lyrics-offset" title="当前歌词时间偏移（正数=延后）">0.0s</span>
+          <button class="mlo-btn" data-offset="0.5" title="歌词延后 0.5 秒" aria-label="歌词延后 0.5 秒">+0.5s</button>
+          <button class="mlo-btn" data-offset="5" title="歌词延后 5 秒" aria-label="歌词延后 5 秒">+5s</button>
+          <button class="mlo-btn" id="m-btn-lyric-autosync" title="自动校准歌词偏移（ffmpeg 检测音频起音，与歌词首行对齐）" aria-label="自动校准歌词偏移">自动</button>
+          <span class="mlo-sep"></span>
+          <button class="mlo-btn mlo-toggle" id="m-btn-translate" title="显示/隐藏翻译（外语歌词译为中文，默认开启）" aria-label="显示歌词翻译" aria-pressed="true">译</button>
+        </div>
+        <!-- 滚动歌词 scrub 时显示的时间轴轴：垂直居中的毛玻璃药丸，实时显示当前对准的播放时间点 -->
+        <div class="ms-lyrics-axis" id="m-lyrics-axis" aria-hidden="true">
+          <span class="ms-lyrics-axis-time" id="m-lyrics-axis-time">00:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- 简约歌词/歌词优先样式下的底部居中频谱（参考图：歌词下方、控制条上方）。
+       必须放在 #music-stage 之外作为 body 的直接子节点，避免 fixed 定位元素仍被当作
+       grid item 占用 #music-stage 的 auto 行，从而露出 #music-stage 的深色背景形成横条。 -->
+  <div id="m-spectrum-lyrics-wrap" class="ms-spectrum-lyrics-wrap" aria-hidden="true">
+    <canvas id="m-spectrum-lyrics" width="700" height="150" aria-hidden="true"></canvas>
+  </div>
+
+  <!-- 音乐模式专属控制条：替代视频 OSC；全宽底部通栏（参考图风格） -->
+  <div id="music-controls" role="group" aria-label="音乐播放控制">
+    <div class="mc-main-row">
+      <div class="mc-left">
+        <div class="mc-track-actions">
+          <button class="mc-btn" id="m-btn-repeat" data-cmd="repeat-cycle" title="循环模式 (关/列表/单曲)" aria-label="循环模式" aria-pressed="false">
+            <svg id="m-icon-repeat" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+            <svg id="m-icon-repeat-one" class="hidden" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/><text x="12" y="15.5" font-size="10" font-weight="700" text-anchor="middle" fill="currentColor">1</text></svg>
+          </button>
+          <button class="mc-btn" id="m-btn-shuffle" data-cmd="shuffle-toggle" title="随机播放" aria-label="随机播放" aria-pressed="false">
+            <svg viewBox="0 0 24 24"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+          </button>
+          <div class="mc-speed-wrap">
+            <button class="mc-btn mc-btn--text" id="m-btn-speed" title="播放速度" aria-label="播放速度" aria-haspopup="true" aria-expanded="false">1.0×</button>
+            <div class="mc-speed-menu" id="m-speed-menu" role="menu" hidden>
+              <button class="mc-speed-opt" role="menuitem" data-speed="0.5">0.5×</button>
+              <button class="mc-speed-opt" role="menuitem" data-speed="0.75">0.75×</button>
+              <button class="mc-speed-opt" role="menuitem" data-speed="1.0">1.0×</button>
+              <button class="mc-speed-opt" role="menuitem" data-speed="1.25">1.25×</button>
+              <button class="mc-speed-opt" role="menuitem" data-speed="1.5">1.5×</button>
+              <button class="mc-speed-opt" role="menuitem" data-speed="2.0">2.0×</button>
+            </div>
+          </div>
+          <div class="mc-sleep-wrap">
+            <button class="mc-btn" id="m-btn-sleep" title="睡眠定时" aria-label="睡眠定时" aria-haspopup="true" aria-expanded="false">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="mc-sleep-count" id="m-sleep-count" hidden></span>
+            </button>
+            <div class="mc-sleep-menu" id="m-sleep-menu" role="menu" hidden>
+              <button class="mc-sleep-opt" role="menuitem" data-min="15">15 分钟</button>
+              <button class="mc-sleep-opt" role="menuitem" data-min="30">30 分钟</button>
+              <button class="mc-sleep-opt" role="menuitem" data-min="45">45 分钟</button>
+              <button class="mc-sleep-opt" role="menuitem" data-min="60">60 分钟</button>
+              <button class="mc-sleep-opt" role="menuitem" data-min="90">90 分钟</button>
+              <button class="mc-sleep-opt mc-sleep-off" role="menuitem" data-min="0">关闭定时</button>
+            </div>
+          </div>
+        </div>
+        <div class="mc-track-info">
+          <div class="mc-track-title" id="m-track-title"></div>
+          <span class="mc-track-sep" aria-hidden="true">-</span>
+          <div class="mc-track-artist" id="m-track-artist"></div>
+        </div>
+      </div>
+
+      <div class="mc-center">
+        <div class="mc-center-buttons">
+          <button class="mc-btn" id="m-btn-like" title="喜欢" aria-label="喜欢" aria-pressed="false">
+            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </button>
+          <button class="mc-btn" data-cmd="playlist-prev" title="上一首 (←)" aria-label="上一首">
+            <svg viewBox="0 0 24 24"><path d="M7 6v12M19 6l-9 6 9 6z"/></svg>
+          </button>
+          <button class="mc-btn mc-btn--primary" data-cmd="cycle pause" title="播放 / 暂停 (空格)" aria-label="播放或暂停">
+            <svg id="m-icon-play" viewBox="0 0 24 24"><path d="M8 5.5 L19 12 L8 18.5 Z"/></svg>
+            <svg id="m-icon-pause" class="hidden" viewBox="0 0 24 24"><rect x="7" y="5.5" width="3.5" height="13" rx="1"/><rect x="13.5" y="5.5" width="3.5" height="13" rx="1"/></svg>
+          </button>
+          <button class="mc-btn" data-cmd="playlist-next" title="下一首 (→)" aria-label="下一首">
+            <svg viewBox="0 0 24 24"><path d="M17 6v12M5 6l9 6-9 6z"/></svg>
+          </button>
+          <div class="mc-volume-group" id="m-volume-group">
+            <button class="mc-btn" data-cmd="cycle mute" title="静音 (m)" aria-label="静音">
+              <svg id="m-icon-vol" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <svg id="m-icon-mute" class="hidden" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 9.5 L21 14 M21 9.5 L16.5 14" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="mc-volume">
+              <div id="m-volume" role="slider" tabindex="0"
+                   aria-label="音量" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+                <div id="m-volume-fill"></div>
+                <div id="m-volume-handle"></div>
+              </div>
+              <div class="mc-volume-value" id="m-volume-value">70%</div>
+              <div class="mc-volume-speaker" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/></svg>
+              </div>
+            </div>
+          </div>
+        </div><!-- /mc-center-buttons -->
+
+        <div class="mc-progress-row">
+          <div class="mc-time mc-time-current" aria-live="off">
+            <span id="m-time-cur">0:00</span>
+          </div>
+          <div id="m-seek" class="mc-seek-track" role="slider" tabindex="0"
+               aria-label="播放进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="m-seek-buffered"></div>
+            <div id="m-seek-progress"></div>
+            <div id="m-seek-handle"></div>
+            <div id="m-seek-tip" class="mc-seek-tip" role="tooltip" aria-hidden="true"></div>
+          </div>
+          <div class="mc-time mc-time-total" aria-live="off">
+            <span id="m-time-total">0:00</span>
+          </div>
+        </div>
+      </div><!-- /mc-center -->
+
+      <div class="mc-right">
+        <button class="mc-btn mc-btn--quality" id="m-btn-quality" title="音频质量" aria-label="音频质量">
+          <svg class="mq-ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2.6 L20 8 L12 21.4 L4 8 Z" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M4 8 H20 M8.6 8 L12 21.4 M15.4 8 L12 21.4" stroke-width="1" opacity=".45"/>
+          </svg>
+          <span class="mq-label">标准</span>
+        </button>
+        <div class="mc-style-wrap">
+          <button class="mc-btn" id="m-btn-style" title="播放器样式" aria-label="播放器样式" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <!-- 播放器样式/皮肤图标：按 258皮肤&主题.png 像素轮廓重描为 SVG 实心剪影 -->
+              <path d="M12 5.4 C13.8 4.7 15.5 3.2 16.9 3 C18.5 3.5 20.2 4.8 21.8 5.7 C21.2 7.1 20 8.7 18.8 9.5 C18.3 9.8 18 10.4 18 11.5 L17.5 20.8 C17.2 21.3 14.8 21.3 12 21.3 C9.2 21.3 6.8 21.3 6.5 20.8 L6 11.5 C6 10.4 5.7 9.8 5.2 9.5 C4 8.7 2.8 7.1 2.2 5.7 C3.8 4.8 5.5 3.5 7.1 3 C8.5 3.2 10.2 4.7 12 5.4 Z" fill="currentColor"/>
+            </svg>
+          </button>
+          <div class="mc-style-menu" id="m-style-menu" role="menu" hidden>
+            <button class="mc-style-opt" role="menuitem" data-style="vinyl">
+              <span class="mc-style-thumb thumb-vinyl" aria-hidden="true"></span>
+              <span class="mc-style-label">经典黑胶</span>
+              <span class="mc-style-check" aria-hidden="true"></span>
+            </button>
+            <button class="mc-style-opt" role="menuitem" data-style="square">
+              <span class="mc-style-thumb thumb-square" aria-hidden="true"></span>
+              <span class="mc-style-label">简约方形</span>
+              <span class="mc-style-check" aria-hidden="true"></span>
+            </button>
+            <button class="mc-style-opt" role="menuitem" data-style="glass">
+              <span class="mc-style-thumb thumb-glass" aria-hidden="true"></span>
+              <span class="mc-style-label">透明彩胶</span>
+              <span class="mc-style-check" aria-hidden="true"></span>
+            </button>
+            <button class="mc-style-opt" role="menuitem" data-style="lyrics-min">
+              <span class="mc-style-thumb thumb-lyrics-min" aria-hidden="true"></span>
+              <span class="mc-style-label">简约歌词</span>
+              <span class="mc-style-check" aria-hidden="true"></span>
+            </button>
+            <button class="mc-style-opt" role="menuitem" data-style="cover">
+              <span class="mc-style-thumb thumb-cover" aria-hidden="true"></span>
+              <span class="mc-style-label">大封面</span>
+              <span class="mc-style-check" aria-hidden="true"></span>
+            </button>
+            <button class="mc-style-opt" role="menuitem" data-style="lyrics">
+              <span class="mc-style-thumb thumb-lyrics" aria-hidden="true"></span>
+              <span class="mc-style-label">歌词优先</span>
+              <span class="mc-style-check" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <button class="mc-btn" id="m-btn-eq" title="均衡器" aria-label="均衡器" aria-pressed="false">
+          <svg viewBox="0 0 24 24"><rect x="4" y="11" width="3" height="7" rx="1" fill="currentColor"/><rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor"/><rect x="17" y="9" width="3" height="9" rx="1" fill="currentColor"/></svg>
+        </button>
+        <button class="mc-btn" id="m-btn-lyrics" title="桌面歌词 (D)" aria-label="桌面歌词" aria-pressed="false">
+          <span class="mc-lyric-icon" aria-hidden="true">词</span>
+        </button>
+        <button class="mc-btn" id="m-btn-playlist" title="播放列表 (F8)" aria-label="播放列表">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="2" rx="1" fill="currentColor"/><rect x="3" y="11" width="18" height="2" rx="1" fill="currentColor"/><rect x="3" y="17" width="12" height="2" rx="1" fill="currentColor"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 音乐模式顶部拖拽条 + 窗口控制按钮：已提升为 <body> 直接子节点（脱离 #music-stage 的
+     z-index:20 堆叠上下文），使其 z-index:100 落在根堆叠上下文，恒高于所有面板(≤90)，
+     彻底解决「按钮被遮罩盖住、无法交互」的问题。仅在 audio-mode 下可见（见 style.css 门控）。 -->
+<div class="ms-titlebar" id="m-titlebar">
+  <button class="ms-back-btn" id="m-btn-back" title="首页" aria-label="返回首页">
+    <svg viewBox="0 0 12 12"><path d="M7 2 L4 6 L7 10" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="ms-drag-strip"></div>
+  <div class="ms-window-controls">
+    <button class="ms-win-btn" id="m-minimize" title="最小化" aria-label="最小化窗口">
+      <svg viewBox="0 0 12 12"><rect x="2.5" y="5.5" width="7" height="1" fill="currentColor"/></svg>
+    </button>
+    <button class="ms-win-btn" id="m-close" title="关闭 (Alt+F4)" aria-label="关闭窗口">
+      <svg viewBox="0 0 12 12"><path d="M3 3 L9 9 M9 3 L3 9" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+    </button>
+  </div>
+</div>
+
+
+<!-- 无边框窗口的拖动区。播放时半透明浮出，不干扰画面 -->
+<div id="titlebar">
+  <div id="titlebar-text"></div>
+  <div id="titlebar-buttons">
+    <button class="tb-btn" id="tb-settings" title="设置 (F2)">
+      <svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1"/><path d="M6 1.5v1.4M6 9.1v1.4M1.5 6h1.4M9.1 6h1.4M3 3l1 1M8 8l1 1M9 3l-1 1M4 8l-1 1" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+    </button>
+    <button class="tb-btn" id="tb-licenses" title="开源声明 (F1)">
+      <svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="6" cy="4.2" r="0.8" fill="currentColor"/><rect x="5.6" y="5.6" width="0.8" height="3" fill="currentColor"/></svg>
+    </button>
+    <button class="tb-btn" data-window="minimize" title="最小化">
+      <svg viewBox="0 0 12 12"><rect x="2" y="5.5" width="8" height="1"/></svg>
+    </button>
+    <button class="tb-btn" data-window="maximize" title="最大化">
+      <svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+    </button>
+    <button class="tb-btn tb-close" data-window="close" title="关闭">
+      <svg viewBox="0 0 12 12"><path d="M3 3 L9 9 M9 3 L3 9" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- 空状态：还没载入任何东西时的落地页 -->
+<div id="idle-screen">
+
+  <!-- 右上角 hover 才显示的窗口控制按钮：只在 idle 落地页出现 -->
+  <div class="idle-close-zone" id="idle-close-zone">
+    <button class="idle-close-btn" id="idle-minimize" title="最小化" aria-label="最小化窗口">
+      <svg viewBox="0 0 12 12"><path d="M2.5 6 h7" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+    </button>
+    <button class="idle-close-btn" id="idle-close" title="关闭 (Alt+F4)" aria-label="关闭窗口">
+      <svg viewBox="0 0 12 12"><path d="M3 3 L9 9 M9 3 L3 9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <!-- 中央舞台：三栏——左音乐 / 中品牌主操作 / 右视频（细环 + 文字标签侧栏） -->
+  <div class="idle-stage">
+
+    <!-- 科技感发光线条背景（CSS background-image 方式内联 SVG，避免 DOM SVG
+         作为替换元素破坏 Electron 的 -webkit-app-region 拖拽区）。 -->
+    <div class="idle-tech-lines" aria-hidden="true"></div>
+
+    <!-- 左侧：音乐播放器入口（细圆环 + 文字标签） -->
+    <button class="idle-side idle-side--left" id="idle-side-music" type="button" aria-label="音乐播放器">
+      <div class="idle-side-ring">
+        <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
+          <defs>
+            <linearGradient id="lg-music" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#6ee7ff"/>
+              <stop offset="55%" stop-color="#8b7bff"/>
+              <stop offset="100%" stop-color="#ff7ac6"/>
+            </linearGradient>
+          </defs>
+          <path d="M18 34V18l14-4v14" fill="none" stroke="url(#lg-music)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="34" r="3.6" fill="url(#lg-music)"/>
+          <circle cx="30" cy="30" r="3.6" fill="url(#lg-music)"/>
+        </svg>
+      </div>
+      <span class="idle-side-label">点击进入音乐模式</span>
+    </button>
+
+    <!-- 中央玻璃卡片：品牌 + 主操作入口 -->
+    <aside class="idle-card">
+      <div class="idle-card-inner">
+        <section class="idle-hero">
+          <div class="idle-mark">
+            <svg viewBox="0 0 64 64" width="64" height="64">
+              <defs>
+                <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#6ee7ff"/>
+                  <stop offset="55%" stop-color="#8b7bff"/>
+                  <stop offset="100%" stop-color="#ff7ac6"/>
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="32" r="32" fill="url(#lg)"/>
+              <path d="M26 23.5 L43 32 L26 40.5 Z" fill="#fff"/>
+            </svg>
+          </div>
+          <h1 class="idle-title">Lumora</h1>
+          <p class="idle-sub">拖入文件，或<strong>双击</strong>打开</p>
+          <div id="idle-warning"></div>
+          <div class="idle-actions">
+            <button class="idle-action idle-action--primary" id="idle-open" type="button" aria-label="打开文件">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 6h6l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+              <span>打开文件</span>
+            </button>
+            <button class="idle-action" id="idle-stream" type="button" aria-label="打开网络串流">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M3 12a9 9 0 0 1 14-7.3M21 12a9 9 0 0 1-14 7.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 4.7V9h-4.3M7 19.3V15h4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>网络串流</span>
+            </button>
+            <button class="idle-action" id="idle-settings" type="button" aria-label="设置">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <span>设置</span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- 快捷键提示：默认隐藏，按 ? 展开（折叠在卡片底部） -->
+      <div class="aside-shorts">
+        <div class="aside-divider"></div>
+        <div class="idle-hints" aria-label="快捷键提示">
+          <div class="hint-row"><span class="hint-keys"><kbd>空格</kbd></span><span>播放 / 暂停</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>←</kbd><kbd>→</kbd></span><span>跳转 5 秒</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>,</kbd><kbd>.</kbd></span><span>逐帧</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>I</kbd></span><span>统计面板</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>F</kbd></span><span>全屏</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>?</kbd></span><span>切换快捷键</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧：视频播放器入口（细圆环 + 文字标签） -->
+    <button class="idle-side idle-side--right" id="idle-side-video" type="button" aria-label="视频播放器">
+      <div class="idle-side-ring">
+        <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
+          <defs>
+            <linearGradient id="lg-video" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#6ee7ff"/>
+              <stop offset="55%" stop-color="#8b7bff"/>
+              <stop offset="100%" stop-color="#ff7ac6"/>
+            </linearGradient>
+          </defs>
+          <rect x="9" y="13" width="30" height="22" rx="5" fill="none" stroke="url(#lg-video)" stroke-width="2.6"/>
+          <path d="M20 19l10 6-10 6z" fill="url(#lg-video)"/>
+        </svg>
+      </div>
+      <span class="idle-side-label">点击进入视频模式</span>
+    </button>
+
+  </div>
+  <!-- /.idle-stage -->
+
+  <!-- 右侧主区：继续观看 + 媒体库 / 海报墙 -->
+  <main class="idle-main">
+    <!-- 继续观看卡片：idle 且有上次未看完的媒体时出现，置顶在媒体库上方 -->
+    <div id="resume-card" class="hidden">
+      <div class="resume-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+      </div>
+      <div class="resume-text">
+        <div class="resume-label">继续观看</div>
+        <div class="resume-title"></div>
+        <div class="resume-meta"></div>
+      </div>
+      <button id="resume-play" class="resume-play">从此处继续</button>
+    </div>
+
+    <section id="library" class="library hidden" aria-label="媒体库">
+      <div class="library-head">
+        <span class="library-title">媒体库</span>
+        <div class="library-tabs" role="tablist" aria-label="媒体类型筛选">
+          <button class="lib-tab active" data-filter="all" role="tab" aria-selected="true" type="button">全部</button>
+          <button class="lib-tab" data-filter="video" role="tab" aria-selected="false" type="button">视频</button>
+          <button class="lib-tab" data-filter="audio" role="tab" aria-selected="false" type="button">音乐</button>
+        </div>
+        <input id="library-search" class="lib-search set-text" type="search" placeholder="搜索…" aria-label="搜索媒体库" autocomplete="off">
+      </div>
+      <div id="library-grid" class="poster-grid"></div>
+      <div id="library-empty" class="library-empty hidden">暂无媒体，拖入文件或双击打开</div>
+    </section>
+  </main>
+</div>
+
+<!-- 载入中 -->
+<div id="loading-screen" class="hidden">
+  <div class="spinner"></div>
+  <div id="loading-text">正在解析媒体…</div>
+</div>
+
+<!-- OSD 消息（左上角瞬时提示） -->
+<div id="osd"></div>
+
+<!-- 视频质量激活徽标：检测到 HDR / Dolby Vision / Dolby Atmos / 4K / 10bit 等时显示 -->
+<div id="quality-badges" class="hidden"></div>
+
+<!-- 大号中央反馈（暂停/播放/跳转时的一闪而过） -->
+<div id="osd-center"></div>
+
+<!-- 鼠标手势浮层（拖拽画面快进/调音量亮度时显示） -->
+<div id="gesture-overlay" class="gesture-overlay hidden">
+  <div class="gesture-glyph"></div>
+  <div class="gesture-text"></div>
+  <div class="gesture-bar"><div class="gesture-bar-fill"></div></div>
+</div>
+
+<!-- 统计面板 (i 键) -->
+<div id="stats-panel" class="hidden"></div>
+
+<!-- 开源声明 / 第三方许可（F1 或 Ctrl+,） -->
+<div id="licenses-panel" class="hidden">
+  <div class="licenses-backdrop"></div>
+  <div class="licenses-window" data-light-surface>
+    <div class="panel-head draggable">
+      <span>开源声明 / 第三方许可</span>
+      <button id="licenses-close" class="ghost-btn">关闭</button>
+    </div>
+    <div id="licenses-body"></div>
+  </div>
+</div>
+
+<!-- 键位速查 (? 键) -->
+<div id="keymap-panel" class="hidden">
+  <div class="keymap-backdrop"></div>
+  <div class="keymap-window">
+    <div class="panel-head draggable">
+      <span>键位速查</span>
+      <button id="keymap-close" class="ghost-btn">关闭</button>
+    </div>
+    <div id="keymap-body"></div>
+  </div>
+</div>
+
+<!-- 设置窗口（F2，亮色主题，独立窗口） -->
+<div id="settings-panel" class="hidden">
+  <div class="settings-backdrop"></div>
+  <div class="settings-window" data-light-surface>
+    <div class="panel-head draggable">
+      <span>设置</span>
+      <button id="settings-close" class="ghost-btn">关闭</button>
+    </div>
+    <div class="settings-body">
+      <nav class="settings-sidebar" id="settings-nav"></nav>
+      <div class="settings-content" id="settings-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- OSC：mpv 风格的浮出控制条 -->
+<div id="osc">
+  <div id="osc-inner">
+
+    <!-- 进度条 -->
+    <div id="seekbar-zone">
+      <div id="seekbar">
+        <div id="seek-buffered"></div>
+        <div id="seek-progress"></div>
+        <div id="seek-ab-range"></div>
+        <div id="seek-handle"></div>
+      </div>
+      <div id="seek-tooltip"><span id="seek-tooltip-time">0:00</span></div>
+      <div id="seek-preview" aria-hidden="true">
+        <div id="seek-preview-img"></div>
+        <div id="seek-preview-loading" aria-hidden="true">
+          <span class="sk-label">生成预览中…</span>
+        </div>
+        <div id="seek-preview-time">0:00</div>
+      </div>
+    </div>
+
+    <!-- 控制行 -->
+    <div id="osc-controls">
+
+      <!-- 左组：播放控制 —— 经典四键：播放/暂停、停止、上一首、下一首 -->
+      <div class="ctl-group">
+        <button class="ctl-btn ctl-primary" data-cmd="cycle pause" title="播放/暂停 (空格)">
+          <svg id="icon-play" viewBox="0 0 24 24"><path d="M8 5.5 L19 12 L8 18.5 Z"/></svg>
+          <svg id="icon-pause" class="hidden" viewBox="0 0 24 24"><rect x="7" y="5.5" width="3.5" height="13" rx="1"/><rect x="13.5" y="5.5" width="3.5" height="13" rx="1"/></svg>
+        </button>
+        <button class="ctl-btn" data-cmd="stop" title="停止 (s)">
+          <svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+        </button>
+        <button class="ctl-btn" data-cmd="playlist-prev" title="上一个 (<)">
+          <svg viewBox="0 0 24 24"><path d="M7 6v12M19 6l-9 6 9 6z"/></svg>
+        </button>
+        <button class="ctl-btn" data-cmd="playlist-next" title="下一个 (>)">
+          <svg viewBox="0 0 24 24"><path d="M17 6v12M5 6l9 6-9 6z"/></svg>
+        </button>
+      </div>
+
+      <span class="ctl-sep ctl-sep--time"></span>
+
+      <!-- 中组：时间显示 -->
+      <div class="ctl-group ctl-time">
+        <span id="time-current">0:00</span>
+        <span class="time-sep">/</span>
+        <span id="time-total">0:00</span>
+        <span id="time-remain"></span>
+      </div>
+
+      <div class="ctl-spacer"></div>
+
+      <!-- 轨道组：视频轨 / 音轨 / 字幕轨 三个独立按钮，各自面板可加外置轨 -->
+      <div class="ctl-group">
+        <button class="ctl-btn" id="btn-video-track" title="视频轨">
+          <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 9.2 L15 12 L10 14.8 Z" fill="currentColor"/></svg>
+        </button>
+        <button class="ctl-btn" id="btn-audio-track" title="音轨">
+          <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 9.5a3.5 3.5 0 0 1 0 5M18.6 7a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <button class="ctl-btn" id="btn-subtitle" title="字幕轨 (v)">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 11 H12 M7 15 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <span class="ctl-sep ctl-sep--danmaku"></span>
+
+      <!-- 弹幕 -->
+      <div class="ctl-group">
+        <button class="ctl-btn" id="btn-danmaku" title="弹幕">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 9 H11 M7 12 H14 M15 9 H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <span class="ctl-sep"></span>
+
+      <div class="ctl-group">
+        <button class="ctl-btn ctl-text" id="btn-speed" title="播放速度">1.00×</button>
+
+        <div class="ctl-volume">
+          <button class="ctl-btn" data-cmd="cycle mute" title="静音 (m)">
+            <svg id="icon-vol" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="vol-wave1" d="M16 9.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path id="vol-wave2" d="M18.5 7a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <svg id="icon-mute" class="hidden" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 9.5 L21 14 M21 9.5 L16.5 14" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+          </button>
+          <div id="volume-track"><div id="volume-fill"></div><div id="volume-handle"></div></div>
+        </div>
+
+        <button class="ctl-btn" id="btn-pip" title="画中画 (T)">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="11" width="6" height="5" rx="1" fill="currentColor" opacity=".7"/></svg>
+        </button>
+
+        <button class="ctl-btn" id="btn-settings" title="渲染设置">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+
+        <button class="ctl-btn" id="btn-playlist" title="播放列表 (F8)">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="2" rx="1" fill="currentColor"/><rect x="3" y="11" width="18" height="2" rx="1" fill="currentColor"/><rect x="3" y="17" width="12" height="2" rx="1" fill="currentColor"/></svg>
+        </button>
+
+        <button class="ctl-btn" id="btn-home" title="返回主界面（回到 logo）">
+          <svg viewBox="0 0 24 24"><path d="M4 11 L12 4 L20 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10 V19 H18 V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+        <button class="ctl-btn" data-cmd="cycle fullscreen" title="全屏 (f)">
+          <svg id="icon-fs" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          <svg id="icon-fs-exit" class="hidden" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 右侧悬浮竖条：AI 助手 / 截图 / 连拍截图（独立于底栏，沿右边缘竖排） -->
+<div id="side-rail">
+  <button class="rail-btn" id="btn-ai" title="AI 助手">
+    <svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" fill="currentColor"/><path d="M18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z" fill="currentColor" opacity=".7"/></svg>
+  </button>
+  <button class="rail-btn" id="btn-screenshot" title="截图 (S)">
+    <svg viewBox="0 0 24 24"><path d="M5 7 H8 L10 4 H14 L16 7 H19 a1 1 0 0 1 1 1 V18 a1 1 0 0 1 -1 1 H5 a1 1 0 0 1 -1 -1 V8 a1 1 0 0 1 1 -1 Z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+  </button>
+  <button class="rail-btn" id="btn-screenshot-seq" title="连拍截图 (Alt+S)">
+    <svg viewBox="0 0 24 24"><rect x="3.5" y="7" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9.5" y="11" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
+</div>
+
+<!-- 字幕选择弹层 -->
+<div id="subtitle-menu" class="popover hidden"></div>
+<!-- AI 助手聊天面板 -->
+<div id="ai-panel" class="hidden">
+  <div class="ai-head">
+    <span class="ai-title">AI 助手</span>
+    <div class="ai-head-actions">
+      <button id="ai-reset" class="ghost-btn" title="清空对话">清空</button>
+      <button id="ai-close" class="ghost-btn" title="关闭">关闭</button>
+    </div>
+  </div>
+  <div id="ai-messages" class="ai-messages"></div>
+  <div id="ai-thinking" class="ai-thinking hidden">思考中…</div>
+  <div class="ai-input-row">
+    <input id="ai-input" class="ai-input" type="text" placeholder="说点什么，比如：加载字幕 / 加载弹幕 / 帮我调试" />
+    <button id="ai-send" class="ai-send">发送</button>
+  </div>
+</div>
+<!-- 在线字幕搜索窗口 -->
+<div id="subsearch-panel" class="hidden">
+  <div class="subsearch-backdrop"></div>
+  <div class="subsearch-window">
+    <div class="panel-head draggable">
+      <span>在线字幕（OpenSubtitles / 射手网 / 字幕库 / SubHD）</span>
+      <button id="subsearch-close" class="ghost-btn">关闭</button>
+    </div>
+    <div class="subsearch-body">
+      <div class="subsearch-toolbar">
+        <input id="subsearch-input" type="text" class="subsearch-input" placeholder="输入片名或文件名，如 Oppenheimer 2023" autocomplete="off">
+        <button id="subsearch-go" class="subsearch-btn">搜索</button>
+        <button id="subsearch-auto" class="subsearch-btn ghost">自动匹配当前视频</button>
+      </div>
+      <div id="subsearch-status" class="subsearch-status"></div>
+      <div id="subsearch-results" class="subsearch-results"></div>
+    </div>
+  </div>
+</div>
+<!-- 弹幕搜索/匹配窗口 -->
+<div id="danmaku-panel" class="hidden">
+  <div class="danmaku-backdrop"></div>
+  <div class="danmaku-window">
+    <div class="panel-head draggable">
+      <span>弹幕（弹弹play / B 站 / 聚合代理·含爱奇艺·优酷·腾讯）</span>
+      <button id="danmaku-close" class="ghost-btn">关闭</button>
+    </div>
+    <div class="danmaku-body">
+      <div class="danmaku-toolbar">
+        <input id="danmaku-input" type="text" class="danmaku-input" placeholder="输入番名 / 关键词，如 葬送的芙莉莲" autocomplete="off">
+        <button id="danmaku-go" class="danmaku-btn">搜索</button>
+        <button id="danmaku-auto" class="danmaku-btn ghost">自动匹配当前视频</button>
+      </div>
+      <div id="danmaku-status" class="danmaku-status"></div>
+      <div id="danmaku-results" class="danmaku-results"></div>
+      <div class="danmaku-display-row">
+        <span class="ddr-label">显示</span>
+        <label class="ddr-check"><input type="checkbox" id="danmaku-enable" checked> 开启弹幕</label>
+        <label class="ddr-slider">不透明度 <input type="range" id="danmaku-opacity" min="20" max="100" step="5" value="100"><span id="danmaku-opacity-val">100%</span></label>
+        <label class="ddr-slider">字号 <input type="range" id="danmaku-fontsize" min="16" max="56" step="2" value="28"><span id="danmaku-fontsize-val">28</span></label>
+        <label class="ddr-slider">显示区域 <input type="range" id="danmaku-area" min="25" max="100" step="5" value="100"><span id="danmaku-area-val">100%</span></label>
+        <label class="ddr-slider">速度 <input type="range" id="danmaku-speed" min="50" max="200" step="10" value="100"><span id="danmaku-speed-val">1.0×</span></label>
+        <label class="ddr-slider">最大同屏 <input type="range" id="danmaku-density" min="20" max="400" step="10" value="200"><span id="danmaku-density-val">200</span></label>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- AB 循环状态浮窗 -->
+<div id="ab-status" class="hidden"></div>
+
+<!-- 轨道选择弹层 -->
+<div id="video-track-menu" class="popover hidden"></div>
+<div id="audio-track-menu" class="popover hidden"></div>
+<!-- 渲染设置弹层 -->
+<div id="settings-menu" class="popover hidden"></div>
+<!-- 速度选择弹层 -->
+<div id="speed-menu" class="popover hidden"></div>
+
+<!-- 右键上下文菜单（包含所有播放器功能的快捷入口） -->
+<div id="context-menu" class="popover ctx-menu hidden"></div>
+
+<!-- 播放列表面板 -->
+<div id="playlist-panel" class="hidden">
+  <div class="playlist-backdrop" id="playlist-backdrop"></div>
+  <div class="playlist-window">
+    <div class="playlist-header">
+      <span class="playlist-title">播放列表</span>
+      <span class="playlist-count" id="playlist-count"></span>
+      <button class="playlist-like-filter" id="playlist-like-filter" title="只看我喜欢的" aria-pressed="false" aria-label="只看我喜欢的">♥ 我喜欢的</button>
+      <button class="playlist-close" id="playlist-close" title="关闭">✕</button>
+    </div>
+    <div class="playlist-list" id="playlist-list" title="拖动条目可调整播放顺序"></div>
+  </div>
+</div>
+
+<!-- 音频均衡器(EQ)面板 -->
+<div id="eq-panel" class="hidden">
+  <div class="eq-backdrop"></div>
+  <div class="eq-window">
+    <div class="panel-head draggable">
+      <span>均衡器</span>
+      <button class="playlist-close" id="eq-close" title="关闭">✕</button>
+    </div>
+    <div class="eq-body">
+      <div class="eq-top">
+        <label class="eq-enable-wrap">
+          <button class="set-toggle" id="eq-enable" aria-pressed="false"></button>
+          <span>启用均衡器</span>
+        </label>
+        <select class="eq-preset" id="eq-preset" aria-label="EQ 预设"></select>
+        <button class="eq-flat-btn" id="eq-flat" title="重置为平直">平直</button>
+      </div>
+      <div class="eq-sliders" id="eq-sliders" role="group" aria-label="10 段均衡器"></div>
+      <p class="eq-hint">10 段图示均衡（-12 ~ +12 dB）。选预设一键套用，拖动滑块进入「自定义」。</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- 章节 & 书签面板 -->
+<!-- 投屏面板（DLNA cast-out，v1） —— 可拖拽的浮动窗口 -->
+<div id="cast-panel" class="hidden">
+  <div class="cast-backdrop" id="cast-backdrop"></div>
+  <div class="cast-window" id="cast-window">
+    <div class="panel-head draggable">
+      <span>投屏到设备</span>
+      <button class="playlist-close" id="cast-close" title="关闭">✕</button>
+    </div>
+    <div class="cast-body">
+      <div class="cast-status" id="cast-status">正在搜索局域网设备…</div>
+      <div class="cast-scroller" id="cast-list"></div>
+      <div id="cast-controls"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 打开网络串流（URL 播放） -->
+<div id="network-stream-dialog" class="hidden">
+  <div class="ns-backdrop"></div>
+  <div class="ns-window">
+    <div class="panel-head draggable">
+      <span>打开网络串流</span>
+      <button id="ns-close" class="ghost-btn" type="button">关闭</button>
+    </div>
+    <div class="ns-body">
+      <label class="ns-label" for="ns-input">媒体地址</label>
+      <input id="ns-input" class="ns-input" type="url" spellcheck="false" autocomplete="off"
+             placeholder="https://example.com/video.m3u8  或 rtmp:// / rtsp:// / ftp:// …">
+      <div id="ns-error" class="ns-error hidden"></div>
+      <p class="ns-hint">支持 http(s) / rtmp / rtsp / ftp / mms 等可直接播放的网络地址。</p>
+    </div>
+    <div class="ns-foot">
+      <button id="ns-cancel" class="ghost-btn" type="button">取消</button>
+      <button id="ns-ok" class="primary-btn" type="button">播放</button>
+    </div>
+  </div>
+</div>
+
+<!-- 拖放文件提示遮罩：拖入文件/文件夹时显示，释放后隐藏 -->
+<div id="drag-overlay" class="hidden">
+  <div class="drag-overlay-icon">
+    <svg viewBox="0 0 24 24" width="48" height="48" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
+  </div>
+  <div class="drag-overlay-text">释放以播放</div>
+  <div class="drag-overlay-hint">支持音视频文件 / 文件夹</div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
