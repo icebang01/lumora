@@ -5088,7 +5088,7 @@ body.music-style-vinyl #music-controls .mc-btn--text { color: rgba(15, 25, 35, .
 #music-stage.style-lyrics-min .ms-art {
   width: min(220px, 32vh, 48vw);
   height: min(220px, 32vh, 48vw);
-  border-radius: 18px;
+  border-radius: 32px;
   box-shadow: 0 28px 70px rgba(0,0,0,.45), 0 0 80px -16px var(--album-accent);
 }
 #music-stage.style-lyrics-min .ms-ambient { opacity: 0 !important; }
