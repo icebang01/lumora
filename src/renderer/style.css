@@ -2693,6 +2693,77 @@ body.playlist-open #side-rail {
 .pl-like:hover { color: #ff7aa6; transform: scale(1.12); }
 .playlist-item.liked:not(.active) { background: rgba(255, 93, 143, .05); }
 
+/* 播放列表背景适配播放样式：黑胶 / 玻璃为浅色样式，侧栏切换为浅色毛玻璃主题。
+   限定在 audio-mode，避免视频模式下残留的 music-style-* 误触发浅色主题。 */
+body.audio-mode.music-style-vinyl #playlist-panel .playlist-backdrop,
+body.audio-mode.music-style-glass #playlist-panel .playlist-backdrop {
+  background: rgba(255, 255, 255, .16);
+}
+body.audio-mode.music-style-vinyl .playlist-window,
+body.audio-mode.music-style-glass .playlist-window {
+  background: rgba(255, 255, 255, .84);
+  border-left: 1px solid rgba(0, 0, 0, .10);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, .18);
+}
+body.audio-mode.music-style-vinyl .playlist-header,
+body.audio-mode.music-style-glass .playlist-header {
+  border-bottom: 1px solid rgba(0, 0, 0, .08);
+}
+body.audio-mode.music-style-vinyl .playlist-title,
+body.audio-mode.music-style-glass .playlist-title { color: #1a1b25; }
+body.audio-mode.music-style-vinyl .playlist-count,
+body.audio-mode.music-style-glass .playlist-count { color: rgba(26, 27, 37, .55); }
+body.audio-mode.music-style-vinyl .playlist-close,
+body.audio-mode.music-style-glass .playlist-close { background: rgba(0, 0, 0, .05); color: rgba(26, 27, 37, .7); }
+body.audio-mode.music-style-vinyl .playlist-close:hover,
+body.audio-mode.music-style-glass .playlist-close:hover { background: #e5484d; color: #fff; }
+body.audio-mode.music-style-vinyl .playlist-like-filter,
+body.audio-mode.music-style-glass .playlist-like-filter { background: rgba(0, 0, 0, .05); color: rgba(26, 27, 37, .55); }
+body.audio-mode.music-style-vinyl .playlist-like-filter:hover,
+body.audio-mode.music-style-glass .playlist-like-filter:hover { background: rgba(0, 0, 0, .1); color: rgba(26, 27, 37, .8); }
+body.audio-mode.music-style-vinyl .playlist-like-filter.active,
+body.audio-mode.music-style-glass .playlist-like-filter.active { background: rgba(255, 93, 143, .16); color: #d6427a; }
+body.audio-mode.music-style-vinyl .playlist-add-music,
+body.audio-mode.music-style-glass .playlist-add-music { background: rgba(124, 140, 255, .16); color: #5a5fd8; }
+body.audio-mode.music-style-vinyl .playlist-add-music:hover,
+body.audio-mode.music-style-glass .playlist-add-music:hover { background: rgba(124, 140, 255, .26); color: #4a50c8; }
+body.audio-mode.music-style-vinyl .playlist-item,
+body.audio-mode.music-style-glass .playlist-item { color: rgba(26, 27, 37, .78); }
+body.audio-mode.music-style-vinyl .playlist-item:hover,
+body.audio-mode.music-style-glass .playlist-item:hover { background: rgba(0, 0, 0, .05); }
+body.audio-mode.music-style-vinyl .playlist-item.active,
+body.audio-mode.music-style-glass .playlist-item.active {
+  background: linear-gradient(90deg, rgba(124, 140, 255, .20), rgba(124, 140, 255, .05));
+  color: #1a1b25;
+  box-shadow: inset 2px 0 0 #8b7bff;
+}
+body.audio-mode.music-style-vinyl .pl-index,
+body.audio-mode.music-style-glass .pl-index { color: rgba(26, 27, 37, .45); }
+body.audio-mode.music-style-vinyl .playlist-item.active .pl-index,
+body.audio-mode.music-style-glass .playlist-item.active .pl-index { color: #6a5fd8; }
+body.audio-mode.music-style-vinyl .pl-del,
+body.audio-mode.music-style-glass .pl-del { color: rgba(26, 27, 37, .45); }
+body.audio-mode.music-style-vinyl .pl-del:hover,
+body.audio-mode.music-style-glass .pl-del:hover { background: rgba(229, 72, 77, .14); color: #e5484d; }
+body.audio-mode.music-style-vinyl .pl-like,
+body.audio-mode.music-style-glass .pl-like { color: rgba(26, 27, 37, .45); }
+body.audio-mode.music-style-vinyl .pl-like.liked,
+body.audio-mode.music-style-glass .pl-like.liked { color: #d6427a; }
+body.audio-mode.music-style-vinyl .pl-like:hover,
+body.audio-mode.music-style-glass .pl-like:hover { color: #e5484d; }
+body.audio-mode.music-style-vinyl .playlist-item.liked:not(.active),
+body.audio-mode.music-style-glass .playlist-item.liked:not(.active) { background: rgba(255, 93, 143, .06); }
+body.audio-mode.music-style-vinyl .playlist-empty,
+body.audio-mode.music-style-glass .playlist-empty { color: rgba(26, 27, 37, .5); }
+body.audio-mode.music-style-vinyl .playlist-scroll-thumb,
+body.audio-mode.music-style-glass .playlist-scroll-thumb { background: rgba(0, 0, 0, .22); }
+body.audio-mode.music-style-vinyl .playlist-scroll-thumb:hover,
+body.audio-mode.music-style-vinyl .playlist-scroll-thumb:active,
+body.audio-mode.music-style-vinyl .playlist-scroll.dragging .playlist-scroll-thumb,
+body.audio-mode.music-style-glass .playlist-scroll-thumb:hover,
+body.audio-mode.music-style-glass .playlist-scroll-thumb:active,
+body.audio-mode.music-style-glass .playlist-scroll.dragging .playlist-scroll-thumb { background: rgba(0, 0, 0, .4); }
+
 /* 缩略图 + 拖拽排序 */
 .playlist-item { cursor: grab; }
 .playlist-item.dragging { opacity: .45; }
