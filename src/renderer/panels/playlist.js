@@ -326,6 +326,14 @@ function _createItem(p, i, opts) {
   item.appendChild(idx);
   item.appendChild(title);
 
+  // 「正在播放」徽标（仅当前曲目展示）
+  if (i === getPlaylistIndex()) {
+    const npTag = document.createElement('span');
+    npTag.className = 'pl-nowplaying-tag';
+    npTag.textContent = '正在播放';
+    item.appendChild(npTag);
+  }
+
   // 收藏红心徽标（点击切换，经 likes.js 广播统一刷新）
   const likeBtn = document.createElement('button');
   likeBtn.className = 'pl-like';

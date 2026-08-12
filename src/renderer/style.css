@@ -2612,6 +2612,16 @@ body.playlist-open #side-rail {
   color: #f4f5fb;
   box-shadow: inset 2px 0 0 #8b7bff;
 }
+.pl-nowplaying-tag {
+  flex: 0 0 auto;
+  margin-right: 6px;
+  padding: 1px 8px;
+  font-size: 10px; font-weight: 700; letter-spacing: .03em;
+  color: #fff;
+  background: rgba(124,140,255,.55);
+  border-radius: 999px;
+  white-space: nowrap;
+}
 .pl-index {
   flex: 0 0 auto; width: 22px; text-align: center;
   font-size: 11px; color: #6f7488; font-variant-numeric: tabular-nums;
