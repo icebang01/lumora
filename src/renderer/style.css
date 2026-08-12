@@ -5091,11 +5091,10 @@ body.music-style-vinyl #music-controls .mc-btn--text { color: rgba(15, 25, 35, .
   border-radius: 32px;
   box-shadow: 0 28px 70px rgba(0,0,0,.45), 0 0 80px -16px var(--album-accent);
 }
+/* 简约歌词：纯深色背景，不显示专辑/艺人写真大图（仅保留中央大圆角封面 + 歌词） */
+#music-stage.style-lyrics-min { background: linear-gradient(160deg, #23263a 0%, #14151e 100%); }
 #music-stage.style-lyrics-min .ms-ambient { opacity: 0 !important; }
-#music-stage.style-lyrics-min .ms-backdrop {
-  filter: none;                 /* 清晰写真，不做高斯模糊 */
-  transform: scale(1.02);       /* 清晰图片稍微放大，避免边缘露出底色 */
-}
+#music-stage.style-lyrics-min .ms-backdrop { opacity: 0 !important; }
 #music-stage.style-lyrics-min .ms-right {
   width: min(760px, 92vw);
   max-height: min(50vh, 500px);
