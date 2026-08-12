@@ -157,6 +157,10 @@ contextBridge.exposeInMainWorld('lumen', {
   getArtistPhoto: (artist) => ipcRenderer.invoke('app:artist-photo', { artist }),
   getLyrics: (p) => ipcRenderer.invoke('app:lyrics', p),
   downloadLyrics: (p, meta, opts) => ipcRenderer.invoke('app:lyrics-download', { path: p, meta, force: !!(opts && opts.force) }),
+  // 手动搜索歌词候选（不下载），供弹窗改关键词后挑选
+  searchLyrics: (p, meta) => ipcRenderer.invoke('app:lyrics-search', { path: p, meta }),
+  // 保存用户选中的歌词候选到本地并解析
+  saveLyricsCandidate: (p, candidate) => ipcRenderer.invoke('app:lyrics-save', { path: p, candidate }),
   // 歌词自动偏移校准：ffmpeg 检测音频首句起音，返回应施加的偏移（秒）或 null
   lyricAutoOffset: (path, firstLineTime) => ipcRenderer.invoke('app:lyric-auto-offset', { path, firstLineTime }),
   translateLyrics: (lines, to) => ipcRenderer.invoke('app:lyrics-translate', { lines, to }),

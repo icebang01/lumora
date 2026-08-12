@@ -610,6 +610,109 @@ async function buildLyricsCreditsHeader(info, existingCredits) {
 }
 
 /**
+ * 仅搜索歌词候选（不下载/不保存），供手动搜索面板让用户选择。
+ * 返回的候选包含完整的 syncedLyrics / plainLyrics，渲染端选择后可直接保存。
+ * @param {string} mediaPath
+ * @param {{title?:string, artist?:string, album?:string, duration?:number}} meta
+ * @returns {Promise<{ok:true, candidates:Object[]}|{ok:false, error?:string}>}
+ */
+async function searchLyricsCandidates(mediaPath, meta) {
+  if (!mediaPath) return { ok: false, error: 'no path' };
+  const title = String(meta && meta.title || '').trim();
+  const artist = String(meta && meta.artist || '').trim();
+  const album = String(meta && meta.album || '').trim();
+  const duration = Number(meta && meta.duration) || 0;
+  if (!title && !artist) return { ok: false, error: 'no metadata' };
+
+  let results = [];
+  // 1) 精确匹配（get）优先
+  const params = new URLSearchParams();
+  if (title) params.set('track_name', title);
+  if (artist) params.set('artist_name', artist);
+  if (album) params.set('album_name', album);
+  if (duration > 0) params.set('duration', String(Math.round(duration)));
+  try {
+    const exact = await httpGetJson(`https://${LRCLIB_HOST}/api/get?${params.toString()}`);
+    if (exact && exact.id) results.push(exact);
+  } catch { /* ignore */ }
+
+  // 2) 模糊搜索（search）
+  const q = [title, artist, album].filter(Boolean).join(' ');
+  try {
+    const list = await httpGetJson(`https://${LRCLIB_HOST}/api/search?q=${encodeURIComponent(q)}`);
+    if (Array.isArray(list)) {
+      for (const r of list) {
+        if (r && r.id && !results.some((x) => x.id === r.id)) results.push(r);
+      }
+    }
+  } catch { /* ignore */ }
+
+  if (!results.length) return { ok: false, error: 'no lyrics found online' };
+
+  // 按「有同步歌词 + 时长接近」排序，把更可能可用的排在前面
+  if (duration > 0) {
+    results.sort((a, b) => {
+      const aHas = typeof a.syncedLyrics === 'string' && a.syncedLyrics.trim();
+      const bHas = typeof b.syncedLyrics === 'string' && b.syncedLyrics.trim();
+      if (aHas && !bHas) return -1;
+      if (!aHas && bHas) return 1;
+      const ad = Math.abs((Number(a.duration) || 0) - duration);
+      const bd = Math.abs((Number(b.duration) || 0) - duration);
+      return ad - bd;
+    });
+  } else {
+    results.sort((a, b) => {
+      const aHas = typeof a.syncedLyrics === 'string' && a.syncedLyrics.trim();
+      const bHas = typeof b.syncedLyrics === 'string' && b.syncedLyrics.trim();
+      if (aHas && !bHas) return -1;
+      if (!aHas && bHas) return 1;
+      return 0;
+    });
+  }
+
+  const candidates = results.map((r) => ({
+    id: r.id,
+    title: r.name || r.trackName || title || '',
+    artist: r.artistName || artist || '',
+    album: r.albumName || album || '',
+    duration: Number(r.duration) || 0,
+    syncedLyrics: (typeof r.syncedLyrics === 'string' ? r.syncedLyrics : ''),
+    plainLyrics: (typeof r.plainLyrics === 'string' ? r.plainLyrics : ''),
+    hasSync: typeof r.syncedLyrics === 'string' && r.syncedLyrics.trim().length > 0,
+    source: 'lrclib',
+  }));
+  return { ok: true, candidates };
+}
+
+/**
+ * 保存用户选中的候选歌词到本地并解析返回。
+ * @param {string} mediaPath
+ * @param {Object} candidate 来自 searchLyricsCandidates 的候选对象
+ * @param {{simplified?:boolean, includeCredits?:boolean}} [opts]
+ * @returns {Promise<{ok:true, lines:{time:number,text:string}[], source:string}|{ok:false, error?:string}>}
+ */
+async function saveLyricsCandidate(mediaPath, candidate, opts) {
+  if (!mediaPath) return { ok: false, error: 'no path' };
+  if (!candidate || typeof candidate.syncedLyrics !== 'string' || !candidate.syncedLyrics.trim()) {
+    return { ok: false, error: 'no lyrics content' };
+  }
+  const title = String(candidate.title || '').trim();
+  const artist = String(candidate.artist || '').trim();
+  const simplified = !!(opts && opts.simplified);
+  let synced = simplified ? toSimplified(candidate.syncedLyrics) : candidate.syncedLyrics;
+  const baseMeta = parseLrc(synced).meta;
+  if (opts && opts.includeCredits) {
+    const header = await buildLyricsCreditsHeader({ title, artist }, baseMeta.credits).catch(() => '');
+    if (header) synced = header + '\n' + synced;
+  }
+  const { lines, meta: lrcMeta } = parseLrc(synced);
+  if (!lines.length) return { ok: false, error: 'empty lyrics' };
+  if (!lines.some((l) => l.time > 0)) return { ok: false, error: 'no timed lyrics in source' };
+  saveLyricsToDisk(mediaPath, synced);
+  return { ok: true, lines, source: 'lrclib', meta: lrcMeta };
+}
+
+/**
  * @param {string} mediaPath
  * @param {{title?:string, artist?:string, album?:string, duration?:number}} meta
  * @param {{simplified?:boolean}} [opts] 为 true 时把歌词中的繁体中文转为简体（并保存简体到本地）

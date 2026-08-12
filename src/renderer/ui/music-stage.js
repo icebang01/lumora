@@ -21,6 +21,7 @@ import { toggleEqPanel, closeEqPanel } from '../panels/eq.js';
 import { setIdleMode } from '../panels/idle.js';
 import { togglePlaylistPanel } from '../panels/playlist.js';
 import { toggleSettings } from '../panels/settings.js';
+import { openLyricsSearch } from '../panels/lyrics-search.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -88,7 +89,6 @@ let _lyricActiveIdx = -1;
 let _lastLyricTime = 0;     // 最近一次 _syncLyrics 的时间（驱动 credits 块「已读」上色）
 let _currentRawLines = [];  // 当前歌曲原始歌词 lines（未注入 credits），用于异步查询到 credits 后重建
 let _lyricsBound = false;   // _bindLyrics 只绑一次，避免重复监听
-let _lyricDownloading = false; // 手动下载歌词进行中（防重复点击 + 工具栏按钮 loading 态）
 let _lyricsResizeObserver = null; // 监听歌词视图尺寸，动态维持上下空距为可视区一半
 let _lyricOffset = 0;       // 当前歌曲歌词时间偏移（秒），正数=歌词延后
 let _lyricOffsetPath = '';  // 当前偏移对应的媒体路径（用于持久化键）
@@ -1476,8 +1476,8 @@ function _renderLyricsEmpty(message, showDownload) {
   if (showDownload !== false && _canManualDownload()) {
     const btn = document.createElement('button');
     btn.className = 'ms-lyrics-empty-btn';
-    btn.textContent = '下载歌词';
-    btn.addEventListener('click', () => _manualDownloadLyrics());
+    btn.textContent = '搜索歌词';
+    btn.addEventListener('click', () => _openLyricSearchPanel());
     el.appendChild(btn);
   }
   mLyrics.appendChild(el);
@@ -1491,52 +1491,33 @@ function _canManualDownload() {
 }
 
 /** 工具栏「下载」按钮 loading 态（下载中禁用 + 转圈）。 */
-function _setLyricDownloading(on) {
-  if (mBtnLyricDownload) {
-    mBtnLyricDownload.classList.toggle('loading', !!on);
-    mBtnLyricDownload.disabled = !!on;
-  }
-}
-
-/** 手动下载歌词（绕过 music.lyrics-auto-download 开关）。
- *  成功则重建歌词 + 补 credits + 自动校准偏移；失败在空态提示可重试。
- *  切歌竞态：完成渲染前校验仍为同一曲目，避免旧结果覆盖新曲目。 */
-function _manualDownloadLyrics() {
+/** 打开手动搜索歌词弹窗（自动下载失败后，让用户改关键词重新搜）。
+ *  弹窗内用户可改歌名/歌手/专辑/时长并挑选候选，选中后由 onApply 重建歌词。 */
+function _openLyricSearchPanel() {
   const path = _currentLyricPath;
   const info = _currentInfo || {};
   if (!path || !_canManualDownload()) {
     _renderLyricsEmpty('歌词下载不可用');
     return;
   }
-  if (_lyricDownloading) return;
-  _lyricDownloading = true;
-  _setLyricDownloading(true);
-  _renderLyricsEmpty('歌词下载中…', false);
-  Promise.resolve(window.lumen.downloadLyrics(path, {
-    title: info.title,
-    artist: info.artist || info.albumArtist,
-    album: info.album,
-    duration: info.duration,
-  }, { force: true }))
-    .then((r) => {
-      if (path !== _currentLyricPath) return; // 已切歌，丢弃旧结果
-      if (r && r.ok && Array.isArray(r.lines) && r.lines.length) {
-        _buildLyricsWithCredits(r.lines, r.meta, info);
-        if (!_lyricCreditsActive) _queryCredits(info);
-        _maybeAutoCalibrateLyricOffset(path);
-      } else {
-        const why = (r && r.error) ? _lyricErrorHint(r.error) : '';
-        _renderLyricsEmpty(`未找到在线歌词${why}`, true);
-      }
-    })
-    .catch((e) => {
-      if (path !== _currentLyricPath) return;
-      _renderLyricsEmpty(`歌词下载失败${_lyricErrorHint(e && e.message)}, 可重试`, true);
-    })
-    .finally(() => {
-      _lyricDownloading = false;
-      _setLyricDownloading(false);
-    });
+  openLyricsSearch({
+    path,
+    title: info.title || '',
+    artist: info.artist || info.albumArtist || '',
+    album: info.album || '',
+    duration: info.duration || 0,
+    info,
+    onApply: _applySearchedLyrics,
+  });
+}
+
+/** 用户从搜索面板选中某条候选并保存成功后，重建歌词显示。 */
+function _applySearchedLyrics(lines, meta, info) {
+  const path = _currentLyricPath;
+  if (!path || path !== _currentLyricPath) return; // 已切歌，丢弃旧结果
+  _buildLyricsWithCredits(lines, meta, info || _currentInfo || {});
+  if (!_lyricCreditsActive) _queryCredits(info || _currentInfo || {});
+  _maybeAutoCalibrateLyricOffset(path);
 }
 
 /** 把底层错误码转成中文友好提示（窄屏也不至于太空）。 */
@@ -2169,10 +2150,10 @@ function _bindLyrics() {
     e.stopPropagation();
     _toggleTranslation();
   });
-  // 手动下载歌词：随时可触发（覆盖本地 .lrc），失败时空态提供重试入口。
+  // 手动搜索歌词：随时可触发搜索面板（改关键词重新搜），失败/缺词时在空态也提供入口。
   if (mBtnLyricDownload) mBtnLyricDownload.addEventListener('click', (e) => {
     e.stopPropagation();
-    _manualDownloadLyrics();
+    _openLyricSearchPanel();
   });
 }
 

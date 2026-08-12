@@ -16,7 +16,7 @@ const { generateSheet } = require('./ffmpeg/seek-sheet');
 const { probeMedia } = require('./ffmpeg/probe');
 const { extractCoverArt } = require('./ffmpeg/cover-art');
 const { getArtistPhoto } = require('./ffmpeg/artist-photo');
-const { loadLyrics, downloadLyrics, translateLyrics, queryCredits } = require('./ffmpeg/lyrics');
+const { loadLyrics, downloadLyrics, searchLyricsCandidates, saveLyricsCandidate, translateLyrics, queryCredits } = require('./ffmpeg/lyrics');
 const { resolveBinary } = require('./ffmpeg/binaries');
 const { computeLyricAutoOffset } = require('./ffmpeg/lyrics-offset');
 const Subtitles = require('./subtitles');
@@ -265,6 +265,28 @@ function _isLyricsSimplified() {
       return await downloadLyrics(path, meta || {}, {
         simplified: _isLyricsSimplified(),
         musixmatchToken: mxToken || '',
+        includeCredits: includeCredits === undefined ? true : (includeCredits !== false && includeCredits !== 'no' && includeCredits !== 0),
+      });
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
+  // 歌词：手动搜索候选（不下载），供渲染端弹窗让用户改关键词后挑选
+  ipcMain.handle('app:lyrics-search', async (_e, { path, meta } = {}) => {
+    try {
+      return await searchLyricsCandidates(path, meta || {});
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
+  // 歌词：保存用户选中的候选到本地并解析（手动搜索面板「使用」后调用）
+  ipcMain.handle('app:lyrics-save', async (_e, { path, candidate } = {}) => {
+    try {
+      const includeCredits = getConfig().get('music.lyrics-include-credits');
+      return await saveLyricsCandidate(path, candidate || {}, {
+        simplified: _isLyricsSimplified(),
         includeCredits: includeCredits === undefined ? true : (includeCredits !== false && includeCredits !== 'no' && includeCredits !== 0),
       });
     } catch (e) {
