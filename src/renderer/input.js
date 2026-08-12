@@ -414,19 +414,17 @@ export function bindDragDrop() {
     e.preventDefault();
     _dragDepth++;
     document.body.classList.add('drag-over', 'external-dragging');
-    // 拖到播放列表面板「侧栏」时不显示「拖放即播放」遮罩（该面板会用自身「稍后播放」提示替代）；
-    // 拖到面板其余区域（播放窗口上方）仍显示全局遮罩，因为那里会直接播放。
-    const overSidebar = !!(e.target && e.target.closest && e.target.closest('.playlist-window'));
-    if (_dragDepth === 1 && !overSidebar) showOverlay();
+    // 拖到播放列表面板时不显示「拖放即播放」遮罩（该面板会用自身「稍后播放」提示替代）
+    const overPlaylist = !!(e.target && e.target.closest && e.target.closest('#playlist-panel'));
+    if (_dragDepth === 1 && !overPlaylist) showOverlay();
   });
 
   window.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    // 悬停在播放列表面板「侧栏」上方时隐藏全局「拖放即播放」遮罩，避免与「稍后播放」提示冲突；
-    // 悬停在播放窗口区域时保持显示（该区域丢文件会直接播放）。
-    const overSidebar = !!(e.target && e.target.closest && e.target.closest('.playlist-window'));
-    if (overSidebar) hideOverlay();
+    // 悬停在播放列表面板上方时隐藏全局「拖放即播放」遮罩，避免与「稍后播放」提示冲突
+    const overPlaylist = !!(e.target && e.target.closest && e.target.closest('#playlist-panel'));
+    if (overPlaylist) hideOverlay();
     else showOverlay();
   });
 

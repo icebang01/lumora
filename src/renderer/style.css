@@ -2486,9 +2486,14 @@ body.playlist-open #side-rail {
   position: absolute; inset: 0;
   background: rgba(0,0,0,.30);
   animation: fade-in .25s var(--ease) both;
-  /* 播放列表打开时，整个播放窗口区域（backdrop 覆盖区）作为整窗拖动把手，
-     从而「打开播放列表也能移动窗口」；点击（不拖动）仍关闭面板（click 仍触发）。 */
+  -webkit-app-region: no-drag;
+}
+/* 播放列表打开时通过侧栏头部拖动窗口；头部内的按钮保持可点击 */
+.playlist-header {
   -webkit-app-region: drag;
+}
+.playlist-header button {
+  -webkit-app-region: no-drag;
 }
 .playlist-window {
   position: relative;
