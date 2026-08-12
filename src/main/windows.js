@@ -11,6 +11,8 @@
 const { BrowserWindow, screen, shell } = require('electron');
 const path = require('path');
 
+const APP_ICON = path.join(__dirname, '..', '..', 'build', 'icons', 'icon.ico');
+
 let CTX = {};
 function setCtx(ctx) { CTX = ctx || {}; }
 
@@ -54,6 +56,7 @@ function createWindow() {
    */
   const videoWin = new BrowserWindow({
     width, height,
+    icon: APP_ICON,
     frame: false,
     // 透明：圆角裁剪（CSS）外的三角区需透出桌面，故底层 videoWin 也必须透明，
     // 否则圆角处会露出不透明黑方块。mpv 经 --wid 渲染的不透明视频浮于其上，不受影响。
@@ -89,6 +92,7 @@ function createWindow() {
    */
   const win = new BrowserWindow({
     width, height,
+    icon: APP_ICON,
     minWidth: 320, minHeight: 200,
     frame: !!getConfig().get('border'),
     // 始终透明：圆角裁剪（CSS）外的三角区需透出桌面，故 win 必须透明。
