@@ -100,6 +100,7 @@ function _createWindow() {
     height: DL_DEFAULT_HEIGHT,
     minWidth: DL_MIN_WIDTH,
     minHeight: DL_MIN_HEIGHT,
+    icon: path.join(__dirname, '..', '..', 'build', 'icons', 'icon.ico'),
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
