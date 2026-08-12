@@ -27,7 +27,7 @@ import { setupSettingsPanel, setupSettingsPanelUi, toggleSettings, isSettingsVis
 import { setupIdlePanel, setIdleMode, showLoadingScreen, endFirstFrameWait,
   showResumeCard, bindLibrary, bindResumeCard, bindPlaylistPanel, bindHomeButton,
   bindIdleCloseButton, bindIdleActions, clearLoadingState } from './panels/idle.js';
-import { setupPlaylistPanel, renderPlaylist, togglePlaylistPanel, closePlaylistPanel } from './panels/playlist.js';
+import { setupPlaylistPanel, renderPlaylist, togglePlaylistPanel, closePlaylistPanel, showPlaylist } from './panels/playlist.js';
 import { setupEqPanel } from './panels/eq.js';
 import { setupCast, toggleCastPanel, closeCastPanel, isCastVisible } from './panels/cast.js';
 import { createVideoPlayer } from './player/video-player.js';

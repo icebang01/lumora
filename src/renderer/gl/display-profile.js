@@ -95,7 +95,7 @@ function packColMajor(rowMajor) {
  * CIE xy 色度坐标 → XYZ（Y 归一化为 1）。
  * 由 x = X/(X+Y+Z), y = Y/(X+Y+Z) 反推：Y=1 → X=x/y, Z=(1-x-y)/y。
  */
-function xyToXYZ(xy) {
+export function xyToXYZ(xy) {
   const y = xy[1];
   if (Math.abs(y) < 1e-9) return [0, 0, 0];
   return [xy[0] / y, 1, (1 - xy[0] - y) / y];
@@ -105,7 +105,7 @@ function xyToXYZ(xy) {
  * 由一组原色(红/绿/蓝/白 的 xy)构造「线性 RGB → XYZ」矩阵（行主序）。
  * 标准做法：原色本身是 RGB→XYZ 的各列，再按白点解出每通道缩放系数。
  */
-function primToXYZmat(p) {
+export function primToXYZmat(p) {
   const Xr = p.r[0] / p.r[1], Zr = (1 - p.r[0] - p.r[1]) / p.r[1];
   const Xg = p.g[0] / p.g[1], Zg = (1 - p.g[0] - p.g[1]) / p.g[1];
   const Xb = p.b[0] / p.b[1], Zb = (1 - p.b[0] - p.b[1]) / p.b[1];
@@ -171,7 +171,7 @@ function bradford(srcXYZ, dstXYZ) {
 /* ============================ 标准色域表 ============================ */
 
 // 全部为 CIE 1931 xy 色度坐标；白点除特别说明外均为 D65。
-const GAMUTS = {
+export const GAMUTS = {
   // BT.709 / sRGB 共享同一组原色与 D65 白点
   'bt709': {
     r: [0.6400, 0.3300], g: [0.3000, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290],

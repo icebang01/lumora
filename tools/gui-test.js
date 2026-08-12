@@ -161,8 +161,10 @@ async function runGuiTests(MEDIA) {
   check('停止后点播放从头开始', fromStart && s.duration !== '0:00', `time=${s.time}/${s.duration}`);
 
   // 8. 倍速面板:点击倍速按钮 → 面板出现 → 选 2×
+  // 注意:必须用 #btn-speed(OSC 控制条)——音乐控制台的 m-btn-speed(1.0×)
+  // 也在 DOM 里,泛匹配 /\d+\.\d+×/ 会先命中它,点到音乐按钮弹不出 OSC 面板
   await evalJS(`(() => {
-    const b = Array.from(document.querySelectorAll('button')).find((x) => /\\d+\\.\\d+×/.test(x.textContent));
+    const b = document.getElementById('btn-speed');
     if (b) b.click();
     return !!b;
   })()`);
@@ -170,7 +172,7 @@ async function runGuiTests(MEDIA) {
   const speedPanel = await evalJS(`!!Array.from(document.querySelectorAll('*')).find((e) => e.textContent.trim() === '播放速度')`);
   check('倍速面板弹出', speedPanel === true);
   await evalJS(`(() => {
-    const items = Array.from(document.querySelectorAll('div,span,button')).filter((e) => /^\\s*2×\\s*$/.test(e.textContent));
+    const items = Array.from(document.querySelectorAll('#speed-menu div, #speed-menu span, #speed-menu button')).filter((e) => /^\\s*2×\\s*$/.test(e.textContent));
     const it = items[items.length - 1];
     if (it) it.click();
     return !!it;
@@ -178,7 +180,7 @@ async function runGuiTests(MEDIA) {
   await wait(600);
   s = JSON.parse(await evalJS(SNAPSHOT));
   const speedBtn = await evalJS(`(() => {
-    const b = Array.from(document.querySelectorAll('button')).find((x) => /×/.test(x.textContent));
+    const b = document.getElementById('btn-speed');
     return b ? b.textContent.trim() : null;
   })()`);
   check('倍速切换为 2×', (speedBtn || '').startsWith('2'), `speed=${speedBtn}`);

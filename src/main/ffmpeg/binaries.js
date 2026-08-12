@@ -13,16 +13,22 @@ const os = require('os');
 
 const EXE = process.platform === 'win32' ? '.exe' : '';
 
+// 仓库自带 bin/（git-bash 下为 D:/IDEA/videos/bin）：源码运行 / 独立 config-dir
+// 测试实例（冒烟等，空 player.conf 无 mpv-dir/ffmpeg-dir）也能找到 mpv/ffmpeg。
+// 路径相对本文件：src/main/ffmpeg/ → 仓库根。
+const REPO_BIN = path.join(__dirname, '..', '..', '..', 'bin');
+
 const COMMON_DIRS = {
   win32: [
+    REPO_BIN,
     'C:\\ffmpeg\\bin',
     'C:\\Program Files\\ffmpeg\\bin',
     'C:\\ProgramData\\chocolatey\\bin',
     path.join(os.homedir(), 'scoop', 'shims'),
     path.join(os.homedir(), 'scoop', 'apps', 'ffmpeg', 'current', 'bin'),
   ],
-  darwin: ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin'],
-  linux: ['/usr/bin', '/usr/local/bin', '/snap/bin'],
+  darwin: [REPO_BIN, '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin'],
+  linux: [REPO_BIN, '/usr/bin', '/usr/local/bin', '/snap/bin'],
 };
 
 const cache = new Map();

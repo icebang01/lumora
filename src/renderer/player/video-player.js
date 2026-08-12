@@ -7,6 +7,7 @@
  * 用法:
  *   const video = await createVideoPlayer(bootstrapData, ctx);
  *   video.engine          // 视频引擎实例(MpvPlayer/Player/MediaFoundationEngine)
+ *   await video.load(p)   // 加载(自动弹视频遮罩)
  *   video.applyStage()    // 切到视频舞台(has-video)
  *   await video.stop()    // 停止(委托主进程)
  */
@@ -15,7 +16,8 @@ import { MpvPlayer } from '../core/mpv-player.js';
 import { MediaFoundationEngine } from '../core/engine.js';
 import {
   notifyFirstFrame, notifySeeking, setIdleMode, beginFirstFrameWait,
-  markVoReconfig, markVideoFrame, clearLoadingState,
+  markVoReconfig, markVideoFrame, endFirstFrameWait, clearLoadingState,
+  showLoadingScreen,
 } from '../panels/idle.js';
 import { applySubtitleStyle } from '../panels/subtitle-style.js';
 
@@ -344,6 +346,17 @@ export async function createVideoPlayer(bootstrapData, ctx) {
 
   return {
     engine,
+    /** 加载视频：自动弹出加载遮罩（盖住 videoWin 黑底），主进程再做类型守卫 */
+    async load(filePath) {
+      showLoadingScreen('正在解析媒体…');
+      const r = await window.lumen.load(filePath, { source: 'video' });
+      if (!r || !r.ok) {
+        endFirstFrameWait();
+        ctx.osd.message('无法播放', (r && r.error) || '未知错误', { duration: 4000, force: true });
+        setIdleMode(true);
+      }
+      return r;
+    },
     /** 停止视频引擎（主进程 stop 活跃后端） */
     async stop() {
       try { if (window.lumen && window.lumen.stop) await window.lumen.stop('video'); } catch { /* noop */ }

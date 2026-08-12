@@ -12,6 +12,7 @@
  * 用法：
  *   const music = await createMusicPlayer(bootstrapData, ctx);
  *   music.engine          // ffmpeg 音频引擎实例（Player）
+ *   music.load(p)         // 经主进程 ffmpeg 管线载入（source: 'music'）
  *   music.stop()          // 停止 ffmpeg 管线
  *   music.applyStage()    // 进入音频舞台
  */
@@ -48,6 +49,10 @@ export async function createMusicPlayer(bootstrapData, ctx = {}) {
 
   return {
     engine,
+    /** 经主进程 ffmpeg 管线载入（标记 source:'music'，主进程据此走纯音频后端） */
+    async load(filePath) {
+      return window.lumen.load(filePath, { source: 'music' });
+    },
     /** 停止 ffmpeg 管线（主进程按当前活跃后端停对应源） */
     async stop() {
       try { if (window.lumen && window.lumen.stop) await window.lumen.stop('music'); } catch { /* noop */ }
