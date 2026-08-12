@@ -574,6 +574,24 @@ function saveLyricsToDisk(mediaPath, lrcText) {
   }
 }
 
+/** 把无时间戳的纯文本歌词按行转换为近似 LRC，供 saveLyricsCandidate 落盘。
+ * 已知时长则按行数均匀铺满 [0, duration]；未知则按每行 4 秒兜底，
+ * 确保转换后至少有一行 time>0（多行时），播放器可正常加载显示。 */
+function plainLyricsToLrc(text, duration) {
+  const lines = String(text || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (!lines.length) return '';
+  const dur = Number(duration) > 0 ? Number(duration) : lines.length * 4;
+  const step = dur / Math.max(1, lines.length);
+  return lines.map((line, i) => {
+    const t = i * step;
+    const m = Math.floor(t / 60);
+    const s = t % 60;
+    const sec = String(Math.floor(s)).padStart(2, '0');
+    const ms = String(Math.round((s % 1) * 100)).padStart(2, '0');
+    return `[${String(m).padStart(2, '0')}:${sec}.${ms}]${line}`;
+  }).join('\n');
+}
+
 // 下载歌词时写入 LRC 头部的 credits 字段顺序（与 queryCredits 返回键对应）
 const DOWNLOAD_CREDIT_FIELDS = [
   ['lyricist', '词'],
@@ -693,13 +711,24 @@ async function searchLyricsCandidates(mediaPath, meta) {
  */
 async function saveLyricsCandidate(mediaPath, candidate, opts) {
   if (!mediaPath) return { ok: false, error: 'no path' };
-  if (!candidate || typeof candidate.syncedLyrics !== 'string' || !candidate.syncedLyrics.trim()) {
-    return { ok: false, error: 'no lyrics content' };
+  if (!candidate) return { ok: false, error: 'no candidate' };
+
+  // 优先使用已同步歌词；若在线源只有纯文本，则转换为近似 LRC 后保存
+  let raw = typeof candidate.syncedLyrics === 'string' ? candidate.syncedLyrics : '';
+  let sourceKind = 'lrclib';
+  if (!raw.trim()) {
+    const plain = typeof candidate.plainLyrics === 'string' ? candidate.plainLyrics : '';
+    if (plain.trim()) {
+      raw = plainLyricsToLrc(plain, candidate.duration);
+      sourceKind = 'lrclib-plain';
+    }
   }
+  if (!raw.trim()) return { ok: false, error: 'no lyrics content' };
+
   const title = String(candidate.title || '').trim();
   const artist = String(candidate.artist || '').trim();
   const simplified = !!(opts && opts.simplified);
-  let synced = simplified ? toSimplified(candidate.syncedLyrics) : candidate.syncedLyrics;
+  let synced = simplified ? toSimplified(raw) : raw;
   const baseMeta = parseLrc(synced).meta;
   if (opts && opts.includeCredits) {
     const header = await buildLyricsCreditsHeader({ title, artist }, baseMeta.credits).catch(() => '');
@@ -707,9 +736,11 @@ async function saveLyricsCandidate(mediaPath, candidate, opts) {
   }
   const { lines, meta: lrcMeta } = parseLrc(synced);
   if (!lines.length) return { ok: false, error: 'empty lyrics' };
+  // 纯文本转换后的 LRC 首行可能为 00:00.00，但多行时后续行必有 time>0；
+  // 只要有任一行时间有效即视为可播放歌词（credits 行也带 [00:00.00]）。
   if (!lines.some((l) => l.time > 0)) return { ok: false, error: 'no timed lyrics in source' };
   saveLyricsToDisk(mediaPath, synced);
-  return { ok: true, lines, source: 'lrclib', meta: lrcMeta };
+  return { ok: true, lines, source: sourceKind, meta: lrcMeta };
 }
 
 /**

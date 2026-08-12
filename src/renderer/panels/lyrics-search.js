@@ -22,6 +22,7 @@ let visible = false;
 // 当前上下文（跨回调使用）
 let _ctx = { path: '', title: '', artist: '', album: '', duration: 0, info: null, onApply: null };
 let _searching = false;
+let _dragCleanup = null;
 
 function fmtDur(sec) {
   const s = Number(sec) || 0;
@@ -73,6 +74,9 @@ function ensureDom() {
   overlayEl.querySelector('#lsq-search').addEventListener('click', doSearch);
   // 点击遮罩空白处关闭
   overlayEl.addEventListener('mousedown', (e) => { if (e.target === overlayEl) hideLyricsSearch(); });
+  // 拖拽：按住标题栏可移动弹窗
+  const head = overlayEl.querySelector('.lyric-search-head');
+  head.addEventListener('mousedown', startDragCard);
   // ESC 关闭
   overlayEl.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideLyricsSearch(); });
   // 回车触发搜索（在输入框内）
@@ -83,8 +87,63 @@ function ensureDom() {
   document.body.appendChild(overlayEl);
 }
 
+function resetCardPosition() {
+  if (!cardEl) return;
+  cardEl.style.position = '';
+  cardEl.style.left = '';
+  cardEl.style.top = '';
+  cardEl.style.margin = '';
+  cardEl.style.transform = '';
+}
+
+function startDragCard(e) {
+  // 点击关闭按钮时不触发拖拽
+  if (e.target.closest('.lyric-search-close')) return;
+  if (!cardEl) return;
+  const rect = cardEl.getBoundingClientRect();
+  const offsetX = e.clientX - rect.left;
+  const offsetY = e.clientY - rect.top;
+  const prevBodyCursor = document.body.style.cursor;
+  const prevUserSelect = document.body.style.userSelect;
+
+  // 把卡片从 flex 居中切换为 fixed 定位，避免父容器影响
+  cardEl.style.position = 'fixed';
+  cardEl.style.left = `${rect.left}px`;
+  cardEl.style.top = `${rect.top}px`;
+  cardEl.style.margin = '0';
+  cardEl.style.transform = 'scale(1)';
+  document.body.style.cursor = 'grabbing';
+  document.body.style.userSelect = 'none';
+
+  function onMove(ev) {
+    if (!cardEl) return;
+    let nx = ev.clientX - offsetX;
+    let ny = ev.clientY - offsetY;
+    const pad = 20;
+    const maxX = window.innerWidth - pad;
+    const maxY = window.innerHeight - pad;
+    nx = Math.max(pad - rect.width, Math.min(nx, maxX));
+    ny = Math.max(pad - rect.height, Math.min(ny, maxY));
+    cardEl.style.left = `${nx}px`;
+    cardEl.style.top = `${ny}px`;
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.cursor = prevBodyCursor;
+    document.body.style.userSelect = prevUserSelect;
+    _dragCleanup = null;
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+  _dragCleanup = onUp;
+  e.preventDefault();
+}
+
 function showLyricsSearch(opts) {
   ensureDom();
+  if (_dragCleanup) { _dragCleanup(); }
+  resetCardPosition();
   _ctx = Object.assign({ path: '', title: '', artist: '', album: '', duration: 0, info: null, onApply: null }, opts || {});
   titleInput.value = _ctx.title || '';
   artistInput.value = _ctx.artist || '';
@@ -105,6 +164,7 @@ function hideLyricsSearch() {
   if (!visible || !overlayEl) return;
   visible = false;
   overlayEl.classList.remove('show');
+  if (_dragCleanup) { _dragCleanup(); }
 }
 
 function setStatus(text, kind) {

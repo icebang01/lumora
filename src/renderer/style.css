@@ -4447,7 +4447,11 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
   justify-content: space-between;
   padding: 16px 18px 12px;
   border-bottom: 1px solid var(--lsq-divider);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
+.lyric-search-head:active { cursor: grabbing; }
 .lyric-search-title { font-size: 16px; font-weight: 700; color: var(--lsq-text); letter-spacing: .3px; }
 .lyric-search-close {
   width: 30px; height: 30px;
