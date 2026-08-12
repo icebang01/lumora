@@ -132,6 +132,25 @@ let _playerStyle = 'square'; // 当前布局样式（默认简约方形）
 const PLAYER_STYLE_KEY = 'lumora.music.playerStyle';
 const PLAYER_STYLES = ['cover', 'lyrics', 'vinyl', 'square', 'glass', 'lyrics-min'];
 
+// 注入的共享上下文（用于读取 bootstrap 配置）
+let stageCtx = null;
+
+function _applyLyricsFont() {
+  const bd = stageCtx && stageCtx.getBootstrapData ? stageCtx.getBootstrapData() : null;
+  const values = bd && bd.config && bd.config.values;
+  if (!values) return;
+  const root = document.documentElement;
+  const family = values['music.lyrics-font-family'];
+  const weight = values['music.lyrics-font-weight'];
+  const size = values['music.lyrics-font-size'];
+  if (family && typeof family === 'string') root.style.setProperty('--ms-lyric-font-family', family.trim());
+  else root.style.removeProperty('--ms-lyric-font-family');
+  if (weight != null && !Number.isNaN(Number(weight))) root.style.setProperty('--ms-lyric-font-weight', String(Number(weight)));
+  else root.style.removeProperty('--ms-lyric-font-weight');
+  if (size != null && !Number.isNaN(Number(size)) && Number(size) > 0) root.style.setProperty('--ms-lyric-font-size', `${Number(size)}px`);
+  else root.style.removeProperty('--ms-lyric-font-size');
+}
+
 // 艺人写真照（歌词优先等样式用）
 let _artistPhotoUrl = '';     // 当前曲目的艺人写真 data URL
 let _coverDataUrl = '';       // 当前曲目的专辑封面 data URL（用于样式切换时回退）
@@ -196,10 +215,21 @@ function ensureRefs() {
   _setupLyricsResize();
 }
 
-export function initMusicStage(p) {
+export function initMusicStage(p, ctx) {
   player = p || null;
+  stageCtx = ctx || null;
   ensureRefs();
   if (!stage) return;
+
+  // 应用玩家配置的播放器内歌词字体（family/weight）
+  _applyLyricsFont();
+  // 设置变更后实时重载字体
+  document.addEventListener('lumen:settings-changed', (e) => {
+    const key = e.detail && e.detail.key;
+    if (key === 'music.lyrics-font-family' || key === 'music.lyrics-font-weight' || key === 'music.lyrics-font-size') {
+      _applyLyricsFont();
+    }
+  });
 
   // 还原歌词翻译偏好：默认开启（仅显式存 '0' 时关闭），与参考图「原文+翻译同屏」一致
   let _tStored = null;

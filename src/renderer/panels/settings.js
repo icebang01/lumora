@@ -423,6 +423,11 @@ export async function saveSetting(key, value) {
 
   // 对支持运行时生效的属性，立即应用到播放器或界面
   applySettingImmediately(key, value);
+
+  // 广播设置变更，供歌词字体等需要实时响应的模块即时生效
+  try {
+    document.dispatchEvent(new CustomEvent('lumen:settings-changed', { detail: { key, value } }));
+  } catch { /* ignore */ }
 }
 
 /** 设置项中可立即生效的部分。其余项（如启动时全屏、cursor-autohide）需下次启动才生效。 */
@@ -824,6 +829,12 @@ function buildSettings() {
           hint: '开启后，下一首的音频头会与当前曲尾重叠混音（equal-power 斜坡），曲目之间不再有静音缝隙。仅音乐模式（ffmpeg 引擎）支持；视频文件或 mpv 引擎下自动跳过。' },
         { type: 'slider', key: 'music.crossfade-duration', name: '交叉淡入淡出时长',
           hint: '斜坡时长（秒）。越大重叠越长、接缝越柔；过大会吞掉当前曲尾。建议 2~6 秒。', min: 0, max: 12, step: 0.5, fmt: (v) => `${Number(v).toFixed(1)}s` },
+        { type: 'divider' },
+        { type: 'section', name: '播放器内歌词字体' },
+        { type: 'text', key: 'music.lyrics-font-family', name: '字体',
+          hint: '留空使用界面默认字体；填写字体名区分大小写，如 "Microsoft YaHei"、"PingFang SC"，多个字体用逗号分隔。', placeholder: '如 Microsoft YaHei' },
+        { type: 'slider', key: 'music.lyrics-font-weight', name: '字重',
+          hint: '播放器内歌词粗细。100 最细，900 最粗。', min: 100, max: 900, step: 100, fmt: (v) => String(Number(v)) },
         { type: 'password', key: 'music.lyrics-musixmatch-token', name: 'Musixmatch 逐字歌词 Token',
           hint: '填入你自己的 Musixmatch 用户 token 后，歌词将优先下载「逐字」版本（唱到哪个字就哪个字着色）。留空则继续使用 LRCLIB 行级歌词（再由播放器按行跨度均匀估算逐字）。token 明文存于 player.conf，仅在私人机器使用。', placeholder: 'Musixmatch usertoken' },
       ],

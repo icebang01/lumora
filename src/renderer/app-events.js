@@ -12,7 +12,7 @@ import { initMusicStage, enterAudioMode, exitAudioMode } from './ui/music-stage.
 const $ = (id) => document.getElementById(id);
 
 let CTX = {};
-export function setupMainEvents(ctx) { CTX = ctx || {}; initMusicStage(CTX.getMusicEngine ? CTX.getMusicEngine() : player); }
+export function setupMainEvents(ctx) { CTX = ctx || {}; initMusicStage(CTX.getMusicEngine ? CTX.getMusicEngine() : player, CTX); }
 
 // player/osd 全转发代理（方法自动 bind，属性直读）
 const player = new Proxy({}, {

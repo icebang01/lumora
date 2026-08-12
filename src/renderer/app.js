@@ -303,6 +303,7 @@ async function boot() {
     getPlaylistIndex: () => playlistIndex,
     setPlaylistIndex: (v) => { playlistIndex = v; _modeIndexes[_pmode()] = v; },
     getDanmakuRenderer: () => danmakuRenderer,
+    getBootstrapData: () => bootstrapData,
     setPlaylist, persistPlaylist, appendToPlaylist, load, runCommand, warnNoVideoOutput,
   });
   bindMainEvents();

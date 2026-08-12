@@ -53,6 +53,8 @@ const DEFAULTS = {
   'music.lyrics-simplified': true,    // 下载/读取歌词时把繁体中文转为简体（opencc-js）
   'music.lyrics-include-credits': true, // 下载歌词时自动用 MusicBrainz/网易云补全词/曲/编曲等到 LRC 头部，让所有歌都有制作信息
   'music.lyrics-musixmatch-token': '',// Musixmatch 用户 token：填了则优先下载「逐字」歌词（唱到哪个字就哪个字着色）；留空则回退 LRCLIB 行级
+  'music.lyrics-font-family': '',     // 播放器内歌词字体（留空使用界面默认）
+  'music.lyrics-font-weight': 600,    // 播放器内歌词字重（100~900）
   'music.crossfade': false,           // 音乐接歌：真·重叠淡入淡出（下一曲音频头与当前曲尾同时混音）
   'music.crossfade-duration': 4,      // 交叉淡入淡出斜坡时长（秒）0~12
   'osc': true,
@@ -180,7 +182,7 @@ const NUM_KEYS = new Set([
   'audio-delay', 'sub-delay', 'sub-font-size', 'sub-outline-size', 'sub-shadow-size', 'sub-bg-opacity', 'sub-pos',
   'flow-high-seconds', 'flow-low-seconds',
   'screenshot-sequence-count', 'screenshot-sequence-interval',
-  'history-count', 'music.crossfade-duration',
+  'history-count', 'music.crossfade-duration', 'music.lyrics-font-weight',
 ]);
 
 function parseBool(v) {
@@ -490,6 +492,10 @@ music.lyrics-auto-download=yes
 music.lyrics-simplified=yes
 # 下载歌词时自动补全词/曲/编曲/制作人等到 LRC 头部，让所有歌的歌词都带制作信息（而非仅部分源自带）
 music.lyrics-include-credits=yes
+# 播放器内歌词字体（留空使用界面默认；多个字体用逗号分隔，如 "PingFang SC, Microsoft YaHei"）
+music.lyrics-font-family=
+# 播放器内歌词字重（100~900）
+music.lyrics-font-weight=600
 # 音乐接歌：真·重叠淡入淡出（下一曲音频头与当前曲尾同时混音，equal-power 斜坡）
 music.crossfade=no
 # 斜坡时长（秒）0~12；越大重叠越长、接缝越柔，过大会吞掉当前曲尾
