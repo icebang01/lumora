@@ -130,30 +130,10 @@
 [data-theme="light"] .idle-side-label { color: var(--text-3); }
 [data-theme="light"] .idle-side:hover .idle-side-label { color: var(--text-1); }
 [data-theme="light"] .idle-side-ring {
-  background:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,.62) 0%, rgba(255,255,255,.20) 26%, transparent 52%),
-    radial-gradient(circle at 50% 50%, rgba(124,140,255,.10) 0%, rgba(240,242,250,.82) 65%),
-    rgba(244, 246, 252, .88);
-  border-color: rgba(0, 0, 0, .10);
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.80),
-    inset 0 -2px 5px rgba(0,0,0,.12),
-    0 14px 38px rgba(0,0,0,.14),
-    0 0 0 1px rgba(0,0,0,.06);
+  background: rgba(10, 12, 20, .05);
+  border-color: var(--hairline);
 }
-[data-theme="light"] .idle-side:hover .idle-side-ring {
-  background:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,.72) 0%, rgba(255,255,255,.26) 26%, transparent 52%),
-    radial-gradient(circle at 50% 50%, rgba(124,140,255,.14) 0%, rgba(240,242,250,.86) 65%),
-    rgba(250, 251, 255, .92);
-  border-color: rgba(0, 0, 0, .14);
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.90),
-    inset 0 -2px 5px rgba(0,0,0,.12),
-    0 22px 56px rgba(0,0,0,.18),
-    0 0 0 1px rgba(0,0,0,.08),
-    0 0 46px rgba(124, 140, 255, .16);
-}
+[data-theme="light"] .idle-side:hover .idle-side-ring { background: rgba(10, 12, 20, .09); }
 [data-theme="light"] .idle-stage-bg::before,
 [data-theme="light"] .idle-stage-bg::after { background: linear-gradient(to bottom, rgba(0, 0, 0, .04), rgba(0, 0, 0, .14) 45%, rgba(0, 0, 0, .14) 55%, rgba(0, 0, 0, .04)); }
 [data-theme="light"] .idle-close-btn { color: var(--text-2); }
@@ -568,7 +548,7 @@ body.idle-mode.cursor-hidden * { cursor: default !important; }
 /* 旋转光圈动画 */
 @keyframes idle-ring-spin { to { transform: rotate(360deg); } }
 
-/* 圆形入口：立体凸起圆盘（渐变高光 + 多层阴影） */
+/* 细圆环：2px 半透明白描边 + 内圈更细一层，无填充无投影 */
 .idle-side-ring {
   position: relative;
   width: clamp(128px, 15vw, 190px);
@@ -577,16 +557,7 @@ body.idle-mode.cursor-hidden * { cursor: default !important; }
   display: grid;
   place-items: center;
   border: 2px solid rgba(255, 255, 255, .22);
-  background:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,.24) 0%, rgba(255,255,255,.07) 26%, transparent 52%),
-    radial-gradient(circle at 50% 50%, rgba(124,140,255,.13) 0%, rgba(20,22,38,.58) 65%),
-    rgba(24, 26, 44, .52);
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.30),
-    inset 0 -2px 5px rgba(0,0,0,.48),
-    0 14px 38px rgba(0,0,0,.42),
-    0 0 0 1px rgba(255,255,255,.08);
-  transition: border-color .3s var(--ease), box-shadow .3s var(--ease), transform .3s var(--ease), background .3s var(--ease);
+  transition: border-color .3s var(--ease), box-shadow .3s var(--ease);
 }
 .idle-side-ring::before {
   content: '';
@@ -609,9 +580,6 @@ body.idle-mode.cursor-hidden * { cursor: default !important; }
   inset: 7px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, .10);
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.12),
-    inset 0 -1px 3px rgba(0,0,0,.30);
 }
 .idle-side-ring svg { width: 48%; height: 48%; opacity: 1; filter: drop-shadow(0 4px 10px rgba(0,0,0,.25)); }
 .idle-side:hover .idle-side-ring::before { opacity: .9; }
@@ -629,18 +597,8 @@ body.idle-mode.cursor-hidden * { cursor: default !important; }
 }
 
 .idle-side:hover .idle-side-ring {
-  transform: translateY(-4px) scale(1.035);
-  border-color: rgba(255, 255, 255, .46);
-  background:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,.34) 0%, rgba(255,255,255,.12) 26%, transparent 52%),
-    radial-gradient(circle at 50% 50%, rgba(124,140,255,.20) 0%, rgba(24,26,48,.52) 65%),
-    rgba(32, 34, 58, .58);
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.38),
-    inset 0 -2px 5px rgba(0,0,0,.48),
-    0 22px 56px rgba(0,0,0,.52),
-    0 0 0 1px rgba(255,255,255,.12),
-    0 0 58px rgba(124, 140, 255, .24);
+  border-color: rgba(255, 255, 255, .38);
+  box-shadow: 0 0 46px rgba(124, 140, 255, .18);
 }
 .idle-side:hover .idle-side-label { color: #fff; }
 .idle-side--left:hover .idle-side-label { transform: translateX(-3px); }
