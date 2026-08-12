@@ -2186,15 +2186,30 @@ export function enterAudioMode(info) {
   if (_artistPhotoTimeout) { clearTimeout(_artistPhotoTimeout); _artistPhotoTimeout = null; }
   _artistPhotoPending = false;
   _artistPhotoUrl = '';          // 新曲目先清空旧写真
-  _coverDataUrl = '';
-  if (cover) cover.style.backgroundImage = '';
-  if (backdrop) backdrop.style.backgroundImage = '';
-  stage.classList.remove('has-cover');
+  // 保留 _coverDataUrl：返回首页再进入音乐模式时，用它「即时」恢复封面，
+  // 避免先清掉封面再异步拉取期间露出深色兜底背景（#music-stage:not(.has-cover) 的暗渐变）
+  // 与 .ms-cover 的暗色占位，出现"深色底 + 方角封面"的回退观感。
+  if (_coverDataUrl) {
+    applyCover(_coverDataUrl);   // 立即恢复上一首封面（has-cover + 背景图），异步刷新成功后会被覆盖
+  } else {
+    if (cover) cover.style.backgroundImage = '';
+    if (backdrop) backdrop.style.backgroundImage = '';
+    stage.classList.remove('has-cover');
+  }
   try {
     if (window.lumen && window.lumen.getCoverArt) {
       Promise.resolve(window.lumen.getCoverArt(info.path))
         .then((r) => {
-          if (token !== _coverToken || !r || !r.ok || !r.dataUrl) return;
+          if (token !== _coverToken) { _fallbackArtistPhotoBackdrop(); return; }
+          // 新曲目确实无封面：清除旧封面，回落深色兜底（避免上一首封面残留）
+          if (!r || !r.ok || !r.dataUrl) {
+            _coverDataUrl = '';
+            if (cover) cover.style.backgroundImage = '';
+            if (backdrop) backdrop.style.backgroundImage = '';
+            stage.classList.remove('has-cover');
+            _fallbackArtistPhotoBackdrop();
+            return;
+          }
           applyCover(r.dataUrl);
           // 封面到位后补上 MediaSession 专辑图（锁屏/任务栏缩略图）
           _updateMediaSessionMeta(info, r.dataUrl);
@@ -2317,7 +2332,9 @@ export function exitAudioMode() {
   // 退出音频模式：顺手关闭均衡器面板(其按钮仅音频模式可见)
   closeEqPanel();
   _coverToken++; // 作废任何进行中的封面回调
-  _coverDataUrl = '';
+  // 注意：保留 _coverDataUrl，不在退出时清空。返回首页再进入音乐模式时，
+  // enterAudioMode 会用它「即时」恢复上一首封面，避免露出深色兜底背景（见 enterAudioMode）。
+  // 仅在切换到确实无封面的新曲目时，才在 enterAudioMode 的 getCoverArt 回调里清空。
   _artistPhotoUrl = '';
   _artistPhotoPending = false;
   if (_artistPhotoTimeout) { clearTimeout(_artistPhotoTimeout); _artistPhotoTimeout = null; }
