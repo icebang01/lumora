@@ -57,6 +57,7 @@ const INBOUND = [
   'desktop-lyrics:data',
   'desktop-lyrics:state',
   'desktop-lyrics:font',
+  'desktop-lyrics:lock-state',
 ];
 
 contextBridge.exposeInMainWorld('lumen', {
@@ -227,6 +228,7 @@ contextBridge.exposeInMainWorld('lumen', {
   desktopLyricsFontSize: (delta) => ipcRenderer.send('desktop-lyrics:fontsize', { delta }),
   desktopLyricsFontFamily: (family) => ipcRenderer.send('desktop-lyrics:font-family', { family }),
   desktopLyricsFontWeight: (weight) => ipcRenderer.send('desktop-lyrics:font-weight', { weight }),
+  desktopLyricsLock: () => ipcRenderer.send('desktop-lyrics:lock'),
   desktopLyricsClose: () => ipcRenderer.send('desktop-lyrics:close'),
 
   // ---- 事件 ----

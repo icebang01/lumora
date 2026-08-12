@@ -30,6 +30,7 @@ let dlVisible = false;
 let dlFontSize = 30;       // 当前字号（px）
 let dlFontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
 let dlFontWeight = 800;    // 当前字重
+let dlLocked = false;      // 是否锁定（锁定后窗口点击穿透，无法被选中/拖拽）
 let dlBounds = null;       // 记忆位置 { x, y, width, height }
 let settingsPath = '';
 let _saveTimer = null;
@@ -64,6 +65,7 @@ function _loadSettings() {
       if (typeof s.fontSize === 'number') dlFontSize = s.fontSize;
       if (typeof s.fontFamily === 'string' && s.fontFamily.trim()) dlFontFamily = s.fontFamily;
       if (typeof s.fontWeight === 'number') dlFontWeight = s.fontWeight;
+      if (typeof s.locked === 'boolean') dlLocked = s.locked;
       if (s.bounds && typeof s.bounds.x === 'number') dlBounds = s.bounds;
     }
   } catch { /* 损坏配置忽略，用默认 */ }
@@ -79,6 +81,7 @@ function _saveSettings() {
         fontSize: dlFontSize,
         fontFamily: dlFontFamily,
         fontWeight: dlFontWeight,
+        locked: dlLocked,
         bounds: dlBounds || null,
       }));
     } catch { /* 无权限则忽略 */ }
@@ -114,7 +117,7 @@ function _createWindow() {
       backgroundThrottling: false,
     },
   });
-  const q = `?fs=${encodeURIComponent(dlFontSize)}&ff=${encodeURIComponent(dlFontFamily)}&fw=${encodeURIComponent(dlFontWeight)}`;
+  const q = `?fs=${encodeURIComponent(dlFontSize)}&ff=${encodeURIComponent(dlFontFamily)}&fw=${encodeURIComponent(dlFontWeight)}&lk=${dlLocked ? 1 : 0}`;
   win.loadFile(path.join(__dirname, '..', 'renderer', 'desktop-lyrics.html'), { search: q });
   win.setMenu(null);
   // 恢复上次位置，但高度不能低于当前默认高度（避免旧版保存的 96/132 覆盖新版 168）
@@ -129,6 +132,7 @@ function _createWindow() {
       win.setBounds(b);
     } catch { /* 越界则忽略 */ }
   }
+  _applyLock(win); // 恢复已保存的锁定态（点击穿透）
   win.once('ready-to-show', () => {
     if (dlVisible && !win.isDestroyed()) win.show();
     // 首开时渲染端可能已先于本窗口脚本就绪而发来歌词，缓存重发避免丢首帧
@@ -206,15 +210,47 @@ function setFontWeight(weight) {
   }
 }
 
+// 锁定快捷键（系统级，锁定后窗口点击穿透、无法被点中，需靠此快捷键解锁）
+const LOCK_HOTKEY = 'CommandOrControl+Shift+L';
+
+function _applyLock(win) {
+  if (!win || win.isDestroyed()) return;
+  try { win.setIgnoreMouseEvents(!!dlLocked); } catch { /* 某些平台不支持则忽略 */ }
+}
+
+function _emitLockState() {
+  if (CTX.notify && typeof CTX.notify === 'function') {
+    try { CTX.notify('desktop-lyrics:lock-state', { locked: dlLocked }); } catch {}
+  }
+}
+
+function setLocked(v) {
+  dlLocked = !!v;
+  _saveSettings();
+  if (dlWin && !dlWin.isDestroyed()) {
+    _applyLock(dlWin);
+    if (dlWin.webContents) {
+      try { dlWin.webContents.send('desktop-lyrics:lock-state', { locked: dlLocked }); } catch {}
+    }
+  }
+  _emitLockState();
+}
+
 /** 应用退出时销毁歌词窗口，避免孤儿窗口 */
 function teardownWindow() {
   if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
+  try {
+    const { globalShortcut } = require('electron');
+    if (globalShortcut && globalShortcut.isRegistered(LOCK_HOTKEY)) {
+      globalShortcut.unregister(LOCK_HOTKEY);
+    }
+  } catch { /* 忽略 */ }
   if (dlWin && !dlWin.isDestroyed()) { try { dlWin.destroy(); } catch {} }
   dlWin = null;
 }
 
 function register() {
-  const { ipcMain } = require('electron');
+  const { ipcMain, globalShortcut } = require('electron');
   ipcMain.on('desktop-lyrics:update', (_e, payload) => update(payload));
   ipcMain.handle('desktop-lyrics:toggle', () => toggle());
   ipcMain.handle('desktop-lyrics:show', () => { show(); return { visible: dlVisible }; });
@@ -223,7 +259,15 @@ function register() {
   ipcMain.on('desktop-lyrics:fontsize', (_e, { delta } = {}) => setFontSize(delta));
   ipcMain.on('desktop-lyrics:font-family', (_e, { family } = {}) => setFontFamily(family));
   ipcMain.on('desktop-lyrics:font-weight', (_e, { weight } = {}) => setFontWeight(weight));
+  ipcMain.on('desktop-lyrics:lock', () => setLocked(!dlLocked));
   ipcMain.on('desktop-lyrics:close', () => hide());
+
+  // 系统级快捷键：锁定/解锁桌面歌词（锁定后窗口点击穿透，无法在窗内点解锁，靠此键）
+  try {
+    if (globalShortcut && !globalShortcut.isRegistered(LOCK_HOTKEY)) {
+      globalShortcut.register(LOCK_HOTKEY, () => { try { setLocked(!dlLocked); } catch { /* 忽略 */ } });
+    }
+  } catch { /* 注册失败（快捷键被占用）不影响歌词本体 */ }
 }
 
 module.exports = { setCtx, register, teardownWindow };

@@ -201,6 +201,25 @@
     .dl-btn svg { width: 13px; height: 13px; display: block; }
     .dl-btn.dl-btn-settings { font-size: 13px; }
 
+    /* 锁定态徽标（锁定后窗口点击穿透，hover 不可触发，故常显提示） */
+    .dl-lock-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 17px;
+      height: 17px;
+      color: rgba(255, 255, 255, .5);
+      opacity: 0;
+      transition: opacity .2s ease;
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+      pointer-events: none;
+    }
+    .dl-lock-badge svg { width: 100%; height: 100%; display: block; }
+    body.locked .dl-lock-badge { opacity: 1; }
+    body.locked .dl-controls { opacity: 0 !important; }
+
     /* 字体设置面板 */
     .dl-font-panel {
       position: absolute;
@@ -288,9 +307,16 @@
     <button class="dl-btn dl-btn-settings" id="dl-font-settings" title="字体设置" aria-label="字体设置">
       <svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" fill="currentColor" opacity=".4"/><path d="M19.43 12.98c.04-.32.07-.66.07-1s-.03-.68-.07-1l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.73-1l-.38-2.65A.5.5 0 0 0 14.5 1h-5a.5.5 0 0 0-.49.41l-.38 2.65a7.03 7.03 0 0 0-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.66-.07 1s.03.68.07 1l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .61.22l2.49-1.01c.53.4 1.1.74 1.73 1l.38 2.65a.5.5 0 0 0 .49.41h5a.5.5 0 0 0 .49-.41l.38-2.65a7.03 7.03 0 0 0 1.73-1l2.49 1.01a.5.5 0 0 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65z" fill="currentColor"/></svg>
     </button>
+    <button class="dl-btn dl-btn-lock" id="dl-lock" title="锁定/解锁位置 (Ctrl/⌘+Shift+L)" aria-label="锁定或解锁位置">
+      <svg viewBox="0 0 24 24" id="dl-lock-icon"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm3 8H9V7a3 3 0 0 1 6 0v3z" fill="currentColor"/></svg>
+    </button>
     <button class="dl-btn" id="dl-close" title="关闭桌面歌词" aria-label="关闭桌面歌词">
       <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
     </button>
+  </div>
+
+  <div class="dl-lock-badge" id="dl-lock-badge" hidden>
+    <svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm3 8H9V7a3 3 0 0 1 6 0v3z" fill="currentColor"/></svg>
   </div>
 
   <div class="dl-font-panel" id="dl-font-panel">
@@ -379,12 +405,23 @@
         document.documentElement.style.setProperty('--dl-font-weight', weight);
       }
 
+      // 锁定状态（锁定后整窗点击穿透，无法被选中/拖拽；解锁靠全局快捷键或主窗口）
+      var locked = false;
+      var lockBadge = document.getElementById('dl-lock-badge');
+      function applyLocked(v) {
+        locked = !!v;
+        document.body.classList.toggle('locked', locked);
+        if (lockBadge) lockBadge.hidden = !locked;
+      }
+
       try {
         var urlParams = new URLSearchParams(location.search);
         var ffParam = urlParams.get('ff');
         if (ffParam) applyFontFamily(decodeURIComponent(ffParam));
         var fwParam = urlParams.get('fw');
         if (fwParam) applyFontWeight(fwParam);
+        var lkParam = urlParams.get('lk');
+        if (lkParam === '1' || lkParam === 'true') applyLocked(true);
       } catch (e) { /* 保持默认 */ }
 
       // 字体设置面板
@@ -592,8 +629,26 @@
         if (lumen && lumen.desktopLyricsClose) lumen.desktopLyricsClose();
       });
 
+      // ---- 锁定 / 解锁位置 ----
+      var lockBtn = document.getElementById('dl-lock');
+      if (lockBtn) lockBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (lumen && lumen.desktopLyricsLock) lumen.desktopLyricsLock();
+      });
+
+      // 主进程广播的锁定态（快捷键切换 / 初始化）同步到本窗
+      if (lumen && typeof lumen.on === 'function') {
+        try {
+          lumen.on('desktop-lyrics:lock-state', function (data) {
+            if (data && typeof data.locked === 'boolean') applyLocked(data.locked);
+          });
+        } catch (e) { /* noop */ }
+      }
+
       // 注：窗口拖动已改由 CSS -webkit-app-region: drag / no-drag 交给 OS 原生处理，
       // 比 frameless+focusable:false 窗口下的自定义 mousemove 拖拽更可靠。
+      // 锁定后整窗 setIgnoreMouseEvents(true) 点击穿透，hover 不触发控制钮，
+      // 故解锁仅能靠全局快捷键（Ctrl/⌘+Shift+L），或重新打开歌词窗。
 
       // 初始占位
       emptyEl.hidden = false;
