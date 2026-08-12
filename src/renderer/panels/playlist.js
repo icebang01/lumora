@@ -138,32 +138,41 @@ function _dropHasFiles(dt) {
 // 仅当检测到外部文件拖放时拦截（preventDefault + stopPropagation），阻断「窗口级拖放即播放」与「列表项排序」；
 // 内部排序拖拽（无 files）则放行，交给列表项 handler 重排。
 
+// 「稍后播放」投放区仅限播放列表面板右侧的 `.playlist-window` 本身；
+// 面板其余区域（.playlist-backdrop，即播放窗口上方）的拖放放行给窗口级「拖放即播放」。
+function _overSidebar(target) {
+  return !!(target && target.closest && target.closest('.playlist-window'));
+}
+function _setDragAdd(on) {
+  const panel = $('playlist-panel');
+  if (panel) panel.classList.toggle('drag-add-active', !!on);
+}
 function _onPanelDragEnter(e) {
   if (!_dropHasFiles(e.dataTransfer)) return;
+  if (!_overSidebar(e.target)) return; // 播放窗口区域：不拦截，放行给窗口级「拖放即播放」
   e.preventDefault();
-  const panel = $('playlist-panel');
-  if (panel) panel.classList.add('drag-add-active');
+  _setDragAdd(true);
 }
 function _onPanelDragOver(e) {
   if (!_dropHasFiles(e.dataTransfer)) return;
+  if (!_overSidebar(e.target)) { _setDragAdd(false); return; } // 播放窗口区域：不拦截
   e.preventDefault();
   e.dataTransfer.dropEffect = 'copy';
-  const panel = $('playlist-panel');
-  if (panel) panel.classList.add('drag-add-active');
+  _setDragAdd(true);
 }
 function _onPanelDragLeave(e) {
   const panel = $('playlist-panel');
   if (!panel) return;
   // 仅当真正离开面板（relatedTarget 不在面板内）才移除高亮，避免子元素间移动导致闪烁
   if (e.relatedTarget && panel.contains(e.relatedTarget)) return;
-  panel.classList.remove('drag-add-active');
+  _setDragAdd(false);
 }
 async function _onPanelDrop(e) {
   if (!_dropHasFiles(e.dataTransfer)) return; // 内部排序拖拽：放行给列表项 handler
+  if (!_overSidebar(e.target)) return; // 播放窗口区域：窗口级 handler 直接播放
   e.preventDefault();
   e.stopPropagation(); // 阻断窗口级「拖放即播放」handler 与列表项排序 handler
-  const panel = $('playlist-panel');
-  if (panel) panel.classList.remove('drag-add-active');
+  _setDragAdd(false);
   endExternalDrag(); // 因上一步已 stopPropagation，窗口级 drop 不会执行，此处手动复位拖放遮罩与 depth
   await _appendDroppedAsLater(e.dataTransfer);
 }
