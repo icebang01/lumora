@@ -545,6 +545,9 @@ body.idle-mode.cursor-hidden * { cursor: default !important; }
 }
 .idle-side:hover { color: var(--text-1); }
 
+/* 旋转光圈动画 */
+@keyframes idle-ring-spin { to { transform: rotate(360deg); } }
+
 /* 细圆环：2px 半透明白描边 + 内圈更细一层，无填充无投影 */
 .idle-side-ring {
   position: relative;
@@ -556,6 +559,21 @@ body.idle-mode.cursor-hidden * { cursor: default !important; }
   border: 2px solid rgba(255, 255, 255, .22);
   transition: border-color .3s var(--ease), box-shadow .3s var(--ease);
 }
+.idle-side-ring::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(110, 231, 255, .95) 45deg, rgba(255, 122, 198, .95) 100deg, transparent 170deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+  animation: idle-ring-spin 3.4s linear infinite;
+  filter: blur(2px);
+  opacity: .55;
+  pointer-events: none;
+  transition: opacity .3s var(--ease);
+}
+.idle-side--right .idle-side-ring::before { animation-direction: reverse; }
 .idle-side-ring::after {
   content: '';
   position: absolute;
@@ -564,6 +582,7 @@ body.idle-mode.cursor-hidden * { cursor: default !important; }
   border: 1px solid rgba(255, 255, 255, .10);
 }
 .idle-side-ring svg { width: 48%; height: 48%; opacity: 1; filter: drop-shadow(0 4px 10px rgba(0,0,0,.25)); }
+.idle-side:hover .idle-side-ring::before { opacity: .9; }
 
 /* 入口文字标签 */
 .idle-side-label {
