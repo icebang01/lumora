@@ -4,7 +4,7 @@
  * 用法：register(ctx)——ctx 与 register-ipc.js 的 setCtx 同构（getConfig/getCurrentInfo/...），
  * 由 register-ipc.js 编排器统一注入。
  */
-const { ipcMain, screen, nativeTheme } = require('electron');
+const { ipcMain, screen, nativeTheme, app } = require('electron');
 const pip = require('./pip');
 const { togglePip, syncPipControlWin, updatePipControlState, getPipMode, exitPipMode } = pip;
 const { setFullscreen, resyncNow, ensureVideoWindow, computeWindowSize } = require('./windows');
@@ -218,6 +218,23 @@ nativeTheme.on('updated', () => {
     _mw.on('move', _scheduleSaveMusicBounds);
     _mw.on('resize', _scheduleSaveMusicBounds);
   }
+
+  // 软件关闭：清除各播放样式的窗口位置记忆（player.conf + 内存）。
+  // 这样下次启动「首次从主页进入音乐模式」时窗口落在主页标准位置（而非上次会话的样式位置）；
+  // 会话内「返回主页再进入」仍按样式位置记忆（由本模块其余逻辑处理）。
+  app.on('will-quit', () => {
+    if (_musicSaveTimer) { clearTimeout(_musicSaveTimer); _musicSaveTimer = null; }
+    const cfg = getConfig();
+    if (!cfg || !cfg.values) return;
+    Object.keys(cfg.values).forEach((k) => {
+      if (k.startsWith(MUSIC_BOUNDS_PREFIX)) {
+        try { delete cfg.values[k]; } catch { /* ignore */ }
+        if (CTX.deletePlayerConfKey) {
+          try { CTX.deletePlayerConfKey(k); } catch { /* ignore */ }
+        }
+      }
+    });
+  });
 
 
   // ---- 画中画 ----

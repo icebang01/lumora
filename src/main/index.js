@@ -375,6 +375,7 @@ async function bootstrap() {
     getVideoWin: () => videoWin,
     sendToRenderer,
     writePlayerConfKey,
+    deletePlayerConfKey,
     formatTimeForFilename,
   });
   // 桌面歌词窗口模块：注入配置目录用于持久化位置/字号
@@ -551,6 +552,27 @@ function writePlayerConfKey(key, value) {
     fs.writeFileSync(file, lines.join('\n'));
   } catch (e) {
     console.error(`[config] 写入 ${file} 失败:`, e.message);
+  }
+}
+
+/**
+ * 从 player.conf 删除单个配置键（保留其余内容与注释）。用于软件关闭时清除
+ * 各播放样式的窗口位置记忆（music-style-bounds-*），使下次启动首次进入用主页位置。
+ */
+function deletePlayerConfKey(key) {
+  if (!config || !config.playerConfPath) return;
+  const file = config.playerConfPath;
+  if (!fs.existsSync(file)) return;
+  let lines = [];
+  try { lines = fs.readFileSync(file, 'utf8').split(/\r?\n/); } catch { return; }
+  const out = lines.filter((l) => {
+    const m = l.match(/^\s*([\w-]+)\s*=/);
+    return !(m && m[1] === key);
+  });
+  try {
+    fs.writeFileSync(file, out.join('\n'));
+  } catch (e) {
+    console.error(`[config] 删除 ${file} 键 ${key} 失败:`, e.message);
   }
 }
 
