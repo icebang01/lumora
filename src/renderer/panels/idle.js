@@ -32,7 +32,7 @@ function getPlaylistIndex() { return CTX.getPlaylistIndex ? CTX.getPlaylistIndex
 function playlistGoto(i) { if (CTX.playlistGoto) CTX.playlistGoto(i); }
 function baseName(p) { return String(p).split(/[\\/]/).pop(); }
 
-const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka)$/i;
+const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i;
 function isAudioPath(p) { return AUDIO_EXT.test(String(p || '')); }
 
 // 从文件名粗略提取分辨率标签（免费、即时，覆盖绝大多数命名规范），供海报 badge

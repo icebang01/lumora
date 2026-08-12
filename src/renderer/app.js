@@ -608,7 +608,7 @@ async function openDialog(append = false, mode = 'all') {
   // mode='audio'|'video' 用于 idle 左右入口：默认只显示对应类型文件，
   // 强化"点击进入音乐/视频模式"的语义。
   const videoExts = ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', 'ts', 'm2ts', 'wmv', 'mpg', 'mpeg', 'm4v', '3gp', 'ogv'];
-  const audioExts = ['mp3', 'flac', 'aac', 'wav', 'ogg', 'opus', 'm4a', 'wma'];
+  const audioExts = ['mp3', 'flac', 'aac', 'wav', 'ogg', 'opus', 'm4a', 'wma', 'ape', 'alac', 'wv', 'tta', 'tak', 'ac3', 'dts', 'eac3', 'mka'];
   let filters;
   if (mode === 'audio') {
     filters = [
@@ -632,16 +632,28 @@ async function openDialog(append = false, mode = 'all') {
   if (r && r.ok && Array.isArray(r.paths) && r.paths.length) {
     // 按对话框模式(idle 左右入口)决定写入哪个列表：'audio'→音乐列表，'video'→视频列表，'all'→当前模式
     const targetMode = mode === 'all' ? _pmode() : mode;
+    // 过滤：视频列表不收音频，音乐列表不收视频（禁止跨模式导入）
+    let accepted = r.paths;
+    if (targetMode === 'video') {
+      accepted = r.paths.filter((p) => !AUDIO_EXT.test(p));
+    } else if (targetMode === 'audio') {
+      accepted = r.paths.filter((p) => AUDIO_EXT.test(p));
+    }
+    if (!accepted.length) {
+      osd.message('未导入符合类型的文件', targetMode === 'video' ? '视频列表不支持音频文件' : '音乐列表仅支持音频文件', { duration: 2400, force: true });
+      if (!append && !player.info) setIdleMode(true);
+      return;
+    }
     if (append && playlist.length) {
       // 追加：引用语义原地 push，保持当前播放项与索引不变；首页停留不自动播放
       const arr = _modePlaylists[targetMode];
-      for (const p of r.paths) arr.push(p);
+      for (const p of accepted) arr.push(p);
       if (targetMode === _pmode()) playlist = arr;
     } else {
-      setPlaylist(r.paths, 0, targetMode);
+      setPlaylist(accepted, 0, targetMode);
     }
     persistPlaylist();
-    if (!append) load(r.paths[0]);
+    if (!append) load(accepted[0]);
   } else if (r && r.canceled && !player.info) {
     // 取消对话框且当前没在播文件 → 回到 idle，避免 loaded 后再取消导致黑屏
     setIdleMode(true);

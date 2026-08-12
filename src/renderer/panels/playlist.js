@@ -11,13 +11,15 @@ import { collectDroppedPaths, endExternalDrag, naturalCompare } from '../input.j
 
 const $ = (id) => document.getElementById(id);
 
-// 音频扩展名（与 panels/idle.js 的 AUDIO_EXT 保持一致）：音乐列表据此隐藏视频文件。
+// 音频/视频扩展名（与 app.js/input.js 保持一致）：列表按当前模式过滤。
 const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i;
+const VIDEO_EXT = /\.(mp4|mkv|webm|avi|mov|flv|ts|m2ts|wmv|mpg|mpeg|m4v|3gp|ogv)$/i;
 function isAudioPath(p) { return AUDIO_EXT.test(String(p || '')); }
-// 音乐模式（audio-mode）下，播放列表仅显示音频，不显示视频。
+function isVideoPath(p) { return VIDEO_EXT.test(String(p || '')); }
+// 音乐模式仅显示音频；视频/idle 模式不显示音频（防止音乐文件混入视频列表）。
 function _playlistVisible(p) {
-  if (!document.body.classList.contains('audio-mode')) return true;
-  return isAudioPath(p);
+  if (document.body.classList.contains('audio-mode')) return isAudioPath(p);
+  return !isAudioPath(p);
 }
 
 let CTX = {};
@@ -34,11 +36,15 @@ export function setupPlaylistPanel(ctx) {
       renderPlaylist();
     });
   }
-  // 添加音乐：弹出文件选择框，追加音频文件到当前播放列表
+  // 添加文件：根据当前模式弹出音频/视频选择框，禁止跨模式导入
   const addBtn = $('playlist-add-music');
   if (addBtn) {
-    addBtn.addEventListener('click', () => addMusicToPlaylist());
+    _updateAddButtonLabel();
+    addBtn.addEventListener('click', () => addFilesToPlaylist());
   }
+  // 模式切换时更新按钮文案（音频模式「添加音乐」，视频模式「添加视频」）
+  const _labelObs = new MutationObserver(_updateAddButtonLabel);
+  _labelObs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   // 拖入文件到播放列表 ⇒ 作为「稍后播放」追加（不替换现有列表、不自动播放）
   const panel = $('playlist-panel');
   if (panel) {
@@ -102,27 +108,46 @@ function playlistGoto(i) { if (CTX.playlistGoto) CTX.playlistGoto(i); }
 function playlistRemove(i) { if (CTX.playlistRemove) CTX.playlistRemove(i); }
 function persistPlaylist() { if (CTX.persistPlaylist) CTX.persistPlaylist(); }
 
-/** 从文件对话框选择音频文件并追加到当前播放列表（不自动播放）。 */
-export async function addMusicToPlaylist() {
-  const audioExts = ['mp3', 'flac', 'aac', 'wav', 'ogg', 'opus', 'm4a', 'wma'];
+/** 根据当前模式弹出文件选择框并追加到当前播放列表（不自动播放）。 */
+export async function addFilesToPlaylist() {
+  const isAudioMode = document.body.classList.contains('audio-mode');
+  const exts = isAudioMode
+    ? ['mp3', 'flac', 'aac', 'wav', 'ogg', 'opus', 'm4a', 'wma', 'ape', 'alac', 'wv', 'tta', 'tak', 'ac3', 'dts', 'eac3', 'mka']
+    : ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', 'ts', 'm2ts', 'wmv', 'mpg', 'mpeg', 'm4v', '3gp', 'ogv'];
+  const title = isAudioMode ? '添加音乐' : '添加视频';
   try {
     const r = await window.lumen.openDialog({
-      title: '添加音乐',
+      title,
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: '音频', extensions: audioExts },
+        { name: isAudioMode ? '音频' : '视频', extensions: exts },
         { name: '全部文件', extensions: ['*'] },
       ],
     });
     if (!r || !r.ok || !Array.isArray(r.paths) || !r.paths.length) return;
-    for (const p of r.paths) playlist.push(p);
+    const accepted = isAudioMode ? r.paths.filter(isAudioPath) : r.paths.filter(isVideoPath);
+    if (!accepted.length) {
+      osd.message(isAudioMode ? '仅支持音频文件' : '仅支持视频文件', '', { duration: 2400 });
+      return;
+    }
+    for (const p of accepted) playlist.push(p);
     persistPlaylist();
     renderPlaylist();
-    osd.message('已添加', `${r.paths.length} 首音乐到播放列表`, { duration: 2000 });
+    osd.message('已添加', `${accepted.length} 个文件到播放列表`, { duration: 2000 });
   } catch (e) {
-    console.error('[playlist] 添加音乐失败:', e);
+    console.error('[playlist] 添加失败:', e);
     osd.message('添加失败', e && e.message ? e.message : '无法读取所选文件', { duration: 3000 });
   }
+}
+
+/** 根据当前模式刷新「添加」按钮文案。 */
+function _updateAddButtonLabel() {
+  const addBtn = $('playlist-add-music');
+  if (!addBtn) return;
+  const isAudioMode = document.body.classList.contains('audio-mode');
+  addBtn.textContent = isAudioMode ? '+ 添加音乐' : '+ 添加视频';
+  addBtn.title = isAudioMode ? '添加音乐' : '添加视频';
+  addBtn.setAttribute('aria-label', isAudioMode ? '添加音乐' : '添加视频');
 }
 
 /** 判断拖放来源是操作系统文件管理器（携带 files / 文件型 items），区别于列表内部排序拖拽（仅 text/plain）。 */
@@ -199,12 +224,11 @@ async function _appendDroppedAsLater(dt) {
   } catch {
     paths = rawPaths;
   }
-  // 音乐模式只收音频（与「添加音乐」按钮、列表可视过滤保持一致）
-  if (document.body.classList.contains('audio-mode')) {
-    paths = paths.filter(isAudioPath);
-  }
+  // 按当前模式过滤：音乐模式只收音频，视频/idle 模式不收音频（禁止音乐文件混入视频列表）
+  const isAudioMode = document.body.classList.contains('audio-mode');
+  paths = isAudioMode ? paths.filter(isAudioPath) : paths.filter(isVideoPath);
   if (!paths.length) {
-    osd.message('音乐模式下仅支持音频文件', '', { duration: 2400 });
+    osd.message(isAudioMode ? '音乐模式下仅支持音频文件' : '视频模式下仅支持视频文件', '', { duration: 2400 });
     return;
   }
   paths.sort(naturalCompare);
