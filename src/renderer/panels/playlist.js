@@ -304,8 +304,9 @@ export function renderPlaylist() {
     header.className = 'pl-section-title';
     header.textContent = `接下来播放 · ${upcoming.length}`;
     list.appendChild(header);
-    upcoming.forEach((p) => {
-      list.appendChild(_createItem(p, playlist.indexOf(p), {}));
+    // 以队列顺序顺序编号（1,2,3…），不再显示原始数组下标，避免序号跳变
+    upcoming.forEach((p, seq) => {
+      list.appendChild(_createItem(p, playlist.indexOf(p), { displayNumber: seq + 1 }));
     });
   }
 
@@ -316,6 +317,8 @@ export function renderPlaylist() {
  *  opts.nowPlaying 为 true 时标记为「正在播放」：不可拖拽、不可点击跳转，仅作展示。 */
 function _createItem(p, i, opts) {
   opts = opts || {};
+  // 真实数组索引 i 仅用于内部交互（点击/拖拽/删除/高亮），展示序号可独立指定
+  const displayNum = (opts.displayNumber != null) ? opts.displayNumber : (i + 1);
   const item = document.createElement('div');
   item.className = 'playlist-item'
     + (i === getPlaylistIndex() ? ' active' : '')
@@ -336,7 +339,7 @@ function _createItem(p, i, opts) {
 
   const idx = document.createElement('span');
   idx.className = 'pl-index';
-  idx.textContent = String(i + 1);
+  idx.textContent = String(displayNum);
   const title = document.createElement('span');
   title.className = 'pl-title';
   title.textContent = baseName(p);
