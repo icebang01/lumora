@@ -38,6 +38,8 @@ function getIdleBackgroundColor() {
 
   ipcMain.handle('ui:set-idle-state', (_e, idle) => {
     setIdleState(!!idle);
+    // 回到主页即离开音乐模式：停止保存窗口位置，避免把主页居中位置误存进某个播放样式
+    if (idle) audioActive = false;
     const win = getWin();
     const videoWin = getVideoWin();
     if (idle && win && videoWin && !win.isDestroyed() && !videoWin.isDestroyed()) {
@@ -137,6 +139,63 @@ nativeTheme.on('updated', () => {
       default: return { ok: false, error: '未知窗口指令' };
     }
   });
+
+
+  // ---- 音乐播放样式窗口位置记忆 ----
+  // 每个播放样式（大封面/写真歌词/经典黑胶/简约方形/透明彩胶/简约歌词）
+  // 记住自己的窗口位置（x,y,width,height），切换样式或「返回主页再进入」时恢复，
+  // 避免返回主页被 ui:set-idle-state 居中后，重新进入音乐时窗口跑位。
+  let currentMusicStyle = null;
+  let audioActive = false;
+  let _musicSaveTimer = null;
+  const MUSIC_BOUNDS_PREFIX = 'music-style-bounds-';
+  function _musicBoundsKey(style) { return MUSIC_BOUNDS_PREFIX + style; }
+  function _saveMusicBounds() {
+    if (!audioActive || !currentMusicStyle) return;
+    const vw = getVideoWin();
+    if (!vw || vw.isDestroyed()) return;
+    const b = vw.getBounds();
+    const key = _musicBoundsKey(currentMusicStyle);
+    const val = `${b.x},${b.y},${b.width},${b.height}`;
+    const cfg = getConfig();
+    if (cfg && cfg.set) cfg.set(key, val);
+    if (CTX.writePlayerConfKey) CTX.writePlayerConfKey(key, val);
+  }
+  function _scheduleSaveMusicBounds() {
+    if (_musicSaveTimer) clearTimeout(_musicSaveTimer);
+    _musicSaveTimer = setTimeout(_saveMusicBounds, 400);
+  }
+  function _restoreMusicBounds(style) {
+    const cfg = getConfig();
+    if (!cfg) return;
+    const raw = cfg.get(_musicBoundsKey(style));
+    if (!raw || typeof raw !== 'string') return;
+    const parts = raw.split(',').map((n) => parseInt(n, 10));
+    if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return;
+    const [x, y, w, h] = parts;
+    const vw = getVideoWin();
+    if (!vw || vw.isDestroyed()) return;
+    try {
+      vw.setBounds({ x, y, width: w, height: h });
+      resyncNow();
+    } catch (_) {}
+  }
+
+  ipcMain.on('music:audio', (_e, v) => { audioActive = !!v; });
+
+  ipcMain.on('music:style', (_e, style) => {
+    // 离开上一个样式：先把当前窗口位置记到上一个样式（返回主页时 audioActive 已置否，不会误存居中位置）
+    if (currentMusicStyle && currentMusicStyle !== style) _saveMusicBounds();
+    currentMusicStyle = style || null;
+    if (style) _restoreMusicBounds(style);
+  });
+
+  // 音乐模式下拖动/缩放窗口：防抖保存当前位置到当前样式
+  const _mw = getWin();
+  if (_mw && !_mw.isDestroyed()) {
+    _mw.on('move', _scheduleSaveMusicBounds);
+    _mw.on('resize', _scheduleSaveMusicBounds);
+  }
 
 
   // ---- 画中画 ----

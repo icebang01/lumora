@@ -108,6 +108,12 @@ contextBridge.exposeInMainWorld('lumen', {
   setIdleState: (idle) => ipcRenderer.invoke('ui:set-idle-state', idle),
   togglePip: () => ipcRenderer.invoke('window:pip-toggle'),
 
+  // ---- 音乐播放样式窗口位置记忆 ----
+  // 渲染端在切换样式 / 进入·退出音乐模式时通知主进程，主进程据此
+  // 记忆并恢复每个播放样式自己的窗口位置（x,y,width,height）。
+  musicStyle: (style) => ipcRenderer.send('music:style', style),
+  musicAudio: (v) => ipcRenderer.send('music:audio', v),
+
   // ---- 截图 ----
   saveScreenshot: (dataUrl, timePos) =>
     ipcRenderer.invoke('player:save-screenshot', { dataUrl, timePos }),

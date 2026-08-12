@@ -485,6 +485,8 @@ function _bindPlayerStyle() {
 function _applyPlayerStyle(style) {
   if (!PLAYER_STYLES.includes(style)) style = 'square';
   _playerStyle = style;
+  // 通知主进程：当前播放样式，用于记忆/恢复该样式的窗口位置
+  try { if (window.lumen && window.lumen.musicStyle) window.lumen.musicStyle(style); } catch { /* noop */ }
   if (!stage) return;
   // 先清理所有已废弃或残留的旧样式类，避免 multiple style-* / music-style-* 同时存在导致 CSS 互相覆盖
   Array.from(stage.classList).forEach((cls) => {
@@ -2141,6 +2143,8 @@ function _updatePositionState() {
 /** 进入音频模式：展示音乐舞台并填充曲目信息 + 异步拉取封面 */
 export function enterAudioMode(info) {
   ensureRefs();
+  // 标记进入音频模式（主进程据此允许保存窗口位置），再应用样式（触发位置恢复）
+  try { if (window.lumen && window.lumen.musicAudio) window.lumen.musicAudio(true); } catch { /* noop */ }
   // 进入音乐模式时（重新）应用上一次退出时保存的播放样式，保证「退出前样式」自动还原；
   // 此处兜底重应用，避免 initMusicStage 在 DOM 未就绪时提前返回导致样式类从未挂载。
   _applyPlayerStyle(_playerStyle);
@@ -2310,6 +2314,10 @@ function _fallbackArtistPhotoBackdrop() {
 /** 退出音频模式：隐藏舞台、恢复视频态 */
 export function exitAudioMode() {
   ensureRefs();
+  // 先标记退出音频模式（主进程停止保存窗口位置，避免把主页居中位置误存进样式），
+  // 再清空当前样式标记。顺序必须在「返回主页居中」之前。
+  try { if (window.lumen && window.lumen.musicAudio) window.lumen.musicAudio(false); } catch { /* noop */ }
+  try { if (window.lumen && window.lumen.musicStyle) window.lumen.musicStyle(null); } catch { /* noop */ }
   if (!stage) return;
   _stopSpectrum();
   _stopLyricRAF();
