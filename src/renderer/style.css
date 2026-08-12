@@ -2612,29 +2612,6 @@ body.playlist-open #side-rail {
   color: #f4f5fb;
   box-shadow: inset 2px 0 0 #8b7bff;
 }
-/* 队列拆分：顶部「正在播放」固定展示当前曲目，强调 Up Next 语义 */
-.pl-section-title {
-  margin: 12px 6px 2px;
-  font-size: 11px; font-weight: 700; letter-spacing: .08em;
-  color: #8b90a6;
-}
-.playlist-item.now-playing {
-  cursor: default;
-  background: linear-gradient(90deg, rgba(124,140,255,.30), rgba(124,140,255,.08));
-  color: #f4f5fb;
-  box-shadow: inset 0 0 0 1px rgba(124,140,255,.45);
-}
-.playlist-item.now-playing:hover { background: linear-gradient(90deg, rgba(124,140,255,.34), rgba(124,140,255,.1)); }
-.pl-nowplaying-tag {
-  flex: 0 0 auto;
-  margin-right: 6px;
-  padding: 1px 8px;
-  font-size: 10px; font-weight: 700; letter-spacing: .03em;
-  color: #fff;
-  background: rgba(124,140,255,.55);
-  border-radius: 999px;
-  white-space: nowrap;
-}
 .pl-index {
   flex: 0 0 auto; width: 22px; text-align: center;
   font-size: 11px; color: #6f7488; font-variant-numeric: tabular-nums;

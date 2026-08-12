@@ -267,7 +267,7 @@ function escapeHtml(s) {
   ));
 }
 
-/** 渲染列表内容到面板（拆分为「正在播放」+「接下来播放」两段队列） */
+/** 渲染列表内容到面板（单一连续列表，当前曲目在原来位置高亮） */
 export function renderPlaylist() {
   const list = $('playlist-list');
   if (!list) return;
@@ -283,47 +283,26 @@ export function renderPlaylist() {
     return;
   }
 
-  const activeIndex = getPlaylistIndex();
-
-  // 过滤模式，或未开始播放（activeIndex<0）：保持扁平渲染，不做 Now Playing 拆分
-  if (_likeFilter || activeIndex < 0) {
-    playlist.forEach((p, i) => {
-      if (_likeFilter && !isLiked(p)) return;
-      if (!_playlistVisible(p)) return;
-      list.appendChild(_createItem(p, i, {}));
-    });
-    _updatePlaylistCount();
-    return;
-  }
-
-  // 正常视图：顶部「正在播放」固定展示当前曲目，下方「接下来播放」为可重排队列
-  list.appendChild(_createItem(playlist[activeIndex], activeIndex, { nowPlaying: true }));
-  const upcoming = playlist.filter((p, i) => i !== activeIndex && _playlistVisible(p));
-  if (upcoming.length) {
-    const header = document.createElement('div');
-    header.className = 'pl-section-title';
-    header.textContent = `接下来播放 · ${upcoming.length}`;
-    list.appendChild(header);
-    // 以队列顺序顺序编号（1,2,3…），不再显示原始数组下标，避免序号跳变
-    upcoming.forEach((p, seq) => {
-      list.appendChild(_createItem(p, playlist.indexOf(p), { displayNumber: seq + 1 }));
-    });
-  }
+  let seq = 0;
+  playlist.forEach((p, i) => {
+    if (_likeFilter && !isLiked(p)) return;
+    if (!_playlistVisible(p)) return;
+    seq += 1;
+    list.appendChild(_createItem(p, i, { displayNumber: seq }));
+  });
 
   _updatePlaylistCount();
 }
 
 /** 构造单个列表项 DOM（含缩略图 / 序号 / 标题 / 收藏 / 删除 / 拖拽排序）。
- *  opts.nowPlaying 为 true 时标记为「正在播放」：不可拖拽、不可点击跳转，仅作展示。 */
+ *  真实数组索引 i 用于内部交互（点击/拖拽/删除/高亮），展示序号可独立指定。 */
 function _createItem(p, i, opts) {
   opts = opts || {};
   // 真实数组索引 i 仅用于内部交互（点击/拖拽/删除/高亮），展示序号可独立指定
   const displayNum = (opts.displayNumber != null) ? opts.displayNumber : (i + 1);
   const item = document.createElement('div');
-  item.className = 'playlist-item'
-    + (i === getPlaylistIndex() ? ' active' : '')
-    + (opts.nowPlaying ? ' now-playing' : '');
-  item.draggable = !_likeFilter && !opts.nowPlaying;
+  item.className = 'playlist-item' + (i === getPlaylistIndex() ? ' active' : '');
+  item.draggable = !_likeFilter;
   item.dataset.index = String(i);
   item.dataset.path = p;
 
@@ -346,14 +325,6 @@ function _createItem(p, i, opts) {
   title.title = p;
   item.appendChild(idx);
   item.appendChild(title);
-
-  // 「正在播放」徽标（仅当前曲目展示，强调队列语义）
-  if (opts.nowPlaying) {
-    const npTag = document.createElement('span');
-    npTag.className = 'pl-nowplaying-tag';
-    npTag.textContent = '正在播放';
-    item.appendChild(npTag);
-  }
 
   // 收藏红心徽标（点击切换，经 likes.js 广播统一刷新）
   const likeBtn = document.createElement('button');
@@ -381,17 +352,15 @@ function _createItem(p, i, opts) {
   item._likeBtn = likeBtn;
   _itemEls.set(p, item);
 
-  // 单击播放（正在播放项已是当前曲，无需跳转）；拖动松手后 250ms 内的误触单击被忽略
-  if (!opts.nowPlaying) {
-    item.addEventListener('click', () => {
-      if (Date.now() - lastDropAt < 250) return;
-      playlistGoto(i);
-    });
-    item.addEventListener('dblclick', (e) => { e.stopPropagation(); playlistGoto(i); });
-  }
+  // 单击播放；拖动松手后 250ms 内的误触单击被忽略
+  item.addEventListener('click', () => {
+    if (Date.now() - lastDropAt < 250) return;
+    playlistGoto(i);
+  });
+  item.addEventListener('dblclick', (e) => { e.stopPropagation(); playlistGoto(i); });
 
-  /* ---------- 拖拽排序（正在播放项与过滤模式下禁用，避免索引错位） ---------- */
-  if (!_likeFilter && !opts.nowPlaying) {
+  /* ---------- 拖拽排序（过滤模式下禁用，避免索引错位） ---------- */
+  if (!_likeFilter) {
     item.addEventListener('dragstart', (e) => {
       dragSrcIndex = i;
       e.dataTransfer.effectAllowed = 'move';
