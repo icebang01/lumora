@@ -51,7 +51,7 @@
   "build": {
     "appId": "com.lumora.player",
     "productName": "Lumora",
-    "icon": "build/icons/media.ico",
+    "icon": "build/icons/icon.ico",
     "files": [
       "src/**/*",
       "config/**/*",
@@ -64,133 +64,133 @@
         "ext": "mp4",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "mkv",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "webm",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "avi",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "mov",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "flv",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "ts",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "m2ts",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "wmv",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "mpg",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "mpeg",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "m4v",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "3gp",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "ogv",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "mp3",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "flac",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "aac",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "wav",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "ogg",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "opus",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "m4a",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       },
       {
         "ext": "wma",
         "name": "Lumora 媒体文件",
         "role": "Viewer",
-        "icon": "build/icons/media.ico"
+        "icon": "build/icons/icon.ico"
       }
     ],
     "publish": [
