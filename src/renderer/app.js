@@ -374,22 +374,30 @@ async function boot() {
   window.__pendingFile = bootstrapData.pendingFile || null;
 
   // 恢复上次的播放列表（视频 / 音乐 分别独立恢复），重启后仍能看到各自队列。
-  // 兼容旧单列表格式（整体视为视频列表）；双列表格式分别恢复 video / audio。
+  // 兼容旧单列表格式：按扩展名拆分到 video / audio；双列表格式：也按扩展名归位，
+  // 防止旧格式迁移或异常写入导致音乐文件残留在视频列表（用户需求：两者不通用）。
   const _restored = bootstrapData.playlist;
   if (_restored) {
     if (Array.isArray(_restored.items)) {
-      // 旧格式：整体当作视频列表
-      _modePlaylists.video = _restored.items.map((it) => it.path).filter(Boolean);
-      _modeIndexes.video = typeof _restored.index === 'number' ? _restored.index : 0;
+      // 旧格式：整体按扩展名拆分到 video / audio
+      const all = _restored.items.map((it) => it.path).filter(Boolean);
+      const v = [];
+      const a = [];
+      for (const p of all) { (AUDIO_EXT.test(p) ? a : v).push(p); }
+      _writeMode('video', v, v.length ? (typeof _restored.index === 'number' ? _restored.index : 0) : -1);
+      _writeMode('audio', a, a.length ? 0 : -1);
     } else {
-      if (_restored.video && Array.isArray(_restored.video.items) && _restored.video.items.length) {
-        _modePlaylists.video = _restored.video.items.map((it) => it.path).filter(Boolean);
-        _modeIndexes.video = typeof _restored.video.index === 'number' ? _restored.video.index : 0;
-      }
-      if (_restored.audio && Array.isArray(_restored.audio.items) && _restored.audio.items.length) {
-        _modePlaylists.audio = _restored.audio.items.map((it) => it.path).filter(Boolean);
-        _modeIndexes.audio = typeof _restored.audio.index === 'number' ? _restored.audio.index : 0;
-      }
+      // 双列表格式：分别读取，再按扩展名归位（修复已错位项）
+      const vRaw = (_restored.video && Array.isArray(_restored.video.items))
+        ? _restored.video.items.map((it) => it.path).filter(Boolean) : [];
+      const aRaw = (_restored.audio && Array.isArray(_restored.audio.items))
+        ? _restored.audio.items.map((it) => it.path).filter(Boolean) : [];
+      const v = [];
+      const a = [];
+      for (const p of vRaw) { (AUDIO_EXT.test(p) ? a : v).push(p); }
+      for (const p of aRaw) { (AUDIO_EXT.test(p) ? a : v).push(p); }
+      _writeMode('video', v, v.length ? (typeof _restored.video.index === 'number' ? _restored.video.index : 0) : -1);
+      _writeMode('audio', a, a.length ? (typeof _restored.audio.index === 'number' ? _restored.audio.index : 0) : -1);
     }
   }
   // 活跃视图指向当前模式（启动默认 video 模式；首个文件载入后由 source 决定切换）
@@ -872,9 +880,7 @@ function endOfPlaylist() {
   try { if (window.lumen && window.lumen.clearResume) window.lumen.clearResume(); } catch { /* ignore */ }
   // 仅清空「当前模式」的播放列表（视频 / 音乐 各自独立），下次启动不再恢复这个队列
   const mode = _pmode();
-  _modePlaylists[mode] = [];
-  _modeIndexes[mode] = -1;
-  if (mode === _pmode()) { playlist = _modePlaylists[mode]; playlistIndex = -1; }
+  _writeMode(mode, [], -1);
   persistPlaylist();
   // 播完且无后续：根据设置决定是否自动返回 logo 落地页（默认开启）
   const autoHome = bootstrapData && bootstrapData.config &&

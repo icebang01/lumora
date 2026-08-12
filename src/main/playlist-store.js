@@ -6,7 +6,8 @@
  * 供下次启动分别恢复视频列表与音乐列表——两者不通用（用户需求）。
  * 与 resume-store 的区别：resume 只记"最近一个文件"，这里记"整个队列"。
  *
- * 兼容旧格式（单列表 { index, items }）：迁移时整体视为视频列表，音乐列表留空。
+ * 兼容旧格式（单列表 { index, items }）：按文件扩展名拆分到 video / audio 两个列表，
+ * 音频文件（mp3/flac/ogg 等）归入音乐列表，其余归入视频列表。
  *
  * item 结构：{ path, title?, duration?, time? }
  *   - path    必填，媒体文件绝对路径
@@ -18,6 +19,10 @@
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
+
+// 音频文件扩展名（与渲染端 app.js _modeForPath 保持一致）
+const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i;
+function isAudioPath(p) { return AUDIO_EXT.test(String(p || '')); }
 
 function playlistPath() {
   return path.join(app.getPath('userData'), 'playlist.json');
@@ -48,10 +53,23 @@ function loadPlaylist() {
     const p = playlistPath();
     if (!fs.existsSync(p)) return null;
     const data = JSON.parse(fs.readFileSync(p, 'utf8'));
-    // 旧格式兼容：{ index, items } → 整体视为视频列表
+    // 旧格式兼容：{ index, items } → 按扩展名拆分到 video / audio
     if (data && Array.isArray(data.items)) {
-      const v = _sanitize(data);
-      return v.items.length ? { video: v, audio: { index: -1, items: [] } } : null;
+      const sanitized = _sanitize(data);
+      if (!sanitized.items.length) return null;
+      const videoItems = [];
+      const audioItems = [];
+      for (const it of sanitized.items) {
+        (isAudioPath(it.path) ? audioItems : videoItems).push(it);
+      }
+      let vIdx = videoItems.length ? sanitized.index : -1;
+      const aIdx = audioItems.length ? 0 : -1;
+      // 若原 index 指向的是音频项，video 列表无对应项时回 0
+      if (vIdx >= videoItems.length) vIdx = videoItems.length ? 0 : -1;
+      return {
+        video: { index: vIdx, items: videoItems },
+        audio: { index: aIdx, items: audioItems },
+      };
     }
     if (!data || typeof data !== 'object') return null;
     const video = _sanitize(data.video);
