@@ -2541,6 +2541,27 @@ body.playlist-open #side-rail {
   cursor: pointer; transition: background .14s var(--ease), color .14s var(--ease);
 }
 .playlist-add-music:hover { background: rgba(124, 140, 255, .22); color: #c7cbff; }
+/* 外部文件拖入播放列表：高亮「稍后播放」投放区（捕获阶段拦截，区别于内部排序拖拽） */
+#playlist-panel.drag-add-active .playlist-window {
+  outline: 2px dashed rgba(124, 140, 255, .9);
+  outline-offset: -8px;
+  box-shadow: -8px 0 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(124,140,255,.5);
+}
+#playlist-panel.drag-add-active .playlist-list {
+  background: linear-gradient(rgba(124,140,255,.06), rgba(124,140,255,.06));
+}
+#playlist-panel.drag-add-active .playlist-window::after {
+  content: '松开以加入「稍后播放」';
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 16px;
+  font-size: 13px; font-weight: 600; color: #c7cbff;
+  background: rgba(124, 140, 255, .16);
+  border: 1px solid rgba(124, 140, 255, .5);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 5;
+}
 .playlist-list {
   flex: 1 1 auto; overflow-y: auto;
   padding: 8px;

@@ -7,6 +7,7 @@
  *   playlistGoto, playlistRemove, persistPlaylist });(boot 时注入)
  */
 import { isLiked, toggleLiked, onLikeChange } from '../core/likes.js';
+import { collectDroppedPaths, endExternalDrag, naturalCompare } from '../input.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -37,6 +38,14 @@ export function setupPlaylistPanel(ctx) {
   const addBtn = $('playlist-add-music');
   if (addBtn) {
     addBtn.addEventListener('click', () => addMusicToPlaylist());
+  }
+  // 拖入文件到播放列表 ⇒ 作为「稍后播放」追加（不替换现有列表、不自动播放）
+  const panel = $('playlist-panel');
+  if (panel) {
+    panel.addEventListener('dragenter', _onPanelDragEnter, true);
+    panel.addEventListener('dragover', _onPanelDragOver, true);
+    panel.addEventListener('dragleave', _onPanelDragLeave, true);
+    panel.addEventListener('drop', _onPanelDrop, true);
   }
 
   // 收藏变化：面板打开时就地刷新徽标 / 过滤视图
@@ -113,6 +122,90 @@ export async function addMusicToPlaylist() {
     console.error('[playlist] 添加音乐失败:', e);
     osd.message('添加失败', e && e.message ? e.message : '无法读取所选文件', { duration: 3000 });
   }
+}
+
+/** 判断拖放来源是操作系统文件管理器（携带 files / 文件型 items），区别于列表内部排序拖拽（仅 text/plain）。 */
+function _dropHasFiles(dt) {
+  if (!dt) return false;
+  if (dt.files && dt.files.length) return true;
+  if (dt.items && dt.items.length) {
+    for (const it of dt.items) if (it && it.kind === 'file') return true;
+  }
+  return false;
+}
+
+// 以下三个捕获阶段监听器挂在 #playlist-panel 上，先于列表项自身的冒泡 drop 处理执行：
+// 仅当检测到外部文件拖放时拦截（preventDefault + stopPropagation），阻断「窗口级拖放即播放」与「列表项排序」；
+// 内部排序拖拽（无 files）则放行，交给列表项 handler 重排。
+
+function _onPanelDragEnter(e) {
+  if (!_dropHasFiles(e.dataTransfer)) return;
+  e.preventDefault();
+  const panel = $('playlist-panel');
+  if (panel) panel.classList.add('drag-add-active');
+}
+function _onPanelDragOver(e) {
+  if (!_dropHasFiles(e.dataTransfer)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  const panel = $('playlist-panel');
+  if (panel) panel.classList.add('drag-add-active');
+}
+function _onPanelDragLeave(e) {
+  const panel = $('playlist-panel');
+  if (!panel) return;
+  // 仅当真正离开面板（relatedTarget 不在面板内）才移除高亮，避免子元素间移动导致闪烁
+  if (e.relatedTarget && panel.contains(e.relatedTarget)) return;
+  panel.classList.remove('drag-add-active');
+}
+async function _onPanelDrop(e) {
+  if (!_dropHasFiles(e.dataTransfer)) return; // 内部排序拖拽：放行给列表项 handler
+  e.preventDefault();
+  e.stopPropagation(); // 阻断窗口级「拖放即播放」handler 与列表项排序 handler
+  const panel = $('playlist-panel');
+  if (panel) panel.classList.remove('drag-add-active');
+  endExternalDrag(); // 因上一步已 stopPropagation，窗口级 drop 不会执行，此处手动复位拖放遮罩与 depth
+  await _appendDroppedAsLater(e.dataTransfer);
+}
+
+/** 把从系统拖入的文件/文件夹追加到当前播放列表，作为「稍后播放」（不自动播放、不替换现有列表）。 */
+async function _appendDroppedAsLater(dt) {
+  let rawPaths;
+  try {
+    rawPaths = collectDroppedPaths(dt);
+  } catch (err) {
+    console.error('[playlist] 拖放解析失败:', err);
+    osd.message('拖放解析失败', '', { duration: 2200 });
+    return;
+  }
+  if (!rawPaths.length) {
+    osd.message('未识别到可播放的文件', '请拖入音视频文件或文件夹', { duration: 2400 });
+    return;
+  }
+  let paths;
+  try {
+    const res = await window.lumen.collectMedia(rawPaths);
+    paths = (res && res.ok && Array.isArray(res.paths) && res.paths.length) ? res.paths : rawPaths;
+  } catch {
+    paths = rawPaths;
+  }
+  // 音乐模式只收音频（与「添加音乐」按钮、列表可视过滤保持一致）
+  if (document.body.classList.contains('audio-mode')) {
+    paths = paths.filter(isAudioPath);
+  }
+  if (!paths.length) {
+    osd.message('音乐模式下仅支持音频文件', '', { duration: 2400 });
+    return;
+  }
+  paths.sort(naturalCompare);
+  const before = playlist.length;
+  for (const p of paths) playlist.push(p);
+  persistPlaylist();
+  renderPlaylist();
+  const list = $('playlist-list');
+  if (list) list.scrollTop = list.scrollHeight; // 滚到底展示新加入的「稍后播放」项
+  const added = playlist.length - before;
+  osd.message('已加入稍后播放', `${added} 首已添加到播放列表`, { duration: 2200 });
 }
 
 let dragSrcIndex = null;        // 当前被拖拽的播放列表项索引

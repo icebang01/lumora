@@ -392,28 +392,46 @@ export function bindInput() {
   });
 }
 
+// 外部拖放状态（拖放遮罩 + 深度计数）提升到模块作用域，供播放列表面板
+// 「拖入为稍后播放」在 stopPropagation 拦截 drop 后复位，避免窗口级 drop 处理未执行导致状态残留。
+let _dragDepth = 0;
+let _dragOverlayEl = null;
+
+/** 复位外部拖放状态：隐藏「拖放即播放」遮罩、清除 body 拖放类、depth 归零。
+ *  播放列表面板用捕获阶段拦截外部文件 drop 并 stopPropagation 后调用，确保与窗口级 drop 处理行为一致。 */
+export function endExternalDrag() {
+  _dragDepth = 0;
+  if (_dragOverlayEl) _dragOverlayEl.classList.add('hidden');
+  document.body.classList.remove('drag-over', 'external-dragging');
+}
+
 export function bindDragDrop() {
-  let depth = 0;
-  const overlay = document.getElementById('drag-overlay');
-  const showOverlay = () => { if (overlay) overlay.classList.remove('hidden'); };
-  const hideOverlay = () => { if (overlay) overlay.classList.add('hidden'); };
+  _dragOverlayEl = document.getElementById('drag-overlay');
+  const showOverlay = () => { if (_dragOverlayEl) _dragOverlayEl.classList.remove('hidden'); };
+  const hideOverlay = () => { if (_dragOverlayEl) _dragOverlayEl.classList.add('hidden'); };
 
   window.addEventListener('dragenter', (e) => {
     e.preventDefault();
-    depth++;
+    _dragDepth++;
     document.body.classList.add('drag-over', 'external-dragging');
-    if (depth === 1) showOverlay();
+    // 拖到播放列表面板时不显示「拖放即播放」遮罩（该面板会用自身「稍后播放」提示替代）
+    const overPlaylist = !!(e.target && e.target.closest && e.target.closest('#playlist-panel'));
+    if (_dragDepth === 1 && !overPlaylist) showOverlay();
   });
 
   window.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    // 悬停在播放列表面板上方时隐藏全局「拖放即播放」遮罩，避免与「稍后播放」提示冲突
+    const overPlaylist = !!(e.target && e.target.closest && e.target.closest('#playlist-panel'));
+    if (overPlaylist) hideOverlay();
+    else showOverlay();
   });
 
   window.addEventListener('dragleave', (e) => {
     e.preventDefault();
-    if (--depth <= 0) {
-      depth = 0;
+    if (--_dragDepth <= 0) {
+      _dragDepth = 0;
       document.body.classList.remove('drag-over', 'external-dragging');
       hideOverlay();
     }
@@ -421,7 +439,7 @@ export function bindDragDrop() {
 
   window.addEventListener('drop', async (e) => {
     e.preventDefault();
-    depth = 0;
+    _dragDepth = 0;
     document.body.classList.remove('drag-over', 'external-dragging');
     hideOverlay();
 
@@ -500,7 +518,7 @@ export function bindDragDrop() {
  * @param {DataTransfer} dt
  * @returns {string[]}
  */
-function collectDroppedPaths(dt) {
+export function collectDroppedPaths(dt) {
   const out = [];
   if (dt && dt.files && dt.files.length) {
     for (const f of dt.files) {
@@ -539,7 +557,7 @@ function isNonRepeatable(e) {
   return [' ', 'Enter', 'f', 'F'].includes(e.key);
 }
 
-function naturalCompare(a, b) {
+export function naturalCompare(a, b) {
   return String(a).split(/[\\/]/).pop().localeCompare(String(b).split(/[\\/]/).pop(), 'zh-CN', { numeric: true, sensitivity: 'base' });
 }
 
