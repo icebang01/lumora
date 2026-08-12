@@ -132,7 +132,6 @@ function _createWindow() {
       win.setBounds(b);
     } catch { /* 越界则忽略 */ }
   }
-  _applyLock(win); // 恢复已保存的锁定态（点击穿透）
   win.once('ready-to-show', () => {
     if (dlVisible && !win.isDestroyed()) win.show();
     // 首开时渲染端可能已先于本窗口脚本就绪而发来歌词，缓存重发避免丢首帧
@@ -210,13 +209,8 @@ function setFontWeight(weight) {
   }
 }
 
-// 锁定快捷键（系统级，锁定后窗口点击穿透、无法被点中，需靠此快捷键解锁）
+// 锁定快捷键（系统级，作为解锁的备选方式）
 const LOCK_HOTKEY = 'CommandOrControl+Shift+L';
-
-function _applyLock(win) {
-  if (!win || win.isDestroyed()) return;
-  try { win.setIgnoreMouseEvents(!!dlLocked); } catch { /* 某些平台不支持则忽略 */ }
-}
 
 function _emitLockState() {
   if (CTX.notify && typeof CTX.notify === 'function') {
@@ -227,11 +221,8 @@ function _emitLockState() {
 function setLocked(v) {
   dlLocked = !!v;
   _saveSettings();
-  if (dlWin && !dlWin.isDestroyed()) {
-    _applyLock(dlWin);
-    if (dlWin.webContents) {
-      try { dlWin.webContents.send('desktop-lyrics:lock-state', { locked: dlLocked }); } catch {}
-    }
+  if (dlWin && !dlWin.isDestroyed() && dlWin.webContents) {
+    try { dlWin.webContents.send('desktop-lyrics:lock-state', { locked: dlLocked }); } catch {}
   }
   _emitLockState();
 }

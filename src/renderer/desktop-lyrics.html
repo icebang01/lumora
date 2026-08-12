@@ -201,7 +201,16 @@
     .dl-btn svg { width: 13px; height: 13px; display: block; }
     .dl-btn.dl-btn-settings { font-size: 13px; }
 
-    /* 锁定态徽标（锁定后窗口点击穿透，hover 不可触发，故常显提示） */
+    /* 锁定态：禁用整窗拖拽、文字不可选中，但底部锁徽标仍可点击解锁 */
+    body.locked {
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+      cursor: default;
+    }
+    body.locked #dl-stage,
+    body.locked .dl-controls { pointer-events: none; }
+    body.locked .dl-controls { opacity: 0 !important; }
+
     .dl-lock-badge {
       position: absolute;
       bottom: 6px;
@@ -211,14 +220,15 @@
       height: 17px;
       color: rgba(255, 255, 255, .5);
       opacity: 0;
-      transition: opacity .2s ease;
+      transition: opacity .2s ease, color .2s ease, transform .2s ease;
       -webkit-app-region: no-drag;
       app-region: no-drag;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
     }
+    .dl-lock-badge:hover { color: rgba(255, 255, 255, .85); transform: translateX(-50%) scale(1.15); }
     .dl-lock-badge svg { width: 100%; height: 100%; display: block; }
     body.locked .dl-lock-badge { opacity: 1; }
-    body.locked .dl-controls { opacity: 0 !important; }
 
     /* 字体设置面板 */
     .dl-font-panel {
@@ -645,10 +655,16 @@
         } catch (e) { /* noop */ }
       }
 
+      // 锁徽标本身也可点：锁定后控制栏隐藏，只有底部小锁能点，点一下就解锁
+      if (lockBadge) lockBadge.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (lumen && lumen.desktopLyricsLock) lumen.desktopLyricsLock();
+      });
+
       // 注：窗口拖动已改由 CSS -webkit-app-region: drag / no-drag 交给 OS 原生处理，
       // 比 frameless+focusable:false 窗口下的自定义 mousemove 拖拽更可靠。
-      // 锁定后整窗 setIgnoreMouseEvents(true) 点击穿透，hover 不触发控制钮，
-      // 故解锁仅能靠全局快捷键（Ctrl/⌘+Shift+L），或重新打开歌词窗。
+      // 锁定后 body.locked 关闭拖拽并设置 pointer-events:none，使歌词区不可选中/不可拖；
+      // 底部锁徽标单独 pointer-events:auto，点击即可解锁。也可按 Ctrl/⌘+Shift+L 解锁。
 
       // 初始占位
       emptyEl.hidden = false;
