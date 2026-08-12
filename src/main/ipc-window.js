@@ -229,8 +229,19 @@ nativeTheme.on('updated', () => {
 
   // 从视频模式返回主页：立即把当前位置刷进视频位置记忆（防 400ms 防抖未触发），
   // 并标记「来自视频」，使 ui:set-idle-state(idle=true) 保留窗口位置、不重置为居中首页。
+  // 注意：本信号本身即代表「正从视频返回」，故保存位置不依赖 videoActive 守卫
+  // （该守卫仅在进入播放态时置位，返回瞬间时序难以保证，跳过守卫会丢失位置导致仍被居中）。
   ipcMain.on('video:return-home', () => {
-    _saveVideoBounds();
+    if (!audioActive) { // 音乐模式由 music:* 处理，视频信号不应写入视频记忆
+      const vw = getVideoWin();
+      if (vw && !vw.isDestroyed()) {
+        const b = vw.getBounds();
+        const val = `${b.x},${b.y},${b.width},${b.height}`;
+        const cfg = getConfig();
+        if (cfg && cfg.set) cfg.set(VIDEO_BOUNDS_KEY, val);
+        if (CTX.writePlayerConfKey) CTX.writePlayerConfKey(VIDEO_BOUNDS_KEY, val);
+      }
+    }
     returningFromVideo = true;
   });
 
