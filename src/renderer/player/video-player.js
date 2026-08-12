@@ -337,6 +337,13 @@ export async function createVideoPlayer(bootstrapData, ctx) {
   // 进入 idle(返回主页)时清理质量徽章残留——由 idle.js 发事件驱动,避免循环依赖
   window.addEventListener('lumen:idle-enter', clearQualityBadges);
 
+  // 从视频模式返回主页：通知主进程保留当前窗口位置，使返回主页不重置为居中首页尺寸。
+  // 音乐模式由 music-stage.js 的 exitAudioMode() 处理，此处排除 audio-mode 避免重复通知。
+  window.addEventListener('lumen:idle-enter', () => {
+    if (document.body.classList.contains('audio-mode')) return;
+    try { if (window.lumen && window.lumen.videoReturnHome) window.lumen.videoReturnHome(); } catch { /* noop */ }
+  });
+
   return {
     engine,
     /** 加载视频：自动弹出加载遮罩（盖住 videoWin 黑底），主进程再做类型守卫 */

@@ -117,6 +117,8 @@ contextBridge.exposeInMainWorld('lumen', {
   musicAudio: (v) => ipcRenderer.send('music:audio', v),
   // 从音乐模式返回主页：请求主进程保留当前窗口位置（不要重置为居中首页尺寸）
   musicReturnHome: () => ipcRenderer.send('music:return-home'),
+  // 从视频模式返回主页：请求主进程保留当前窗口位置（不要重置为居中首页尺寸）
+  videoReturnHome: () => ipcRenderer.send('video:return-home'),
 
   // ---- 截图 ----
   saveScreenshot: (dataUrl, timePos) =>

@@ -41,15 +41,15 @@ function getIdleBackgroundColor() {
     const win = getWin();
     const videoWin = getVideoWin();
     if (idle && win && videoWin && !win.isDestroyed() && !videoWin.isDestroyed()) {
-      if (returningFromMusic) {
-        // 从音乐模式返回主页：保留当前（播放样式）窗口位置，不重置为居中首页尺寸。
+      if (returningFromMusic || returningFromVideo) {
+        // 从音乐/视频模式返回主页：保留当前窗口位置，不重置为居中首页尺寸。
         // 仍退出 PiP、保持四角透明，并与 videoWin 重同步（幂等）。
         try {
           if (getPipMode()) exitPipMode();
           try { win.setBackgroundColor(getIdleBackgroundColor()); } catch (_) {}
           resyncNow();
         } catch (err) {
-          console.error('[ipc-window] 音乐返回主页保持位置失败:', err);
+          console.error('[ipc-window] 返回主页保持位置失败:', err);
         }
       } else {
         // 从播放态（视频）回到主页：退出 PiP / 全屏 / 最大化，再重置为固定首页尺寸并居中
@@ -83,9 +83,17 @@ function getIdleBackgroundColor() {
       // 离开 idle（进入播放）：恢复极淡黑底，防止 Windows 把完全透明像素
       // 点击穿透到下层窗口（videoWin/WorkBuddy），确保视频画面能被本窗口接收交互。
       try { win.setBackgroundColor('#00000009'); } catch (_) {}
+      // 若既不是来自音乐返回，也不是来自视频返回，且当前不在音乐态 → 进入视频模式。
+      // 把当前（首页）位置记为视频位置，与音乐模式行为对称（首次进入沿用首页位置）。
+      if (!audioActive && !returningFromVideo) {
+        videoActive = true;
+        _saveVideoBounds();
+      }
     }
-    // 完成一次 idle 切换后复位「来自音乐」标记，避免影响随后的普通视频→主页过渡。
+    // 完成一次 idle 切换后复位「来自音乐/视频」标记，避免影响随后的播放→主页过渡。
     returningFromMusic = false;
+    returningFromVideo = false;
+    if (idle) videoActive = false;
     // videoWin 保持可见，UI 层置顶，避免 show/hide 闪烁。
     // 返回主页（idle=true）继续走重同步（前面已 resyncNow 过，幂等）；
     // 进入音乐/播放（idle=false）时窗口本就对齐，传 false 跳过 setContentBounds，
@@ -197,22 +205,58 @@ nativeTheme.on('updated', () => {
     if (style) _saveMusicBounds();
   });
 
-  // 音乐模式下拖动/缩放窗口：防抖保存当前位置到当前样式
-  const _mw = getWin();
-  if (_mw && !_mw.isDestroyed()) {
-    _mw.on('move', _scheduleSaveMusicBounds);
-    _mw.on('resize', _scheduleSaveMusicBounds);
+  // ---- 视频模式窗口位置记忆 ----
+  // 与音乐模式对称：视频播放时记住窗口位置，返回主页时不重置为居中首页尺寸，
+  // 从主页重新进入视频时沿用当前位置；关闭软件后清空记忆。
+  let videoActive = false;
+  let returningFromVideo = false;
+  let _videoSaveTimer = null;
+  const VIDEO_BOUNDS_KEY = 'video-mode-bounds';
+  function _saveVideoBounds() {
+    if (!videoActive) return;
+    const vw = getVideoWin();
+    if (!vw || vw.isDestroyed()) return;
+    const b = vw.getBounds();
+    const val = `${b.x},${b.y},${b.width},${b.height}`;
+    const cfg = getConfig();
+    if (cfg && cfg.set) cfg.set(VIDEO_BOUNDS_KEY, val);
+    if (CTX.writePlayerConfKey) CTX.writePlayerConfKey(VIDEO_BOUNDS_KEY, val);
+  }
+  function _scheduleSaveVideoBounds() {
+    if (_videoSaveTimer) clearTimeout(_videoSaveTimer);
+    _videoSaveTimer = setTimeout(_saveVideoBounds, 400);
   }
 
-  // 软件关闭：清除各播放样式的窗口位置记忆（player.conf + 内存）。
-  // 这样下次启动「首次从主页进入音乐模式」时窗口落在主页标准位置（而非上次会话的样式位置）；
-  // 会话内「返回主页再进入」仍按样式位置记忆（由本模块其余逻辑处理）。
+  // 从视频模式返回主页：立即把当前位置刷进视频位置记忆（防 400ms 防抖未触发），
+  // 并标记「来自视频」，使 ui:set-idle-state(idle=true) 保留窗口位置、不重置为居中首页。
+  ipcMain.on('video:return-home', () => {
+    _saveVideoBounds();
+    returningFromVideo = true;
+  });
+
+  // 音乐/视频模式下拖动/缩放窗口：防抖保存当前位置到对应模式记忆
+  const _mw = getWin();
+  if (_mw && !_mw.isDestroyed()) {
+    _mw.on('move', () => {
+      _scheduleSaveMusicBounds();
+      _scheduleSaveVideoBounds();
+    });
+    _mw.on('resize', () => {
+      _scheduleSaveMusicBounds();
+      _scheduleSaveVideoBounds();
+    });
+  }
+
+  // 软件关闭：清除音乐样式与视频模式的窗口位置记忆（player.conf + 内存）。
+  // 这样下次启动「首次从主页进入播放模式」时窗口落在主页标准位置（而非上次会话的位置）；
+  // 会话内「返回主页再进入」仍按模式位置记忆（由本模块其余逻辑处理）。
   app.on('will-quit', () => {
     if (_musicSaveTimer) { clearTimeout(_musicSaveTimer); _musicSaveTimer = null; }
+    if (_videoSaveTimer) { clearTimeout(_videoSaveTimer); _videoSaveTimer = null; }
     const cfg = getConfig();
     if (!cfg || !cfg.values) return;
     Object.keys(cfg.values).forEach((k) => {
-      if (k.startsWith(MUSIC_BOUNDS_PREFIX)) {
+      if (k.startsWith(MUSIC_BOUNDS_PREFIX) || k === VIDEO_BOUNDS_KEY) {
         try { delete cfg.values[k]; } catch { /* ignore */ }
         if (CTX.deletePlayerConfKey) {
           try { CTX.deletePlayerConfKey(k); } catch { /* ignore */ }
