@@ -178,21 +178,6 @@ nativeTheme.on('updated', () => {
     if (_musicSaveTimer) clearTimeout(_musicSaveTimer);
     _musicSaveTimer = setTimeout(_saveMusicBounds, 400);
   }
-  function _restoreMusicBounds(style) {
-    const cfg = getConfig();
-    if (!cfg) return;
-    const raw = cfg.get(_musicBoundsKey(style));
-    if (!raw || typeof raw !== 'string') return;
-    const parts = raw.split(',').map((n) => parseInt(n, 10));
-    if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return;
-    const [x, y, w, h] = parts;
-    const vw = getVideoWin();
-    if (!vw || vw.isDestroyed()) return;
-    try {
-      vw.setBounds({ x, y, width: w, height: h });
-      resyncNow();
-    } catch (_) {}
-  }
 
   ipcMain.on('music:audio', (_e, v) => { audioActive = !!v; });
 
@@ -206,10 +191,10 @@ nativeTheme.on('updated', () => {
   });
 
   ipcMain.on('music:style', (_e, style) => {
-    // 离开上一个样式：先把当前窗口位置记到上一个样式（返回主页时 audioActive 已置否，不会误存居中位置）
-    if (currentMusicStyle && currentMusicStyle !== style) _saveMusicBounds();
+    // 切换样式：新样式直接沿用当前窗口位置（与上一个样式统一），不跳到各自记忆位置。
+    // 先更新 currentMusicStyle 为「新样式」，再 _saveMusicBounds 即可把当前（上一个样式所在）位置记进新样式。
     currentMusicStyle = style || null;
-    if (style) _restoreMusicBounds(style);
+    if (style) _saveMusicBounds();
   });
 
   // 音乐模式下拖动/缩放窗口：防抖保存当前位置到当前样式
