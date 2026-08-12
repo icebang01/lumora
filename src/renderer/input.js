@@ -56,11 +56,11 @@ const keybinds = new Proxy({}, {
 function runCommand(args) { return CTX.runCommand ? CTX.runCommand(args) : null; }
 function openDialog() { return CTX.openDialog ? CTX.openDialog() : null; }
 function toggleKeymap(force) { if (CTX.toggleKeymap) CTX.toggleKeymap(force); }
-function setPlaylist(paths, index) { if (CTX.setPlaylist) CTX.setPlaylist(paths, index); }
+function setPlaylist(paths, index, mode) { if (CTX.setPlaylist) CTX.setPlaylist(paths, index, mode); }
 function load(filePath, opts) { return CTX.load ? CTX.load(filePath, opts) : null; }
 function getPlaylist() { return CTX.getPlaylist ? CTX.getPlaylist() : []; }
 function getPlaylistIndex() { return CTX.getPlaylistIndex ? CTX.getPlaylistIndex() : -1; }
-function appendToPlaylist(path) { if (CTX.appendToPlaylist) CTX.appendToPlaylist(path); }
+function appendToPlaylist(path, mode) { if (CTX.appendToPlaylist) CTX.appendToPlaylist(path, mode); }
 
 /**
  * 浏览器自动播放策略：AudioContext 只有在用户手势（点击/按键）调用栈内
@@ -472,24 +472,30 @@ export function bindDragDrop() {
     }
 
     const primary = rawPaths[0];
+    // 目标列表模式：音频文件归音乐列表，其余归视频列表（与 app.js _modeForPath 一致）
+    const mode = isAudioPath(primary) ? 'audio' : 'video';
+    const activeMode = document.body.classList.contains('audio-mode') ? 'audio' : 'video';
 
     try {
-      // 2) 已存在播放列表且只拖了单个文件：在列表里就跳转，否则追加并播放
-      const existing = getPlaylist();
-      if (existing.length > 0 && rawPaths.length === 1) {
-        const idx = existing.findIndex((p) => samePath(p, primary));
-        if (idx >= 0) {
-          setPlaylist(existing, idx);
-          load(existing[idx]);
-        } else {
-          appendToPlaylist(primary);
-          load(primary);
-          osd.message('已追加到播放列表', String(primary).split(/[\\/]/).pop(), { duration: 2000, force: true });
+      // 2) 单文件且落在「当前活跃模式」：沿用原行为——已在列表则跳转，否则追加并播放
+      if (mode === activeMode) {
+        const existing = getPlaylist();
+        if (existing.length > 0 && rawPaths.length === 1) {
+          const idx = existing.findIndex((p) => samePath(p, primary));
+          if (idx >= 0) {
+            setPlaylist(existing, idx);
+            load(existing[idx]);
+          } else {
+            appendToPlaylist(primary, mode);
+            load(primary);
+            osd.message('已追加到播放列表', String(primary).split(/[\\/]/).pop(), { duration: 2000, force: true });
+          }
+          return;
         }
-        return;
       }
 
-      // 3) 多文件 / 文件夹 / 空列表 → 主进程统一递归展开文件夹并按自然序排
+      // 3) 多文件 / 文件夹 / 跨模式单文件 → 主进程统一递归展开文件夹并按自然序排，
+      //    按文件类型写入对应（视频 / 音乐）列表，两者不通用。
       const res = await window.lumen.collectMedia(rawPaths);
       const paths = (res && res.ok && Array.isArray(res.paths) && res.paths.length)
         ? res.paths
@@ -500,7 +506,7 @@ export function bindDragDrop() {
       }
       paths.sort(naturalCompare);
       const startIndex = Math.max(0, paths.findIndex((p) => samePath(p, primary)));
-      setPlaylist(paths, startIndex);
+      setPlaylist(paths, startIndex, mode);
       if (paths.length > 1) {
         osd.message('已建立播放列表', `${paths.length} 个文件`, { duration: 3000, force: true });
       }
@@ -568,4 +574,9 @@ function samePath(a, b) {
   if (a === b) return true;
   if (!a || !b) return false;
   return String(a).toLowerCase().replace(/\\/g, '/') === String(b).toLowerCase().replace(/\\/g, '/');
+}
+
+/** 估算路径对应的列表模式：音频文件归音乐列表，其余归视频列表（与 app.js _modeForPath 一致） */
+function isAudioPath(p) {
+  return /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i.test(String(p || ''));
 }

@@ -76,8 +76,35 @@ async function applyAutoDisplayProfile() {
 let keybinds = new KeybindManager();
 let bootstrapData = null;
 let ready = false;              // 初始化期间不弹 OSD
-let playlist = [];
+// 双播放列表：视频模式 / 音乐模式 各自独立（用户需求：不通用）。
+// _modePlaylists 持有两份真实数组，playlist 仅作为「当前模式」的视图别名
+// （引用语义，保证 playlist.js / idle.js 的 Proxy 始终跟随活跃列表）。
+let _modePlaylists = { video: [], audio: [] };
+let _modeIndexes = { video: -1, audio: -1 };
+let playlist = _modePlaylists.video;
 let playlistIndex = -1;
+
+// 当前播放列表所属模式：音乐模式(audio-mode) 用音乐列表，其余（视频 / idle）用视频列表。
+function _pmode() {
+  return document.body.classList.contains('audio-mode') ? 'audio' : 'video';
+}
+// 文件类型 → 列表模式（音频文件归音乐列表，其余归视频列表）。
+const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i;
+function _modeForPath(p) { return AUDIO_EXT.test(String(p || '')) ? 'audio' : 'video'; }
+// 写某一模式的列表（原地替换数组内容，保持数组对象引用稳定，Proxy 不会失效）。
+function _writeMode(mode, paths, index) {
+  const arr = _modePlaylists[mode];
+  const items = paths.slice();
+  arr.length = 0;
+  for (const p of items) arr.push(p);
+  _modeIndexes[mode] = index;
+  if (mode === _pmode()) { playlist = arr; playlistIndex = index; }
+}
+// 切歌 / 定位时更新当前模式索引（同时同步到 _modeIndexes，保证持久化正确）。
+function setActiveIndex(i) {
+  playlistIndex = i;
+  _modeIndexes[_pmode()] = i;
+}
 
 // 网络串流弹窗拖拽状态
 let nsDragState = null;
@@ -112,16 +139,17 @@ async function boot() {
       if (keymap && keymap.visible) toggleKeymap(false);
     },
   });
-  setupIdlePanel({ player, osd, returnHome, load, openDialog, openNetworkStream, toggleSettings, playlist, getPlaylistIndex: () => playlistIndex, playlistGoto, persistPlaylist, enterAudioMode, enterVideoMode });
+  setupIdlePanel({ player, osd, returnHome, load, openDialog, openNetworkStream, toggleSettings, getPlaylist: () => playlist, getPlaylistIndex: () => playlistIndex, playlistGoto, persistPlaylist, enterAudioMode, enterVideoMode });
   setupPlaylistPanel({
     player, osd,
-    playlist,
+    getPlaylist: () => playlist,
     getPlaylistIndex: () => playlistIndex,
-    setPlaylistIndex: (i) => { playlistIndex = i; },
+    setPlaylistIndex: (i) => { playlistIndex = i; _modeIndexes[_pmode()] = i; },
     playlistGoto,
     playlistRemove,
     persistPlaylist,
   });
+  _initPlaylistModeSync();
   setupEqPanel({ player });
   setupCast({ player, osd });
   window.takeScreenshotSequence = takeScreenshotSequence;
@@ -218,7 +246,7 @@ async function boot() {
     musicPlayer.engine.addEventListener('crossfade-committed', () => {
       const next = nextPlaylistIndex(1);
       if (next >= 0) {
-        playlistIndex = next;
+        setActiveIndex(next);
         persistPlaylist();
         renderPlaylist();
       }
@@ -273,9 +301,9 @@ async function boot() {
     getPlaylist: () => playlist,
     getReady: () => ready,
     getPlaylistIndex: () => playlistIndex,
-    setPlaylistIndex: (v) => { playlistIndex = v; },
+    setPlaylistIndex: (v) => { playlistIndex = v; _modeIndexes[_pmode()] = v; },
     getDanmakuRenderer: () => danmakuRenderer,
-    setPlaylist, persistPlaylist, load, runCommand, warnNoVideoOutput,
+    setPlaylist, persistPlaylist, appendToPlaylist, load, runCommand, warnNoVideoOutput,
   });
   bindMainEvents();
   // 每次音乐曲目载入后，若启用交叉淡入淡出则预滚下一首音频头。
@@ -345,21 +373,42 @@ async function boot() {
   // 自动化测试探针：记录命令行传入的文件
   window.__pendingFile = bootstrapData.pendingFile || null;
 
-  // 恢复上次的播放列表（若存在），这样重启后仍能看到队列
-  if (bootstrapData.playlist && Array.isArray(bootstrapData.playlist.items) && bootstrapData.playlist.items.length) {
-    setPlaylist(bootstrapData.playlist.items.map((it) => it.path), bootstrapData.playlist.index || 0);
+  // 恢复上次的播放列表（视频 / 音乐 分别独立恢复），重启后仍能看到各自队列。
+  // 兼容旧单列表格式（整体视为视频列表）；双列表格式分别恢复 video / audio。
+  const _restored = bootstrapData.playlist;
+  if (_restored) {
+    if (Array.isArray(_restored.items)) {
+      // 旧格式：整体当作视频列表
+      _modePlaylists.video = _restored.items.map((it) => it.path).filter(Boolean);
+      _modeIndexes.video = typeof _restored.index === 'number' ? _restored.index : 0;
+    } else {
+      if (_restored.video && Array.isArray(_restored.video.items) && _restored.video.items.length) {
+        _modePlaylists.video = _restored.video.items.map((it) => it.path).filter(Boolean);
+        _modeIndexes.video = typeof _restored.video.index === 'number' ? _restored.video.index : 0;
+      }
+      if (_restored.audio && Array.isArray(_restored.audio.items) && _restored.audio.items.length) {
+        _modePlaylists.audio = _restored.audio.items.map((it) => it.path).filter(Boolean);
+        _modeIndexes.audio = typeof _restored.audio.index === 'number' ? _restored.audio.index : 0;
+      }
+    }
   }
+  // 活跃视图指向当前模式（启动默认 video 模式；首个文件载入后由 source 决定切换）
+  playlist = _modePlaylists[_pmode()];
+  playlistIndex = _modeIndexes[_pmode()];
 
   checkEnvironment();
 
   // 命令行/资源管理器双击带进来的文件
   if (bootstrapData.pendingFile) {
-    if (!playlist.includes(bootstrapData.pendingFile)) {
-      playlist.push(bootstrapData.pendingFile);
-      playlistIndex = playlist.length - 1;
+    const mode = _modeForPath(bootstrapData.pendingFile);
+    const arr = _modePlaylists[mode];
+    if (!arr.includes(bootstrapData.pendingFile)) {
+      arr.push(bootstrapData.pendingFile);
+      _modeIndexes[mode] = arr.length - 1;
     } else {
-      playlistIndex = playlist.indexOf(bootstrapData.pendingFile);
+      _modeIndexes[mode] = arr.indexOf(bootstrapData.pendingFile);
     }
+    if (mode === _pmode()) { playlist = arr; playlistIndex = _modeIndexes[mode]; }
     persistPlaylist();
     load(bootstrapData.pendingFile);
   }
@@ -573,11 +622,15 @@ async function openDialog(append = false, mode = 'all') {
   const title = mode === 'audio' ? '打开音频文件' : mode === 'video' ? '打开视频文件' : '打开文件';
   const r = await window.lumen.openDialog({ title, filters });
   if (r && r.ok && Array.isArray(r.paths) && r.paths.length) {
+    // 按对话框模式(idle 左右入口)决定写入哪个列表：'audio'→音乐列表，'video'→视频列表，'all'→当前模式
+    const targetMode = mode === 'all' ? _pmode() : mode;
     if (append && playlist.length) {
       // 追加：引用语义原地 push，保持当前播放项与索引不变；首页停留不自动播放
-      for (const p of r.paths) playlist.push(p);
+      const arr = _modePlaylists[targetMode];
+      for (const p of r.paths) arr.push(p);
+      if (targetMode === _pmode()) playlist = arr;
     } else {
-      setPlaylist(r.paths, 0);
+      setPlaylist(r.paths, 0, targetMode);
     }
     persistPlaylist();
     if (!append) load(r.paths[0]);
@@ -757,14 +810,15 @@ function isolateNetworkStreamEvents() {
   }
 }
 
-/** 把当前播放列表持久化到磁盘，下次启动可恢复 */
+/** 把两个播放列表（视频 / 音乐）一并持久化到磁盘，下次启动可分别恢复 */
 function persistPlaylist() {
   try {
-    if (playlist.length) {
-      window.lumen.savePlaylist({ index: playlistIndex, items: playlist.map((p) => ({ path: p })) });
-    } else {
-      window.lumen.savePlaylist({ index: -1, items: [] });
-    }
+    // 同步当前模式的索引（部分代码路径经 setActiveIndex 已同步，这里兜底）
+    _modeIndexes[_pmode()] = playlistIndex;
+    window.lumen.savePlaylist({
+      video: { index: _modeIndexes.video, items: _modePlaylists.video.map((p) => ({ path: p })) },
+      audio: { index: _modeIndexes.audio, items: _modePlaylists.audio.map((p) => ({ path: p })) },
+    });
   } catch { /* ignore */ }
 }
 
@@ -816,8 +870,12 @@ function endOfPlaylist() {
   osd.message('播放结束', undefined, { duration: 2500 });
   // 清掉续播卡片，下次启动不再提示这部
   try { if (window.lumen && window.lumen.clearResume) window.lumen.clearResume(); } catch { /* ignore */ }
-  // 清空播放列表，下次启动不再恢复这个队列
-  try { if (window.lumen && window.lumen.savePlaylist) window.lumen.savePlaylist({ index: -1, items: [] }); } catch { /* ignore */ }
+  // 仅清空「当前模式」的播放列表（视频 / 音乐 各自独立），下次启动不再恢复这个队列
+  const mode = _pmode();
+  _modePlaylists[mode] = [];
+  _modeIndexes[mode] = -1;
+  if (mode === _pmode()) { playlist = _modePlaylists[mode]; playlistIndex = -1; }
+  persistPlaylist();
   // 播完且无后续：根据设置决定是否自动返回 logo 落地页（默认开启）
   const autoHome = bootstrapData && bootstrapData.config &&
     bootstrapData.config.values && bootstrapData.config.values['return-home-on-eof'] !== false;
@@ -878,15 +936,10 @@ function returnHome() {
   setIdleMode(true);
 }
 
-function setPlaylist(paths, index) {
-  // 重要：必须原地修改数组（不能重新赋值），因为 playlist.js 的 Proxy
-  // 持有同一个引用。reassign 会导致 Proxy 读到旧空数组 → 面板显示空态。
-  // 防御：先 snapshot paths，避免 caller 传入 playlist 自身引用时，先清空
-  // 再迭代导致列表被清为空。
-  const items = paths.slice();
-  playlist.length = 0;
-  for (const p of items) playlist.push(p);
-  playlistIndex = index;
+function setPlaylist(paths, index, modeOpt) {
+  // 路由到指定模式（默认当前模式）。_writeMode 原地修改该模式的数组，
+  // 若恰为当前模式则同步 playlist 视图别名（Proxy 引用语义不失效）。
+  _writeMode(modeOpt || _pmode(), paths, index);
 }
 
 /** 计算 playlistJump 的目标索引（不修改状态）；无下一首返回 -1。
@@ -915,7 +968,7 @@ function playlistJump(dir) {
     osd.message(dir > 0 ? '已经是最后一个' : '已经是第一个');
     return;
   }
-  playlistIndex = target;
+  setActiveIndex(target);
   osd.message(`播放列表 ${playlistIndex + 1}/${playlist.length}`, baseName(playlist[playlistIndex]));
   persistPlaylist();
   // 播放列表内切歌：每次都从头开始播放；续播只用于重新打开同一文件/历史恢复
@@ -953,7 +1006,7 @@ function maybeStartCrossfade() {
 /** 跳到列表指定位置 */
 function playlistGoto(i) {
   if (i < 0 || i >= playlist.length) return;
-  playlistIndex = i;
+  setActiveIndex(i);
   persistPlaylist();
   // 播放列表内切歌：每次都从头开始播放
   load(playlist[i], { resumeFromStart: true });
@@ -964,23 +1017,51 @@ function playlistRemove(i) {
   if (i < 0 || i >= playlist.length) return;
   playlist.splice(i, 1);
   if (!playlist.length) {
-    playlistIndex = -1;
+    setActiveIndex(-1);
     persistPlaylist();
     closePlaylistPanel();
     return;
   }
-  if (i < playlistIndex) playlistIndex -= 1;
-  else if (i === playlistIndex) playlistIndex = Math.min(playlistIndex, playlist.length - 1);
+  if (i < playlistIndex) setActiveIndex(playlistIndex - 1);
+  else if (i === playlistIndex) setActiveIndex(Math.min(playlistIndex, playlist.length - 1));
   persistPlaylist();
   renderPlaylist();
 }
 
-/** 追加一项到当前播放列表末尾并切换播放 */
-function appendToPlaylist(path) {
-  playlist.push(path);
-  playlistIndex = playlist.length - 1;
+/** 追加一项到播放列表末尾（按 modeOpt 路由到对应模式，默认当前模式）并切换播放 */
+function appendToPlaylist(path, modeOpt) {
+  const mode = modeOpt || _pmode();
+  const arr = _modePlaylists[mode];
+  arr.push(path);
+  _modeIndexes[mode] = arr.length - 1;
+  if (mode === _pmode()) { playlist = arr; playlistIndex = arr.length - 1; }
   persistPlaylist();
   renderPlaylist();
+}
+
+/**
+ * 模式切换时交换视频 / 音乐 播放列表视图：进入某模式前先保存刚离开模式的
+ * 当前索引，再把 playlist 视图别名与 playlistIndex 指向上一模式的列表。
+ * 依赖 body 的 audio-mode 类作为唯一信号（enterAudioMode/exitAudioMode 切换它）。
+ * 注册顺序上必须早于 playlist.js 的自有观察者，确保面板重渲染时读到的是新列表。
+ */
+let _lastPlaylistMode = 'video';
+function _initPlaylistModeSync() {
+  _lastPlaylistMode = _pmode();
+  const obs = new MutationObserver(() => {
+    const now = _pmode();
+    if (now === _lastPlaylistMode) return; // 仅 audio-mode 变化才处理
+    // 保存刚离开模式的索引（此刻 playlistIndex 仍属旧模式）
+    _modeIndexes[_lastPlaylistMode] = playlistIndex;
+    // 加载进入模式的列表与索引
+    playlist = _modePlaylists[now];
+    playlistIndex = _modeIndexes[now];
+    _lastPlaylistMode = now;
+    // 面板开着则即时重渲染为进入模式的列表
+    const panel = document.getElementById('playlist-panel');
+    if (panel && !panel.classList.contains('hidden')) renderPlaylist();
+  });
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 }
 
 /* ================================================================== */

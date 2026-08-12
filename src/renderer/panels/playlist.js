@@ -86,10 +86,11 @@ const player = new Proxy({}, {
   },
 });
 const osd = { message: (...a) => CTX.osd && CTX.osd.message(...a) };
-// playlist 数组引用转发(方法自动 bind,保持 push/splice 等原地修改语义)
+// playlist 数组引用转发(方法自动 bind,保持 push/splice 等原地修改语义)。
+// 经 getPlaylist() 动态取「当前模式」列表（视频 / 音乐 各自独立，随模式切换跟随）。
 const playlist = new Proxy([], {
   get(_, k) {
-    const arr = CTX.playlist;
+    const arr = CTX.getPlaylist ? CTX.getPlaylist() : null;
     if (!arr) return undefined;
     const v = arr[k];
     return typeof v === 'function' ? v.bind(arr) : v;

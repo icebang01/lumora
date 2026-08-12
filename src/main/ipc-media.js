@@ -306,8 +306,8 @@ function _isLyricsSimplified() {
   ipcMain.handle('playlist:load', () => loadPlaylist());
 
   ipcMain.handle('playlist:save', (_e, state) => {
-    if (state && Array.isArray(state.items) && state.items.length) savePlaylist(state);
-    else clearPlaylist();
+    // 双列表格式 { video:{index,items}, audio:{index,items} }；store 内部兼容旧单列表并负责空列表清文件
+    savePlaylist(state || {});
     return { ok: true };
   });
 }

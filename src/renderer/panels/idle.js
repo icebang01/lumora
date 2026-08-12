@@ -18,10 +18,11 @@ const player = new Proxy({}, {
 });
 const osd = { message: (...a) => CTX.osd && CTX.osd.message(...a), clearCenter: (...a) => CTX.osd && CTX.osd.clearCenter(...a) };
 
-// 媒体库海报墙的数据访问（由 app.js 经 setupIdlePanel 注入，引用语义保持同步）
+// 媒体库海报墙的数据访问（由 app.js 经 setupIdlePanel 注入，引用语义保持同步）。
+// 经 getPlaylist() 动态取「当前模式」列表（视频 / 音乐 各自独立，随模式切换跟随）。
 const _playlist = new Proxy([], {
   get(_, k) {
-    const arr = CTX.playlist;
+    const arr = CTX.getPlaylist ? CTX.getPlaylist() : null;
     if (!arr) return undefined;
     const v = arr[k];
     return typeof v === 'function' ? v.bind(arr) : v;

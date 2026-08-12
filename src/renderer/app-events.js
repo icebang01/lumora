@@ -36,11 +36,14 @@ function getReady() { return CTX.getReady ? CTX.getReady() : true; }
 function getPlaylistIndex() { return CTX.getPlaylistIndex ? CTX.getPlaylistIndex() : -1; }
 function setPlaylistIndex(v) { if (CTX.setPlaylistIndex) CTX.setPlaylistIndex(v); }
 function getDanmakuRenderer() { return CTX.getDanmakuRenderer ? CTX.getDanmakuRenderer() : null; }
-function setPlaylist(paths, index) { if (CTX.setPlaylist) CTX.setPlaylist(paths, index); }
+function setPlaylist(paths, index, mode) { if (CTX.setPlaylist) CTX.setPlaylist(paths, index, mode); }
+function appendToPlaylist(path, mode) { if (CTX.appendToPlaylist) CTX.appendToPlaylist(path, mode); }
 function persistPlaylist() { if (CTX.persistPlaylist) CTX.persistPlaylist(); }
 function load(filePath, opts) { return CTX.load ? CTX.load(filePath, opts) : null; }
 function runCommand(args) { return CTX.runCommand ? CTX.runCommand(args) : null; }
 function warnNoVideoOutput(reason) { if (CTX.warnNoVideoOutput) CTX.warnNoVideoOutput(reason); }
+// 文件类型 → 列表模式（与 app.js _modeForPath 一致）
+function isAudioPath(p) { return /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i.test(String(p || '')); }
 
 /* ================================================================== */
 /* 主进程事件                                                          */
@@ -130,15 +133,14 @@ function bindMainEvents() {
   // 外部打开文件（双击关联 / 已运行时 second-instance / macOS open-file）
   window.lumen.on('app:open-file', ({ path }) => {
     window.__test_openFile = path;
+    // 按文件类型决定写入哪个列表（音频→音乐列表，其余→视频列表），两者不通用
+    const mode = isAudioPath(path) ? 'audio' : 'video';
     if (!player.info) {
-      setPlaylist([path], 0);
+      setPlaylist([path], 0, mode);
       load(path);
     } else {
-      // 运行中双击新文件 → 追加进当前列表，并从它开始播
-      if (!playlist.includes(path)) playlist.push(path);
-      const idx = playlist.indexOf(path);
-      setPlaylist(playlist, idx);
-      persistPlaylist();
+      // 运行中双击新文件 → 追加进对应模式列表，并从它开始播
+      appendToPlaylist(path, mode);
       load(path);
     }
   });
