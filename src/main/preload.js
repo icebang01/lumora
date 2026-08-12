@@ -56,6 +56,7 @@ const INBOUND = [
   'updater:progress',
   'desktop-lyrics:data',
   'desktop-lyrics:state',
+  'desktop-lyrics:font',
 ];
 
 contextBridge.exposeInMainWorld('lumen', {
@@ -224,6 +225,8 @@ contextBridge.exposeInMainWorld('lumen', {
   // 歌词窗口 → 主进程：拖拽位移 / 字号调整 / 关闭
   desktopLyricsMove: (dx, dy) => ipcRenderer.send('desktop-lyrics:move', { dx, dy }),
   desktopLyricsFontSize: (delta) => ipcRenderer.send('desktop-lyrics:fontsize', { delta }),
+  desktopLyricsFontFamily: (family) => ipcRenderer.send('desktop-lyrics:font-family', { family }),
+  desktopLyricsFontWeight: (weight) => ipcRenderer.send('desktop-lyrics:font-weight', { weight }),
   desktopLyricsClose: () => ipcRenderer.send('desktop-lyrics:close'),
 
   // ---- 事件 ----

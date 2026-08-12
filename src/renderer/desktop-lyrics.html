@@ -8,6 +8,8 @@
     :root {
       /* 当前行字号（由 ?fs= 初始化，可被 A-/A+ 调整） */
       --dl-font: 30px;
+      --dl-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --dl-font-weight: 800;
       --dl-accent-a: #8fe3ff;
       --dl-accent-b: #7c8cff;
       --dl-accent-c: #ff9ed6;
@@ -20,8 +22,7 @@
       height: 100%;
       background: transparent;       /* 透明窗口，叠在桌面之上 */
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-                   "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-family: var(--dl-font-family);
       -webkit-font-smoothing: antialiased;
       user-select: none;
       cursor: move;
@@ -96,7 +97,7 @@
     /* 当前行：未唱字暗灰白、已唱字网易云蓝——一层颜色（不叠渐变） */
     .dl-current {
       font-size: var(--dl-font);
-      font-weight: 800;
+      font-weight: var(--dl-font-weight);
       line-height: 1.15;
       white-space: nowrap;
       overflow: hidden;
@@ -198,6 +199,62 @@
     .dl-btn:hover { background: rgba(124, 140, 255, 0.85); }
     .dl-btn:active { transform: scale(0.92); }
     .dl-btn svg { width: 13px; height: 13px; display: block; }
+    .dl-btn.dl-btn-settings { font-size: 13px; }
+
+    /* 字体设置面板 */
+    .dl-font-panel {
+      position: absolute;
+      top: 36px;
+      right: 8px;
+      min-width: 188px;
+      padding: 12px 14px;
+      background: rgba(14, 16, 28, 0.86);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+      transition: opacity .18s ease, transform .18s ease;
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .dl-font-panel.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .dl-font-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .dl-font-row label { color: rgba(255, 255, 255, .72); font-size: 12px; white-space: nowrap; }
+    .dl-font-row select {
+      flex: 1;
+      min-width: 0;
+      background: rgba(255, 255, 255, .10);
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      padding: 5px 8px;
+      outline: none;
+      cursor: pointer;
+    }
+    .dl-font-row select option { background: #1a1c2a; color: #fff; }
+    .dl-font-row select:focus { border-color: rgba(124, 140, 255, .70); }
+    .dl-font-custom {
+      width: 100%;
+      background: rgba(255, 255, 255, .10);
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      padding: 6px 8px;
+      outline: none;
+      display: none;
+    }
+    .dl-font-custom.open { display: block; }
+    .dl-font-custom:focus { border-color: rgba(124, 140, 255, .70); }
 
     /* 尊重「减少动态效果」系统偏好 */
     @media (prefers-reduced-motion: reduce) {
@@ -228,9 +285,39 @@
     <button class="dl-btn" id="dl-font-plus" title="放大字号" aria-label="放大字号">
       <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" fill="currentColor"/></svg>
     </button>
+    <button class="dl-btn dl-btn-settings" id="dl-font-settings" title="字体设置" aria-label="字体设置">
+      <svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" fill="currentColor" opacity=".4"/><path d="M19.43 12.98c.04-.32.07-.66.07-1s-.03-.68-.07-1l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.73-1l-.38-2.65A.5.5 0 0 0 14.5 1h-5a.5.5 0 0 0-.49.41l-.38 2.65a7.03 7.03 0 0 0-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.66-.07 1s.03.68.07 1l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .61.22l2.49-1.01c.53.4 1.1.74 1.73 1l.38 2.65a.5.5 0 0 0 .49.41h5a.5.5 0 0 0 .49-.41l.38-2.65a7.03 7.03 0 0 0 1.73-1l2.49 1.01a.5.5 0 0 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65z" fill="currentColor"/></svg>
+    </button>
     <button class="dl-btn" id="dl-close" title="关闭桌面歌词" aria-label="关闭桌面歌词">
       <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
     </button>
+  </div>
+
+  <div class="dl-font-panel" id="dl-font-panel">
+    <div class="dl-font-row">
+      <label>字体</label>
+      <select id="dl-font-family-select">
+        <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">系统默认</option>
+        <option value="'Microsoft YaHei', 'PingFang SC', sans-serif">微软雅黑</option>
+        <option value="'PingFang SC', 'Source Han Sans SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif">苹方 / 思源黑体</option>
+        <option value="'SimSun', 'Songti SC', serif">宋体</option>
+        <option value="'SimHei', 'Heiti SC', sans-serif">黑体</option>
+        <option value="'KaiTi', 'Kaiti SC', serif">楷体</option>
+        <option value="__custom__">自定义…</option>
+      </select>
+    </div>
+    <input type="text" class="dl-font-custom" id="dl-font-custom" placeholder="输入字体名，如 'Arial Black'" spellcheck="false">
+    <div class="dl-font-row">
+      <label>字重</label>
+      <select id="dl-font-weight-select">
+        <option value="300">细体</option>
+        <option value="400">常规</option>
+        <option value="500">中等</option>
+        <option value="700">粗体</option>
+        <option value="800">特粗</option>
+        <option value="900">黑体</option>
+      </select>
+    </div>
   </div>
 
   <script>
@@ -263,6 +350,137 @@
         fs = Math.max(FONT_MIN, Math.min(FONT_MAX, size));
         document.documentElement.style.setProperty('--dl-font', fs + 'px');
       }
+
+      // 字体/字重持久化相关
+      var DEFAULT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
+      var PRESETS = [
+        { value: DEFAULT_FAMILY, label: '系统默认' },
+        { value: "'Microsoft YaHei', 'PingFang SC', sans-serif", label: '微软雅黑' },
+        { value: "'PingFang SC', 'Source Han Sans SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif", label: '苹方 / 思源黑体' },
+        { value: "'SimSun', 'Songti SC', serif", label: '宋体' },
+        { value: "'SimHei', 'Heiti SC', sans-serif", label: '黑体' },
+        { value: "'KaiTi', 'Kaiti SC', serif", label: '楷体' },
+      ];
+      var family = DEFAULT_FAMILY;
+      var weight = 800;
+
+      function findPreset(val) {
+        for (var i = 0; i < PRESETS.length; i++) {
+          if (PRESETS[i].value === val) return PRESETS[i];
+        }
+        return null;
+      }
+      function applyFontFamily(f) {
+        family = (f && f.trim()) ? f.trim() : DEFAULT_FAMILY;
+        document.documentElement.style.setProperty('--dl-font-family', family);
+      }
+      function applyFontWeight(w) {
+        weight = Math.max(100, Math.min(900, parseInt(w, 10) || 800));
+        document.documentElement.style.setProperty('--dl-font-weight', weight);
+      }
+
+      try {
+        var urlParams = new URLSearchParams(location.search);
+        var ffParam = urlParams.get('ff');
+        if (ffParam) applyFontFamily(decodeURIComponent(ffParam));
+        var fwParam = urlParams.get('fw');
+        if (fwParam) applyFontWeight(fwParam);
+      } catch (e) { /* 保持默认 */ }
+
+      // 字体设置面板
+      var settingsBtn = document.getElementById('dl-font-settings');
+      var fontPanel = document.getElementById('dl-font-panel');
+      var familySelect = document.getElementById('dl-font-family-select');
+      var customInput = document.getElementById('dl-font-custom');
+      var weightSelect = document.getElementById('dl-font-weight-select');
+
+      function syncSettingsUI() {
+        if (!familySelect || !weightSelect) return;
+        var preset = findPreset(family);
+        if (preset) {
+          familySelect.value = preset.value;
+          customInput.classList.remove('open');
+        } else {
+          familySelect.value = '__custom__';
+          customInput.value = family;
+          customInput.classList.add('open');
+        }
+        weightSelect.value = String(weight);
+      }
+
+      function toggleSettingsPanel(show) {
+        if (!fontPanel) return;
+        if (show === undefined) fontPanel.classList.toggle('open');
+        else if (show) fontPanel.classList.add('open');
+        else fontPanel.classList.remove('open');
+      }
+
+      if (settingsBtn && fontPanel) {
+        settingsBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          syncSettingsUI();
+          toggleSettingsPanel();
+        });
+        // 面板外点击关闭
+        document.addEventListener('click', function (e) {
+          if (!fontPanel.contains(e.target) && e.target !== settingsBtn && !settingsBtn.contains(e.target)) {
+            fontPanel.classList.remove('open');
+          }
+        });
+      }
+
+      function commitFontFamily(nextFamily) {
+        applyFontFamily(nextFamily);
+        syncSettingsUI();
+        if (lumen && lumen.desktopLyricsFontFamily) lumen.desktopLyricsFontFamily(family);
+      }
+
+      function commitFontWeight(nextWeight) {
+        applyFontWeight(nextWeight);
+        if (lumen && lumen.desktopLyricsFontWeight) lumen.desktopLyricsFontWeight(weight);
+      }
+
+      if (familySelect) {
+        familySelect.addEventListener('change', function () {
+          if (familySelect.value === '__custom__') {
+            customInput.classList.add('open');
+            if (customInput.value.trim()) commitFontFamily(customInput.value.trim());
+          } else {
+            customInput.classList.remove('open');
+            commitFontFamily(familySelect.value);
+          }
+        });
+      }
+      if (customInput) {
+        customInput.addEventListener('change', function () {
+          if (customInput.value.trim()) commitFontFamily(customInput.value.trim());
+        });
+        customInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' && customInput.value.trim()) {
+            commitFontFamily(customInput.value.trim());
+            fontPanel.classList.remove('open');
+          }
+        });
+      }
+      if (weightSelect) {
+        weightSelect.addEventListener('change', function () {
+          commitFontWeight(weightSelect.value);
+        });
+      }
+
+      // 主进程通知刷新字体（窗口重开/外部变更）
+      if (lumen && typeof lumen.on === 'function') {
+        try {
+          lumen.on('desktop-lyrics:font', function (data) {
+            data = data || {};
+            if (data.family) applyFontFamily(data.family);
+            if (data.weight !== undefined) applyFontWeight(data.weight);
+            syncSettingsUI();
+          });
+        } catch (e) { /* noop */ }
+      }
+
+      syncSettingsUI();
 
       // 更新单行文本（仅在变化时触发弹出动画）
       function setLine(el, text) {

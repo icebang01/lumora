@@ -28,6 +28,8 @@ let CTX = {};
 let dlWin = null;          // 桌面歌词 BrowserWindow
 let dlVisible = false;
 let dlFontSize = 30;       // 当前字号（px）
+let dlFontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
+let dlFontWeight = 800;    // 当前字重
 let dlBounds = null;       // 记忆位置 { x, y, width, height }
 let settingsPath = '';
 let _saveTimer = null;
@@ -60,6 +62,8 @@ function _loadSettings() {
     if (fs.existsSync(f)) {
       const s = JSON.parse(fs.readFileSync(f, 'utf8') || '{}');
       if (typeof s.fontSize === 'number') dlFontSize = s.fontSize;
+      if (typeof s.fontFamily === 'string' && s.fontFamily.trim()) dlFontFamily = s.fontFamily;
+      if (typeof s.fontWeight === 'number') dlFontWeight = s.fontWeight;
       if (s.bounds && typeof s.bounds.x === 'number') dlBounds = s.bounds;
     }
   } catch { /* 损坏配置忽略，用默认 */ }
@@ -71,7 +75,12 @@ function _saveSettings() {
     try {
       const f = _settingsFile();
       fs.mkdirSync(path.dirname(f), { recursive: true });
-      fs.writeFileSync(f, JSON.stringify({ fontSize: dlFontSize, bounds: dlBounds || null }));
+      fs.writeFileSync(f, JSON.stringify({
+        fontSize: dlFontSize,
+        fontFamily: dlFontFamily,
+        fontWeight: dlFontWeight,
+        bounds: dlBounds || null,
+      }));
     } catch { /* 无权限则忽略 */ }
   }, 400);
 }
@@ -105,7 +114,7 @@ function _createWindow() {
       backgroundThrottling: false,
     },
   });
-  const q = `?fs=${encodeURIComponent(dlFontSize)}`;
+  const q = `?fs=${encodeURIComponent(dlFontSize)}&ff=${encodeURIComponent(dlFontFamily)}&fw=${encodeURIComponent(dlFontWeight)}`;
   win.loadFile(path.join(__dirname, '..', 'renderer', 'desktop-lyrics.html'), { search: q });
   win.setMenu(null);
   // 恢复上次位置，但高度不能低于当前默认高度（避免旧版保存的 96/132 覆盖新版 168）
@@ -178,6 +187,25 @@ function setFontSize(delta) {
   _saveSettings();
 }
 
+function setFontFamily(family) {
+  if (!family || typeof family !== 'string') return;
+  dlFontFamily = family.trim();
+  _saveSettings();
+  if (dlWin && !dlWin.isDestroyed() && dlWin.webContents) {
+    try { dlWin.webContents.send('desktop-lyrics:font', { family: dlFontFamily }); } catch {}
+  }
+}
+
+function setFontWeight(weight) {
+  const w = parseInt(weight, 10);
+  if (Number.isNaN(w)) return;
+  dlFontWeight = Math.max(100, Math.min(900, w));
+  _saveSettings();
+  if (dlWin && !dlWin.isDestroyed() && dlWin.webContents) {
+    try { dlWin.webContents.send('desktop-lyrics:font', { weight: dlFontWeight }); } catch {}
+  }
+}
+
 /** 应用退出时销毁歌词窗口，避免孤儿窗口 */
 function teardownWindow() {
   if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
@@ -193,6 +221,8 @@ function register() {
   ipcMain.handle('desktop-lyrics:hide', () => { hide(); return { visible: dlVisible }; });
   ipcMain.on('desktop-lyrics:move', (_e, { dx, dy } = {}) => moveBy(dx, dy));
   ipcMain.on('desktop-lyrics:fontsize', (_e, { delta } = {}) => setFontSize(delta));
+  ipcMain.on('desktop-lyrics:font-family', (_e, { family } = {}) => setFontFamily(family));
+  ipcMain.on('desktop-lyrics:font-weight', (_e, { weight } = {}) => setFontWeight(weight));
   ipcMain.on('desktop-lyrics:close', () => hide());
 }
 
