@@ -249,10 +249,6 @@ export function detectDisplayGamut() {
   }
 }
 
-export function hasGamut(id) {
-  return id === 'auto' || id === 'custom' || !!GAMUTS[id];
-}
-
 /* ============================ EDID 实测色度 ============================ */
 
 /**
@@ -371,5 +367,3 @@ export function applyColMajor(mat, v) {
   const M = transpose3(Array.from(mat));
   return mulMV(M, v);
 }
-
-export { GAMUTS, xyToXYZ, primToXYZmat, bradford, packColMajor };
