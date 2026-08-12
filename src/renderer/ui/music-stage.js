@@ -128,9 +128,9 @@ const DESKTOP_LYRICS_ON_KEY = 'lumora.desktopLyrics.on';
 // 播放器样式（QQ 音乐「播放器样式」同款：切换音乐舞台布局）
 let mStyleBtn = null;       // #m-btn-style
 let mStyleMenu = null;      // #m-style-menu
-let _playerStyle = 'square'; // 当前布局样式（默认简约方形）
+let _playerStyle = 'cover'; // 当前布局样式（默认大封面）
 const PLAYER_STYLE_KEY = 'lumora.music.playerStyle';
-const PLAYER_STYLES = ['cover', 'lyrics', 'vinyl', 'square', 'glass', 'lyrics-min'];
+const PLAYER_STYLES = ['cover', 'lyrics', 'vinyl', 'glass', 'lyrics-min'];
 
 // 艺人写真照（歌词优先等样式用）
 let _artistPhotoUrl = '';     // 当前曲目的艺人写真 data URL
@@ -213,13 +213,13 @@ export function initMusicStage(p) {
   if (mBtnDesktopLyrics) mBtnDesktopLyrics.setAttribute('aria-pressed', _desktopLyricsOn ? 'true' : 'false');
 
   // 还原播放器样式偏好并立即应用：自动进入「退出前」的播放样式。
-  // 仅当存值合法时采用，避免老缓存残留的已废弃布局；首次进入或未识别时默认简约方形。
+  // 仅当存值合法时采用，避免老缓存残留的已废弃布局；首次进入或未识别时默认大封面。
   try {
     const savedStyle = localStorage.getItem(PLAYER_STYLE_KEY);
     if (savedStyle && PLAYER_STYLES.includes(savedStyle)) {
       _playerStyle = savedStyle;
     } else {
-      _playerStyle = 'square';
+      _playerStyle = 'cover';
       try { localStorage.setItem(PLAYER_STYLE_KEY, _playerStyle); } catch { /* ignore */ }
     }
   } catch { /* ignore */ }
@@ -462,7 +462,7 @@ function _bindPlayerStyle() {
   mStyleMenu.querySelectorAll('.mc-style-opt').forEach((b) => {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
-      const style = b.getAttribute('data-style') || 'square';
+      const style = b.getAttribute('data-style') || 'cover';
       _applyPlayerStyle(style);
       try { localStorage.setItem(PLAYER_STYLE_KEY, style); } catch { /* ignore */ }
       mStyleMenu.setAttribute('hidden', '');
@@ -483,7 +483,7 @@ function _bindPlayerStyle() {
 }
 
 function _applyPlayerStyle(style) {
-  if (!PLAYER_STYLES.includes(style)) style = 'square';
+  if (!PLAYER_STYLES.includes(style)) style = 'cover';
   _playerStyle = style;
   if (!stage) return;
   // 先清理所有已废弃或残留的旧样式类，避免 multiple style-* / music-style-* 同时存在导致 CSS 互相覆盖
