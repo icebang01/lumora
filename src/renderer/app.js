@@ -950,7 +950,13 @@ function returnHome() {
     if (aiPanel && !aiPanel.classList.contains('hidden')) aiPanel.classList.add('hidden');
   } catch { /* noop */ }
 
-  // ④ 退回 logo 落地页
+  // ④ 先告知主进程「正从视频模式返回主页」：立即保存当前窗口位置并标记 returningFromVideo，
+  //    使随后的 ui:set-idle-state 保留窗口位置（不重置为居中首页尺寸）。
+  //    必须在 setIdleMode(true) 之前发送——否则主进程收到置位信号前窗口可能已被居中。
+  //    （与音乐模式 exitAudioMode() 中显式调用 musicReturnHome() 的成熟做法对齐）
+  try { if (window.lumen && window.lumen.videoReturnHome) window.lumen.videoReturnHome(); } catch { /* noop */ }
+
+  // ⑤ 退回 logo 落地页
   setIdleMode(true);
 }
 
