@@ -2592,9 +2592,40 @@ body.playlist-open #side-rail {
   flex: 1 1 auto; overflow-y: auto;
   padding: 8px;
   display: flex; flex-direction: column; gap: 4px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-app-region: no-drag;
 }
-.playlist-list::-webkit-scrollbar { width: 8px; }
-.playlist-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.13); border-radius: 8px; }
+/* 隐藏原生滚动条，使用右侧自定义滚动条 */
+.playlist-list::-webkit-scrollbar { display: none; }
+.playlist-list { scrollbar-width: none; -ms-overflow-style: none; }
+/* 自定义滚动条容器（叠加在 .playlist-window 右侧，不随列表滚动） */
+.playlist-scroll {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 14px;
+  z-index: 3; display: none;
+}
+.playlist-scroll.visible { display: block; }
+.playlist-scroll-track {
+  position: absolute; inset: 0;
+  pointer-events: auto;
+}
+.playlist-scroll-thumb {
+  position: absolute; left: 5px; width: 4px; min-height: 32px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.28);
+  transition: background .12s, width .12s, left .12s;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.playlist-scroll-thumb:hover,
+.playlist-scroll-thumb:active,
+.playlist-scroll.dragging .playlist-scroll-thumb {
+  background: rgba(255,255,255,.50);
+  width: 6px; left: 4px;
+}
+/* 有滚动条时右侧留出自定义滚动条位置，避免遮挡删除/收藏按钮 */
+.playlist-list.has-vscrollbar { padding-right: 22px; }
+.playlist-list.has-vscrollbar .playlist-item { padding-right: 56px; }
 .playlist-empty { padding: 28px 16px; text-align: center; color: #8b90a6; font-size: 12px; }
 .playlist-item {
   position: relative;

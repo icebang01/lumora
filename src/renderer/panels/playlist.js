@@ -248,6 +248,98 @@ let _likeFilter = false;        // 是否只看「我喜欢的」
 const _itemEls = new Map();     // path -> 列表项 DOM，便于收藏变化时就地更新
 function baseName(p) { return String(p).split(/[\\/]/).pop(); }
 
+/* ---------------- 自定义滚动条（替代原生细条，解决点击难/不跟手） ---------------- */
+let _scrollBar = null;          // 自定义滚动条外层
+let _scrollTrack = null;        // 轨道
+let _scrollThumb = null;        // 滑块
+let _scrollBound = false;       // 事件是否已绑定
+
+function _ensureScrollDom() {
+  const panel = $('playlist-panel');
+  const win = panel && panel.querySelector('.playlist-window');
+  if (!win || _scrollBar) return;
+  _scrollBar = document.createElement('div');
+  _scrollBar.className = 'playlist-scroll';
+  _scrollTrack = document.createElement('div');
+  _scrollTrack.className = 'playlist-scroll-track';
+  _scrollThumb = document.createElement('div');
+  _scrollThumb.className = 'playlist-scroll-thumb';
+  _scrollTrack.appendChild(_scrollThumb);
+  _scrollBar.appendChild(_scrollTrack);
+  win.appendChild(_scrollBar);
+  _bindScrollbar();
+}
+
+function _bindScrollbar() {
+  if (_scrollBound) return;
+  const list = $('playlist-list');
+  if (!list) return;
+  list.addEventListener('scroll', _updateScrollbar, { passive: true });
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(_updateScrollbar);
+    ro.observe(list);
+  }
+  window.addEventListener('resize', _updateScrollbar);
+  _scrollThumb.addEventListener('mousedown', _onThumbDown);
+  _scrollTrack.addEventListener('mousedown', _onTrackClick);
+  _scrollBound = true;
+}
+
+function _updateScrollbar() {
+  const list = $('playlist-list');
+  if (!_scrollBar || !list) return;
+  const show = list.scrollHeight > list.clientHeight + 1;
+  list.classList.toggle('has-vscrollbar', show);
+  _scrollBar.classList.toggle('visible', show);
+  if (!show) return;
+  const trackH = _scrollTrack.clientHeight || 1;
+  const ratio = list.clientHeight / list.scrollHeight;
+  const thumbH = Math.max(32, Math.round(trackH * ratio));
+  const maxScroll = Math.max(0, list.scrollHeight - list.clientHeight);
+  const top = maxScroll <= 0 ? 0 : (list.scrollTop / maxScroll) * (trackH - thumbH);
+  _scrollThumb.style.height = `${thumbH}px`;
+  _scrollThumb.style.top = `${Math.max(0, top)}px`;
+}
+
+function _onThumbDown(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const list = $('playlist-list');
+  if (!list || !_scrollTrack) return;
+  const startY = e.clientY;
+  const startScroll = list.scrollTop;
+  const trackH = _scrollTrack.clientHeight;
+  const thumbH = _scrollThumb.clientHeight;
+  const maxScroll = Math.max(0, list.scrollHeight - list.clientHeight);
+  _scrollBar.classList.add('dragging');
+  function onMove(ev) {
+    if (maxScroll <= 0 || trackH <= thumbH) return;
+    const dy = ev.clientY - startY;
+    const ratio = dy / (trackH - thumbH);
+    list.scrollTop = startScroll + ratio * maxScroll;
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    _scrollBar.classList.remove('dragging');
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function _onTrackClick(e) {
+  if (e.target === _scrollThumb) return;
+  e.preventDefault();
+  const list = $('playlist-list');
+  if (!list || !_scrollTrack || !_scrollThumb) return;
+  const trackRect = _scrollTrack.getBoundingClientRect();
+  const clickY = e.clientY - trackRect.top;
+  const thumbRect = _scrollThumb.getBoundingClientRect();
+  const thumbCenter = thumbRect.top - trackRect.top + thumbRect.height / 2;
+  const dir = clickY < thumbCenter ? -1 : 1;
+  list.scrollTo({ top: list.scrollTop + dir * list.clientHeight, behavior: 'smooth' });
+}
+
 export function showPlaylist() {
   if (playlist.length < 2) {
     osd.message('播放列表为空', '拖入多个文件即可建立列表', { duration: 3000 });
@@ -280,6 +372,8 @@ export function renderPlaylist() {
     empty.textContent = '列表为空，拖入或打开多个文件即可建立';
     list.appendChild(empty);
     _updatePlaylistCount();
+    _ensureScrollDom();
+    _updateScrollbar();
     return;
   }
 
@@ -292,6 +386,8 @@ export function renderPlaylist() {
   });
 
   _updatePlaylistCount();
+  _ensureScrollDom();
+  _updateScrollbar();
 }
 
 /** 构造单个列表项 DOM（含缩略图 / 序号 / 标题 / 收藏 / 删除 / 拖拽排序）。
@@ -521,6 +617,8 @@ export function togglePlaylistPanel() {
     renderPlaylist();
     panel.classList.remove('hidden');
     document.body.classList.add('playlist-open');
+    _ensureScrollDom();
+    requestAnimationFrame(_updateScrollbar);
   } else {
     closePlaylistPanel();
   }
