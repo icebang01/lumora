@@ -212,15 +212,7 @@ body.danmaku-active #danmaku-canvas { display: block; }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html {
-  width: 100%; height: 100%;
-  overflow: hidden;
-  /* html 保持方形、不裁圆角：音乐/主页态下用它垫一个不透明深色背景，
-     盖掉透明窗口圆角外的三角区，消除「略透明的直角」露出桌面。
-     视频态（body 无 audio-mode/idle-mode）仍透明，让 mpv 从底层 videoWin 透上来。 */
-  background: transparent;
-}
-body {
+html, body {
   width: 100%; height: 100%;
   overflow: hidden;
   border-radius: var(--window-radius, 24px);
@@ -238,9 +230,6 @@ body {
      半径加大到 24px 让弧度更明显，配合边缘 1px 半透明描边才能在深色桌面下被看见）。 */
   --window-radius: 24px;
 }
-/* 音乐播放 / 主页态：html 兜底深色，圆角外透出的桌面三角被盖掉（视频态不生效） */
-html:has(body.audio-mode),
-html:has(body.idle-mode) { background: #14151e; }
 
 /* ── 窗口圆角 ──────────────────────────────────────────────────────────────
    原生 roundedCorners 在 Windows 10 / 透明分层窗口下不生效，改用 CSS 方案：
