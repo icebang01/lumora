@@ -33,6 +33,12 @@ export function setupPlaylistPanel(ctx) {
       renderPlaylist();
     });
   }
+  // 添加音乐：弹出文件选择框，追加音频文件到当前播放列表
+  const addBtn = $('playlist-add-music');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => addMusicToPlaylist());
+  }
+
   // 收藏变化：面板打开时就地刷新徽标 / 过滤视图
   onLikeChange(({ path, liked }) => {
     const panel = $('playlist-panel');
@@ -85,6 +91,29 @@ function setPlaylistIndex(i) { if (CTX.setPlaylistIndex) CTX.setPlaylistIndex(i)
 function playlistGoto(i) { if (CTX.playlistGoto) CTX.playlistGoto(i); }
 function playlistRemove(i) { if (CTX.playlistRemove) CTX.playlistRemove(i); }
 function persistPlaylist() { if (CTX.persistPlaylist) CTX.persistPlaylist(); }
+
+/** 从文件对话框选择音频文件并追加到当前播放列表（不自动播放）。 */
+export async function addMusicToPlaylist() {
+  const audioExts = ['mp3', 'flac', 'aac', 'wav', 'ogg', 'opus', 'm4a', 'wma'];
+  try {
+    const r = await window.lumen.openDialog({
+      title: '添加音乐',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: '音频', extensions: audioExts },
+        { name: '全部文件', extensions: ['*'] },
+      ],
+    });
+    if (!r || !r.ok || !Array.isArray(r.paths) || !r.paths.length) return;
+    for (const p of r.paths) playlist.push(p);
+    persistPlaylist();
+    renderPlaylist();
+    osd.message('已添加', `${r.paths.length} 首音乐到播放列表`, { duration: 2000 });
+  } catch (e) {
+    console.error('[playlist] 添加音乐失败:', e);
+    osd.message('添加失败', e && e.message ? e.message : '无法读取所选文件', { duration: 3000 });
+  }
+}
 
 let dragSrcIndex = null;        // 当前被拖拽的播放列表项索引
 let lastDropAt = 0;             // 最近一次落点时间戳，用于抑制拖拽后的误触单击
