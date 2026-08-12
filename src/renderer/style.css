@@ -4002,6 +4002,7 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
 #music-stage.style-lyrics-min #m-spectrum,
 #music-stage.style-lyrics #m-spectrum,
 #music-stage.style-vinyl #m-spectrum,
+#music-stage.style-square #m-spectrum,
 #music-stage.style-cover #m-spectrum { display: none !important; }
 
 /* 右栏：曲目信息（上）+ credits + 歌词（下，可滚动）。
@@ -4396,14 +4397,14 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
 
 /* ==========================================================================
    音乐模式播放器样式（QQ 音乐「播放器样式」同款入口）
-   通过 #music-stage.style-{cover|lyrics|vinyl|glass|lyrics-min} 切换整体布局。
+   通过 #music-stage.style-{cover|lyrics|vinyl|square|glass|lyrics-min} 切换整体布局。
    cover=大封面居中；lyrics=歌词优先（小封面纵向）；vinyl/glass=旋转黑胶盘；
-   lyrics-min=纵向大圆角封面+大歌词区；其余样式保留封面/歌词/控制条语义，只改排版。
+   square=方形极简横向；lyrics-min=纵向大圆角封面+大歌词区；其余样式保留封面/歌词/控制条语义，只改排版。
    ========================================================================== */
 
 /* ==========================================================================
    播放器样式变体：完全按参考图重新布局
-   - 横向双栏（左封面 + 右信息/歌词）：经典黑胶 / 透明彩胶
+   - 横向双栏（左封面 + 右信息/歌词）：经典黑胶 / 简约方形 / 透明彩胶
    - 纵向居中（封面上方 + 歌词/信息下方）：大封面 / 歌词优先 / 简约歌词（大圆角封面）
    ========================================================================== */
 
@@ -4944,6 +4945,7 @@ body.music-style-glass .ms-win-btn:hover {
 body.music-style-cover        { --style-accent: var(--album-accent, #ff7ac6); }
 body.music-style-lyrics       { --style-accent: #6ee7ff; }
 body.music-style-vinyl        { --style-accent: #ff9f43; }
+body.music-style-square       { --style-accent: #4ecdc4; }
 body.music-style-glass        { --style-accent: #93c5fd; }
 body.music-style-lyrics-min   { --style-accent: #ff7ac6; }
 
@@ -5059,6 +5061,23 @@ body.music-style-vinyl #music-controls .mc-btn--text { color: rgba(15, 25, 35, .
 #music-controls.mc-theme-light .mc-style-opt { background: rgba(0,0,0,.04); }
 #music-controls.mc-theme-light .mc-style-opt:hover { background: rgba(0,0,0,.08); }
 #music-controls.mc-theme-light .mc-style-opt.active { background: rgba(124, 140, 255, .15); }
+
+/* 简约方形：横向双栏，左方形封面 + 右信息+歌词 */
+#music-stage.style-square .ms-content {
+  flex-direction: row;
+  gap: clamp(44px, 7.5vw, 92px);
+}
+#music-stage.style-square .ms-art {
+  border-radius: 12px;
+  background: rgba(255,255,255,.05);
+  box-shadow: 0 30px 80px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.07), 0 0 70px -16px var(--album-accent);
+}
+#music-stage.style-square .ms-cover { border-radius: 12px; }
+#music-stage.style-square .ms-right { width: min(420px, 42vw); align-items: flex-start; text-align: left; justify-content: flex-start; gap: 14px; }
+#music-stage.style-square .ms-meta { align-items: flex-start; text-align: left; gap: 6px; }
+#music-stage.style-square .ms-title,
+#music-stage.style-square .ms-artist,
+#music-stage.style-square .ms-album { text-align: left; }
 
 /* 简约歌词：纵向，歌词大幅居中，大圆角封面 + 清晰写真背景 */
 #music-stage.style-lyrics-min .ms-content {
@@ -5601,6 +5620,25 @@ body.audio-mode.music-style-glass .ms-content { padding-bottom: 164px; }
   transform: translateY(-50%);
   border-radius: 50%;
   background: #6ee7ff;
+}
+/* 简约方形：蓝色渐变 + 左侧方形封面 + 右侧文字线 */
+.thumb-square {
+  background: linear-gradient(135deg, #4d6aff 0%, #8b5cf6 100%);
+}
+.thumb-square::before {
+  left: 10%; top: 50%;
+  width: 46px; height: 46px;
+  transform: translateY(-50%);
+  border-radius: 6px;
+  background: #ffbd7a;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+}
+.thumb-square::after {
+  left: 46%; top: 42%;
+  width: 42%; height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 10px 0 rgba(255,255,255,.5), 0 20px 0 rgba(255,255,255,.5);
 }
 /* 透明彩胶：浅灰背景 + 金黄色半透明盘 */
 .thumb-glass {
