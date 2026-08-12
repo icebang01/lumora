@@ -702,8 +702,17 @@ async function downloadLyrics(mediaPath, meta, opts) {
  * 作为兜底：主源首个请求失败后整批降级到兜底源，避免每行都白白等待超时。 */
 
 const TRANSLATE_TIMEOUT_MS = 8000;
-// 覆盖日文（平/片假名 U+3040–U+30FF）、中文（CJK 基本集 U+4E00–U+9FFF + 扩展 A U+3400–U+4DBF）、韩文（Hangul U+AC00–U+D7A3）
-const CJK_RE = new RegExp('[\\u3040-\\u30ff\\u4e00-\\u9fff\\u3400-\\u4dbf\\uac00-\\ud7a3]');
+// 「除中文外都翻译」判定：仅当一行是中文（含汉字且不含日文假名/韩文）时才跳过翻译。
+//   汉字  U+4E00–U+9FFF（CJK 基本集）+ U+3400–U+4DBF（扩展 A）
+//   日文假名 U+3040–U+30FF（平/片假名，用于区分日文与中文汉字）
+//   韩文   U+AC00–U+D7A3（Hangul，用于区分韩文与中文汉字）
+// 这样日文（含假名）、韩文、英文等都会走翻译，仅纯中文（或中文+拉丁混排）不翻译。
+const HAN_RE = /[一-鿿㐀-䶿]/;
+const KANA_RE = /[぀-ヿ]/;
+const HANGUL_RE = /[가-힣]/;
+function _isChinese(text) {
+  return HAN_RE.test(text) && !KANA_RE.test(text) && !HANGUL_RE.test(text);
+}
 
 // 主源偏好：每批翻译开始前重置为 'google'；首个 google 请求失败则整批降级 'mymemory'
 let _translateProviderPref = 'google';
@@ -712,6 +721,7 @@ let _translateProviderPref = 'google';
 function _detectSourceLang(text) {
   if (/[А-Яа-яЁё]/.test(text)) return 'ru';
   if (/[Α-Ωα-ω]/.test(text)) return 'el';
+  if (/[぀-ヿ]/.test(text)) return 'ja'; // 日文假名 → 主源 gtx 用 sl=auto 无需此步，仅 MyMemory 兜底需要明确 langpair
   if (/[가-힣]/.test(text)) return 'ko';
   return 'en';
 }
@@ -782,8 +792,9 @@ async function _translateOne(text, to) {
 }
 
 /**
- * 批量翻译歌词行。已含中日韩字符的行视为无需翻译（跳过，返回空串）；
- * 空行/占位符（♪）同样跳过。非 CJK 行并发翻译（并发上限 4），主源失败自动兜底。
+ * 批量翻译歌词行。仅「中文行」视为无需翻译（跳过，返回空串）；
+ * 空行/占位符（♪）同样跳过。非中文行（英文/日文/韩文/其它）并发翻译（并发上限 4），
+ * 主源失败自动兜底。「中文」判定见 _isChinese：含汉字且不含日文假名/韩文。
  * @param {string[]} lines 原始歌词文本数组
  * @param {{to?:string}} [opts] 目标语言，默认 'zh-CN'
  * @returns {Promise<{ok:true, translations:string[], provider:string, failed:boolean}>}
@@ -797,7 +808,7 @@ async function translateLyrics(lines, opts) {
   const jobs = [];
   for (let i = 0; i < lines.length; i++) {
     const text = lines[i] || '';
-    if (!text || CJK_RE.test(text)) continue; // 已有中文/日文/韩文 → 无需翻译
+    if (!text || _isChinese(text)) continue; // 含中文（且非日文/韩文）→ 无需翻译
     jobs.push(i);
   }
   let success = 0;
