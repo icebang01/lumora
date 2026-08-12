@@ -6234,6 +6234,11 @@ body.audio-mode.eq-open .eq-window {
   background: rgba(255, 255, 255, .05); color: #e6e8f2;
   font-size: 13px; cursor: pointer;
   -webkit-appearance: none; appearance: none;
+  color-scheme: dark;
+}
+.eq-preset option {
+  background: rgba(20, 22, 32, .95);
+  color: #e6e8f2;
 }
 .eq-preset:focus-visible { outline: 2px solid var(--accent, #7c8cff); outline-offset: 1px; }
 .eq-flat-btn {
