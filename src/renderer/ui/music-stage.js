@@ -267,6 +267,14 @@ export function initMusicStage(p) {
 
   // 窗口尺寸变化时同步频谱画布分辨率（避免条子被拉伸糊掉）
   window.addEventListener('resize', () => { if (mSpectrum) _resizeSpectrum(); });
+
+  // 应用关闭/页面卸载前持久化「当前播放样式」，保证「关闭前样式」在下次启动
+  // 进入音乐模式时原样还原（localStorage 在普通退出时可靠落盘；硬崩溃场景可后续升级为 player.conf 同步写）。
+  const _persistStyleOnExit = () => {
+    try { localStorage.setItem(PLAYER_STYLE_KEY, _playerStyle); } catch { /* ignore */ }
+  };
+  window.addEventListener('pagehide', _persistStyleOnExit);
+  window.addEventListener('beforeunload', _persistStyleOnExit);
 }
 
 /* ================= 顶部窗口控制按钮绑定 ================= */
@@ -2323,6 +2331,9 @@ export function exitAudioMode() {
   // 再清空当前样式标记。顺序必须在「返回主页居中」之前。
   try { if (window.lumen && window.lumen.musicAudio) window.lumen.musicAudio(false); } catch { /* noop */ }
   try { if (window.lumen && window.lumen.musicStyle) window.lumen.musicStyle(null); } catch { /* noop */ }
+  // 返回主页：把「当前播放样式」持久化，保证再次进入音乐模式时还原为退出前样式。
+  // （样式切换点击里也会写，这里兜底，覆盖任何未走点击路径的样式变更。）
+  try { localStorage.setItem(PLAYER_STYLE_KEY, _playerStyle); } catch { /* ignore */ }
   if (!stage) return;
   _stopSpectrum();
   _stopLyricRAF();
