@@ -86,6 +86,7 @@ function createPipControlWin(x, y, w, h) {
   }
   pipControlWin = new BrowserWindow({
     x, y, width: w, height: h,
+    icon: path.join(__dirname, '..', '..', 'build', 'icons', 'icon.ico'),
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
