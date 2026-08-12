@@ -17,8 +17,6 @@ let statusEl = null;
 let resultsEl = null;
 let titleInput = null;
 let artistInput = null;
-let albumInput = null;
-let durationInput = null;
 let visible = false;
 
 // 当前上下文（跨回调使用）
@@ -60,14 +58,6 @@ function ensureDom() {
           <span class="lsq-label">歌手</span>
           <input class="lsq-input" id="lsq-artist" type="text" autocomplete="off" placeholder="修改歌手" />
         </label>
-        <label class="lsq-field">
-          <span class="lsq-label">专辑</span>
-          <input class="lsq-input" id="lsq-album" type="text" autocomplete="off" placeholder="修改专辑（可选）" />
-        </label>
-        <label class="lsq-field lsq-field-short">
-          <span class="lsq-label">时长(秒)</span>
-          <input class="lsq-input" id="lsq-duration" type="number" min="0" step="1" placeholder="精确匹配用" />
-        </label>
         <button class="lyric-search-btn" id="lsq-search" type="button">搜索</button>
       </div>
       <div class="lyric-search-status" id="lsq-status"></div>
@@ -79,9 +69,6 @@ function ensureDom() {
   resultsEl = overlayEl.querySelector('#lsq-results');
   titleInput = overlayEl.querySelector('#lsq-title');
   artistInput = overlayEl.querySelector('#lsq-artist');
-  albumInput = overlayEl.querySelector('#lsq-album');
-  durationInput = overlayEl.querySelector('#lsq-duration');
-
   overlayEl.querySelector('.lyric-search-close').addEventListener('click', hideLyricsSearch);
   overlayEl.querySelector('#lsq-search').addEventListener('click', doSearch);
   // 点击遮罩空白处关闭
@@ -89,7 +76,7 @@ function ensureDom() {
   // ESC 关闭
   overlayEl.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideLyricsSearch(); });
   // 回车触发搜索（在输入框内）
-  [titleInput, artistInput, albumInput, durationInput].forEach((inp) => {
+  [titleInput, artistInput].forEach((inp) => {
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
   });
 
@@ -101,10 +88,14 @@ function showLyricsSearch(opts) {
   _ctx = Object.assign({ path: '', title: '', artist: '', album: '', duration: 0, info: null, onApply: null }, opts || {});
   titleInput.value = _ctx.title || '';
   artistInput.value = _ctx.artist || '';
-  albumInput.value = _ctx.album || '';
-  durationInput.value = _ctx.duration ? String(Math.round(_ctx.duration)) : '';
   statusEl.textContent = '';
   resultsEl.innerHTML = '';
+  // 自适应当前播放器样式背景色：把 #music-stage 的 style-* 类同步到弹窗卡片
+  try {
+    const stage = document.getElementById('music-stage');
+    const styleClass = stage && Array.from(stage.classList).find((c) => /^style-/.test(c));
+    cardEl.className = 'lyric-search-card' + (styleClass ? ' ' + styleClass : '');
+  } catch { /* noop */ }
   visible = true;
   overlayEl.classList.add('show');
   setTimeout(() => { try { titleInput.focus(); titleInput.select(); } catch { /* noop */ } }, 60);
@@ -127,8 +118,8 @@ async function doSearch() {
   if (!path) { setStatus('当前曲目无效，无法搜索', 'err'); return; }
   const title = titleInput.value.trim();
   const artist = artistInput.value.trim();
-  const album = albumInput.value.trim();
-  const duration = Number(durationInput.value) || 0;
+  const album = (_ctx.album || '').trim();
+  const duration = Number(_ctx.duration) || 0;
   if (!title && !artist) { setStatus('请至少填写歌名或歌手', 'err'); return; }
 
   if (!window.lumen || !window.lumen.searchLyrics) { setStatus('搜索不可用', 'err'); return; }

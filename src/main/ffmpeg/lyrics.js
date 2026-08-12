@@ -935,6 +935,6 @@ async function translateLyrics(lines, opts) {
 }
 
 module.exports = {
-  loadLyrics, parseLrc, downloadLyrics, translateLyrics,
+  loadLyrics, parseLrc, downloadLyrics, searchLyricsCandidates, saveLyricsCandidate, translateLyrics,
   queryCredits, extractCreditsFromWork, queryMusicBrainzCredits, queryNeteaseCredits,
 };

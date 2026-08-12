@@ -4375,12 +4375,36 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
 }
 .lyric-search-overlay.show { opacity: 1; pointer-events: auto; }
 .lyric-search-card {
+  /* 颜色通过 CSS 变量自适应当前播放器样式（深/浅）；默认深色主题 */
+  --lsq-bg: rgba(28, 30, 46, .92);
+  --lsq-border: rgba(124,140,255,.35);
+  --lsq-text: #fff;
+  --lsq-text-sec: rgba(255,255,255,.55);
+  --lsq-text-ter: rgba(255,255,255,.4);
+  --lsq-input-bg: rgba(255,255,255,.06);
+  --lsq-input-border: rgba(255,255,255,.14);
+  --lsq-input-focus-bg: rgba(255,255,255,.1);
+  --lsq-item-bg: rgba(255,255,255,.04);
+  --lsq-item-border: rgba(255,255,255,.08);
+  --lsq-item-hover-bg: rgba(255,255,255,.08);
+  --lsq-item-hover-border: rgba(124,140,255,.3);
+  --lsq-preview-bg: rgba(0,0,0,.28);
+  --lsq-preview-text: rgba(255,255,255,.7);
+  --lsq-divider: rgba(255,255,255,.08);
+  --lsq-btn-bg: rgba(255,255,255,.06);
+  --lsq-btn-border: rgba(255,255,255,.16);
+  --lsq-btn-text: rgba(255,255,255,.85);
+  --lsq-btn-hover-bg: rgba(255,255,255,.14);
+  --lsq-close-bg: rgba(255,255,255,.08);
+  --lsq-close-text: rgba(255,255,255,.8);
+  --lsq-close-hover-bg: rgba(255,255,255,.18);
+
   width: min(560px, 92vw);
   max-height: 86vh;
   display: flex;
   flex-direction: column;
-  background: rgba(28, 30, 46, .92);
-  border: 1px solid rgba(124,140,255,.35);
+  background: var(--lsq-bg);
+  border: 1px solid var(--lsq-border);
   border-radius: 18px;
   box-shadow: 0 24px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04) inset;
   backdrop-filter: blur(22px) saturate(160%);
@@ -4389,24 +4413,51 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
   transform: translateY(8px) scale(.98);
   transition: transform .18s ease;
 }
+/* 浅色播放器样式（黑胶 / 玻璃）下弹窗自动切浅色主题 */
+.lyric-search-card.style-vinyl,
+.lyric-search-card.style-glass {
+  --lsq-bg: rgba(255, 255, 255, .86);
+  --lsq-border: rgba(124,140,255,.28);
+  --lsq-text: #1a1b25;
+  --lsq-text-sec: rgba(26,27,37,.58);
+  --lsq-text-ter: rgba(26,27,37,.42);
+  --lsq-input-bg: rgba(0,0,0,.04);
+  --lsq-input-border: rgba(0,0,0,.12);
+  --lsq-input-focus-bg: rgba(0,0,0,.07);
+  --lsq-item-bg: rgba(0,0,0,.03);
+  --lsq-item-border: rgba(0,0,0,.08);
+  --lsq-item-hover-bg: rgba(0,0,0,.06);
+  --lsq-item-hover-border: rgba(124,140,255,.25);
+  --lsq-preview-bg: rgba(0,0,0,.06);
+  --lsq-preview-text: rgba(26,27,37,.72);
+  --lsq-divider: rgba(0,0,0,.08);
+  --lsq-btn-bg: rgba(0,0,0,.04);
+  --lsq-btn-border: rgba(0,0,0,.12);
+  --lsq-btn-text: rgba(26,27,37,.82);
+  --lsq-btn-hover-bg: rgba(0,0,0,.09);
+  --lsq-close-bg: rgba(0,0,0,.06);
+  --lsq-close-text: rgba(26,27,37,.7);
+  --lsq-close-hover-bg: rgba(0,0,0,.12);
+  box-shadow: 0 24px 70px rgba(0,0,0,.22), 0 0 0 1px rgba(255,255,255,.5) inset;
+}
 .lyric-search-overlay.show .lyric-search-card { transform: translateY(0) scale(1); }
 .lyric-search-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 18px 12px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid var(--lsq-divider);
 }
-.lyric-search-title { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: .3px; }
+.lyric-search-title { font-size: 16px; font-weight: 700; color: var(--lsq-text); letter-spacing: .3px; }
 .lyric-search-close {
   width: 30px; height: 30px;
   border: none; border-radius: 8px;
-  background: rgba(255,255,255,.08);
-  color: rgba(255,255,255,.8);
+  background: var(--lsq-close-bg);
+  color: var(--lsq-close-text);
   font-size: 20px; line-height: 1; cursor: pointer;
   transition: background .15s ease;
 }
-.lyric-search-close:hover { background: rgba(255,255,255,.18); }
+.lyric-search-close:hover { background: var(--lsq-close-hover-bg); }
 .lyric-search-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4415,22 +4466,22 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
 }
 .lsq-field { display: flex; flex-direction: column; gap: 5px; }
 .lsq-field-short { grid-column: span 1; }
-.lsq-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.55); letter-spacing: .4px; }
+.lsq-label { font-size: 11px; font-weight: 600; color: var(--lsq-text-sec); letter-spacing: .4px; }
 .lsq-input {
   height: 36px;
   padding: 0 12px;
   font-size: 13px;
-  color: #fff;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.14);
+  color: var(--lsq-text);
+  background: var(--lsq-input-bg);
+  border: 1px solid var(--lsq-input-border);
   border-radius: 9px;
   outline: none;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
 .lsq-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
-  background: rgba(255,255,255,.1);
+  background: var(--lsq-input-focus-bg);
 }
 .lyric-search-btn {
   grid-column: 1 / -1;
@@ -4452,11 +4503,15 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
 .lyric-search-status {
   padding: 10px 18px 4px;
   font-size: 12.5px;
-  color: rgba(255,255,255,.6);
+  color: var(--lsq-text-sec);
   min-height: 18px;
 }
-.lyric-search-status.lsq-ok { color: #7be8a8; }
-.lyric-search-status.lsq-err { color: #ff9a9a; }
+.lyric-search-status.lsq-ok { color: #2db36f; }
+.lyric-search-card.style-vinyl .lyric-search-status.lsq-ok,
+.lyric-search-card.style-glass .lyric-search-status.lsq-ok { color: #1a9c5a; }
+.lyric-search-status.lsq-err { color: #ff6b6b; }
+.lyric-search-card.style-vinyl .lyric-search-status.lsq-err,
+.lyric-search-card.style-glass .lyric-search-status.lsq-err { color: #d93a3a; }
 .lyric-search-results {
   flex: 1;
   overflow-y: auto;
@@ -4470,32 +4525,36 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.08);
+  background: var(--lsq-item-bg);
+  border: 1px solid var(--lsq-item-border);
   border-radius: 11px;
   transition: background .15s ease, border-color .15s ease;
 }
-.lsq-item:hover { background: rgba(255,255,255,.08); border-color: rgba(124,140,255,.3); }
+.lsq-item:hover { background: var(--lsq-item-hover-bg); border-color: var(--lsq-item-hover-border); }
 .lsq-item.lsq-no-sync { opacity: .82; }
 .lsq-item-main { flex: 1; min-width: 0; }
 .lsq-item-title {
-  font-size: 13.5px; font-weight: 600; color: #fff;
+  font-size: 13.5px; font-weight: 600; color: var(--lsq-text);
   display: flex; align-items: center; gap: 8px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .lsq-item-meta {
   margin-top: 3px;
-  font-size: 11.5px; color: rgba(255,255,255,.55);
+  font-size: 11.5px; color: var(--lsq-text-sec);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.lsq-item-meta .lsq-dur { color: rgba(255,255,255,.7); margin-left: 6px; }
+.lsq-item-meta .lsq-dur { color: var(--lsq-text); margin-left: 6px; }
 .lsq-tag {
   flex: none;
   font-size: 10px; font-weight: 700;
   padding: 2px 7px; border-radius: 6px;
 }
 .lsq-tag-sync { color: #b6f5cf; background: rgba(60, 200, 120, .22); }
+.lyric-search-card.style-vinyl .lsq-tag-sync,
+.lyric-search-card.style-glass .lsq-tag-sync { color: #1a7a40; background: rgba(60, 200, 120, .18); }
 .lsq-tag-plain { color: #ffd79a; background: rgba(220, 160, 60, .2); }
+.lyric-search-card.style-vinyl .lsq-tag-plain,
+.lyric-search-card.style-glass .lsq-tag-plain { color: #8a5e15; background: rgba(220, 160, 60, .16); }
 .lsq-preview {
   margin: 8px 0 0;
   max-height: 180px;
@@ -4503,8 +4562,8 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
   padding: 10px;
   font-size: 11px;
   line-height: 1.55;
-  color: rgba(255,255,255,.7);
-  background: rgba(0,0,0,.28);
+  color: var(--lsq-preview-text);
+  background: var(--lsq-preview-bg);
   border-radius: 8px;
   white-space: pre-wrap;
   word-break: break-word;
@@ -4517,13 +4576,13 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(255,255,255,.06);
-  color: rgba(255,255,255,.85);
+  border: 1px solid var(--lsq-btn-border);
+  background: var(--lsq-btn-bg);
+  color: var(--lsq-btn-text);
   transition: background .15s ease, border-color .15s ease;
   -webkit-app-region: no-drag;
 }
-.lsq-btn:hover { background: rgba(255,255,255,.14); }
+.lsq-btn:hover { background: var(--lsq-btn-hover-bg); }
 .lsq-use-btn {
   color: #fff;
   background: linear-gradient(95deg, var(--accent), var(--accent-bright));
@@ -4533,8 +4592,8 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
 .lyric-search-foot {
   padding: 10px 18px 14px;
   font-size: 11px;
-  color: rgba(255,255,255,.4);
-  border-top: 1px solid rgba(255,255,255,.07);
+  color: var(--lsq-text-ter);
+  border-top: 1px solid var(--lsq-divider);
 }
 
 /* 翻译服务全部不可达时的轻提示（网络受限兜底失败） */
