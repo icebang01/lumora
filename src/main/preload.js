@@ -113,6 +113,8 @@ contextBridge.exposeInMainWorld('lumen', {
   // 记忆并恢复每个播放样式自己的窗口位置（x,y,width,height）。
   musicStyle: (style) => ipcRenderer.send('music:style', style),
   musicAudio: (v) => ipcRenderer.send('music:audio', v),
+  // 从音乐模式返回主页：请求主进程保留当前窗口位置（不要重置为居中首页尺寸）
+  musicReturnHome: () => ipcRenderer.send('music:return-home'),
 
   // ---- 截图 ----
   saveScreenshot: (dataUrl, timePos) =>

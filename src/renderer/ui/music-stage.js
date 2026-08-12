@@ -2314,7 +2314,12 @@ function _fallbackArtistPhotoBackdrop() {
 /** 退出音频模式：隐藏舞台、恢复视频态 */
 export function exitAudioMode() {
   ensureRefs();
-  // 先标记退出音频模式（主进程停止保存窗口位置，避免把主页居中位置误存进样式），
+  // 先告知主进程「正从音乐模式返回主页」：立即把当前窗口位置刷进当前样式，
+  // 并标记 returningFromMusic，使随后的 ui:set-idle-state 保留窗口位置（不居中）。
+  // 必须在 musicAudio(false)/musicStyle(null) 之前发送，否则主进程收到时
+  // audioActive/currentMusicStyle 已被清空，guard 不通过、位置保持失效。
+  try { if (window.lumen && window.lumen.musicReturnHome) window.lumen.musicReturnHome(); } catch { /* noop */ }
+  // 再标记退出音频模式（主进程停止保存窗口位置，避免把主页居中位置误存进样式），
   // 再清空当前样式标记。顺序必须在「返回主页居中」之前。
   try { if (window.lumen && window.lumen.musicAudio) window.lumen.musicAudio(false); } catch { /* noop */ }
   try { if (window.lumen && window.lumen.musicStyle) window.lumen.musicStyle(null); } catch { /* noop */ }

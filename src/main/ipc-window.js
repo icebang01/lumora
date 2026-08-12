@@ -38,49 +38,61 @@ function getIdleBackgroundColor() {
 
   ipcMain.handle('ui:set-idle-state', (_e, idle) => {
     setIdleState(!!idle);
-    // 回到主页即离开音乐模式：停止保存窗口位置，避免把主页居中位置误存进某个播放样式
-    if (idle) audioActive = false;
     const win = getWin();
     const videoWin = getVideoWin();
     if (idle && win && videoWin && !win.isDestroyed() && !videoWin.isDestroyed()) {
-      // 从播放态回到主页：退出 PiP / 全屏 / 最大化，再重置为固定首页尺寸并居中
-      try {
-        if (getPipMode()) exitPipMode();
-        if (videoWin.isFullScreen()) videoWin.setFullScreen(false);
-        if (win.isFullScreen()) win.setFullScreen(false);
-        if (videoWin.isMaximized()) videoWin.unmaximize();
-        if (win.isMaximized()) win.unmaximize();
-        const disp = screen.getDisplayNearestPoint(videoWin.getBounds());
-        const { width: sw, height: sh } = disp.workAreaSize;
-        const ox = disp.workArea ? disp.workArea.x : disp.bounds.x;
-        const oy = disp.workArea ? disp.workArea.y : disp.bounds.y;
-        const base = computeWindowSize();
-        const w = Math.min(base.width, sw - IDLE_HOME_MIN_MARGIN);
-        const h = Math.min(base.height, sh - IDLE_HOME_MIN_MARGIN);
-        const x = Math.round(ox + (sw - w) / 2);
-        const y = Math.round(oy + (sh - h) / 2);
-        videoWin.setBounds({ x, y, width: w, height: h });
-        resyncNow();
-        // idle 落地页：窗口四角恢复透明。
-        // #idle-screen 的 CSS border-radius + overflow:hidden 会裁掉四角内容，露出窗口
-        // 背景；若填充纯色（#0b0c12/#f4f5f8），会与 #idle-screen 渐变背景形成色差，
-        // 看起来像"圆角下面有黑底/白底"。保持透明即可消除该色块，四角透出桌面。
-        try { win.setBackgroundColor(getIdleBackgroundColor()); } catch (_) {}
-      } catch (err) {
-        console.error('[ipc-window] 重置首页尺寸失败:', err);
+      if (returningFromMusic) {
+        // 从音乐模式返回主页：保留当前（播放样式）窗口位置，不重置为居中首页尺寸。
+        // 仍退出 PiP、保持四角透明，并与 videoWin 重同步（幂等）。
+        try {
+          if (getPipMode()) exitPipMode();
+          try { win.setBackgroundColor(getIdleBackgroundColor()); } catch (_) {}
+          resyncNow();
+        } catch (err) {
+          console.error('[ipc-window] 音乐返回主页保持位置失败:', err);
+        }
+      } else {
+        // 从播放态（视频）回到主页：退出 PiP / 全屏 / 最大化，再重置为固定首页尺寸并居中
+        try {
+          if (getPipMode()) exitPipMode();
+          if (videoWin.isFullScreen()) videoWin.setFullScreen(false);
+          if (win.isFullScreen()) win.setFullScreen(false);
+          if (videoWin.isMaximized()) videoWin.unmaximize();
+          if (win.isMaximized()) win.unmaximize();
+          const disp = screen.getDisplayNearestPoint(videoWin.getBounds());
+          const { width: sw, height: sh } = disp.workAreaSize;
+          const ox = disp.workArea ? disp.workArea.x : disp.bounds.x;
+          const oy = disp.workArea ? disp.workArea.y : disp.bounds.y;
+          const base = computeWindowSize();
+          const w = Math.min(base.width, sw - IDLE_HOME_MIN_MARGIN);
+          const h = Math.min(base.height, sh - IDLE_HOME_MIN_MARGIN);
+          const x = Math.round(ox + (sw - w) / 2);
+          const y = Math.round(oy + (sh - h) / 2);
+          videoWin.setBounds({ x, y, width: w, height: h });
+          resyncNow();
+          // idle 落地页：窗口四角恢复透明。
+          // #idle-screen 的 CSS border-radius + overflow:hidden 会裁掉四角内容，露出窗口
+          // 背景；若填充纯色（#0b0c12/#f4f5f8），会与 #idle-screen 渐变背景形成色差，
+          // 看起来像"圆角下面有黑底/白底"。保持透明即可消除该色块，四角透出桌面。
+          try { win.setBackgroundColor(getIdleBackgroundColor()); } catch (_) {}
+        } catch (err) {
+          console.error('[ipc-window] 重置首页尺寸失败:', err);
+        }
       }
     } else if (win && !win.isDestroyed()) {
       // 离开 idle（进入播放）：恢复极淡黑底，防止 Windows 把完全透明像素
       // 点击穿透到下层窗口（videoWin/WorkBuddy），确保视频画面能被本窗口接收交互。
       try { win.setBackgroundColor('#00000009'); } catch (_) {}
     }
-  // videoWin 保持可见，UI 层置顶，避免 show/hide 闪烁。
-  // 返回主页（idle=true）继续走重同步（前面已 resyncNow 过，幂等）；
-  // 进入音乐/播放（idle=false）时窗口本就对齐，传 false 跳过 setContentBounds，
-  // 避免 frameless 窗口经 DWM 取整后重设触发几像素跳动。
-  ensureVideoWindow(idle);
-  return { ok: true };
-});
+    // 完成一次 idle 切换后复位「来自音乐」标记，避免影响随后的普通视频→主页过渡。
+    returningFromMusic = false;
+    // videoWin 保持可见，UI 层置顶，避免 show/hide 闪烁。
+    // 返回主页（idle=true）继续走重同步（前面已 resyncNow 过，幂等）；
+    // 进入音乐/播放（idle=false）时窗口本就对齐，传 false 跳过 setContentBounds，
+    // 避免 frameless 窗口经 DWM 取整后重设触发几像素跳动。
+    ensureVideoWindow(idle);
+    return { ok: true };
+  });
 
 // 系统/应用主题切换时：若正处在 idle 模式，同步将窗口四角重置为透明
 nativeTheme.on('updated', () => {
@@ -147,6 +159,7 @@ nativeTheme.on('updated', () => {
   // 避免返回主页被 ui:set-idle-state 居中后，重新进入音乐时窗口跑位。
   let currentMusicStyle = null;
   let audioActive = false;
+  let returningFromMusic = false;
   let _musicSaveTimer = null;
   const MUSIC_BOUNDS_PREFIX = 'music-style-bounds-';
   function _musicBoundsKey(style) { return MUSIC_BOUNDS_PREFIX + style; }
@@ -182,6 +195,15 @@ nativeTheme.on('updated', () => {
   }
 
   ipcMain.on('music:audio', (_e, v) => { audioActive = !!v; });
+
+  // 从音乐模式返回主页：立即把当前位置刷进当前样式（防 400ms 防抖未触发），
+  // 并标记「来自音乐」——ui:set-idle-state(idle) 据此保留窗口位置、不重置为居中首页。
+  ipcMain.on('music:return-home', () => {
+    _saveMusicBounds();
+    // 仅当确实处于音乐播放态（audioActive && currentMusicStyle）才标记「来自音乐」：
+    // 普通视频→主页时 exitAudioMode 也会触发本信号，但此时不应跳过首页居中。
+    if (audioActive && currentMusicStyle) returningFromMusic = true;
+  });
 
   ipcMain.on('music:style', (_e, style) => {
     // 离开上一个样式：先把当前窗口位置记到上一个样式（返回主页时 audioActive 已置否，不会误存居中位置）
