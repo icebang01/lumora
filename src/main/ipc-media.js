@@ -252,11 +252,13 @@ function _isLyricsSimplified() {
 
   // 歌词：从 LRCLIB 在线搜索并下载同步歌词，自动保存到音频同目录
 
-  ipcMain.handle('app:lyrics-download', async (_e, { path, meta }) => {
+  ipcMain.handle('app:lyrics-download', async (_e, { path, meta, force } = {}) => {
     try {
-      const enabled = getConfig().get('music.lyrics-auto-download');
-      if (enabled === false || enabled === 'no' || enabled === 0) {
-        return { ok: false, error: 'auto download disabled' };
+      if (!force) {
+        const enabled = getConfig().get('music.lyrics-auto-download');
+        if (enabled === false || enabled === 'no' || enabled === 0) {
+          return { ok: false, error: 'auto download disabled' };
+        }
       }
       const mxToken = getConfig().get('music.lyrics-musixmatch-token') || '';
       const includeCredits = getConfig().get('music.lyrics-include-credits');

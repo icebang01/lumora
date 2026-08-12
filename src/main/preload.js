@@ -156,7 +156,7 @@ contextBridge.exposeInMainWorld('lumen', {
   getCoverArt: (p) => ipcRenderer.invoke('app:cover-art', p),
   getArtistPhoto: (artist) => ipcRenderer.invoke('app:artist-photo', { artist }),
   getLyrics: (p) => ipcRenderer.invoke('app:lyrics', p),
-  downloadLyrics: (p, meta) => ipcRenderer.invoke('app:lyrics-download', { path: p, meta }),
+  downloadLyrics: (p, meta, opts) => ipcRenderer.invoke('app:lyrics-download', { path: p, meta, force: !!(opts && opts.force) }),
   // 歌词自动偏移校准：ffmpeg 检测音频首句起音，返回应施加的偏移（秒）或 null
   lyricAutoOffset: (path, firstLineTime) => ipcRenderer.invoke('app:lyric-auto-offset', { path, firstLineTime }),
   translateLyrics: (lines, to) => ipcRenderer.invoke('app:lyrics-translate', { lines, to }),

@@ -4233,6 +4233,19 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
   color: rgba(255,255,255,.85);
   user-select: none;
 }
+/* 工具栏「下载歌词」按钮 loading 态：文字替换为小转圈（复用 @keyframes spin） */
+.mlo-btn.loading { position: relative; color: transparent !important; pointer-events: none; }
+.mlo-btn.loading::after {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 12px; height: 12px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid rgba(255,255,255,.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .78s linear infinite;
+}
 
 .ms-lyric-line {
   cursor: pointer;
@@ -4314,7 +4327,36 @@ body.audio-mode #music-stage.style-lyrics ~ .ms-spectrum-lyrics-wrap { display: 
   -webkit-text-fill-color: currentColor;
 }
 #music-stage.translate-on .ms-lyric-trans { display: block; }
-.ms-lyrics-empty { color: rgba(255,255,255,.4); font-weight: 500; cursor: default; }
+.ms-lyrics-empty {
+  color: rgba(255,255,255,.4);
+  font-weight: 500;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 100%;
+  text-align: center;
+  gap: 14px;
+}
+/* 空态提示文案（下载中 / 未找到 / 失败 等） */
+.ms-lyrics-empty-hint { text-align: center; }
+/* 空态「下载歌词」按钮：让用户能在自动下载被关或失败时主动重试 */
+.ms-lyrics-empty-btn {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(124,140,255,.28);
+  border: 1px solid rgba(124,140,255,.55);
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background .15s ease, transform .1s ease;
+}
+.ms-lyrics-empty-btn:hover { background: rgba(124,140,255,.45); }
+.ms-lyrics-empty-btn:active { transform: scale(.96); }
 
 /* 翻译服务全部不可达时的轻提示（网络受限兜底失败） */
 .ms-trans-toast {

@@ -88,6 +88,7 @@ let _lyricActiveIdx = -1;
 let _lastLyricTime = 0;     // 最近一次 _syncLyrics 的时间（驱动 credits 块「已读」上色）
 let _currentRawLines = [];  // 当前歌曲原始歌词 lines（未注入 credits），用于异步查询到 credits 后重建
 let _lyricsBound = false;   // _bindLyrics 只绑一次，避免重复监听
+let _lyricDownloading = false; // 手动下载歌词进行中（防重复点击 + 工具栏按钮 loading 态）
 let _lyricsResizeObserver = null; // 监听歌词视图尺寸，动态维持上下空距为可视区一半
 let _lyricOffset = 0;       // 当前歌曲歌词时间偏移（秒），正数=歌词延后
 let _lyricOffsetPath = '';  // 当前偏移对应的媒体路径（用于持久化键）
@@ -111,6 +112,7 @@ let _lyricDragMoved = false;   // 本次拖拽是否超过阈值（区分点按�
 
 // 歌词翻译（外语歌词逐行译为中文；懒加载 + 按路径缓存于 localStorage）
 let mLyricsTransBtn = null; // #m-btn-translate 翻译开关
+let mBtnLyricDownload = null; // #m-btn-lyric-download 手动下载歌词
 let _translateOn = false;   // 是否显示翻译（持久化偏好）
 let _currentLyricPath = ''; // 当前歌词对应的媒体路径（翻译缓存键）
 const LYRIC_TRANSLATE_ON_KEY = 'lumora.lyric.translateOn';
@@ -192,6 +194,7 @@ function ensureRefs() {
   mLyricsWrap = $('m-lyrics-wrap');
   mLyricsOffset = $('m-lyrics-offset');
   mLyricsTransBtn = $('m-btn-translate');
+  mBtnLyricDownload = $('m-btn-lyric-download');
   _lyricAxisEl = $('m-lyrics-axis');
   _lyricAxisTimeEl = $('m-lyrics-axis-time');
   mcEl = $('music-controls');
@@ -1251,7 +1254,7 @@ function _loadLyrics(path, info) {
 
 function _tryDownloadLyrics(path, info) {
   if (!window.lumen || !window.lumen.downloadLyrics) {
-    _renderLyricsEmpty();
+    _renderLyricsEmpty('歌词下载不可用');
     return;
   }
   Promise.resolve(window.lumen.downloadLyrics(path, {
@@ -1266,10 +1269,11 @@ function _tryDownloadLyrics(path, info) {
         if (!_lyricCreditsActive) _queryCredits(info); // 本地无词曲则在线补
         _maybeAutoCalibrateLyricOffset(path); // 首加载自动校准歌词偏移（按曲目缓存）
       } else {
-        _renderLyricsEmpty();
+        const why = (r && r.error) ? _lyricErrorHint(r.error) : '';
+        _renderLyricsEmpty(`未找到在线歌词${why}`, true);
       }
     })
-    .catch(() => _renderLyricsEmpty());
+    .catch(() => _renderLyricsEmpty('歌词下载失败，可重试', true));
 }
 
 /** 无逐字时间戳时，按行跨度在字间均匀估算每个字的着色时刻（取字中心），
@@ -1457,14 +1461,92 @@ function _clearLyrics() {
   }
 }
 
-function _renderLyricsEmpty() {
+function _renderLyricsEmpty(message, showDownload) {
   if (!mLyrics) return;
   _clearLyrics();
   _updateLyricsCredits(null, null);
   const el = document.createElement('div');
   el.className = 'ms-lyrics-empty';
-  el.textContent = '暂无歌词';
+  const hint = document.createElement('div');
+  hint.className = 'ms-lyrics-empty-hint';
+  hint.textContent = message || '暂无歌词';
+  el.appendChild(hint);
+  // 仅在「能下载」（有元数据可检索、且 IPC 就绪）时展示手动下载入口，
+  // 让用户能在自动下载被关或失败时主动重试。
+  if (showDownload !== false && _canManualDownload()) {
+    const btn = document.createElement('button');
+    btn.className = 'ms-lyrics-empty-btn';
+    btn.textContent = '下载歌词';
+    btn.addEventListener('click', () => _manualDownloadLyrics());
+    el.appendChild(btn);
+  }
   mLyrics.appendChild(el);
+}
+
+/** 当前曲目是否具备手动下载歌词的条件（无元数据则下载必失败，不给按钮）。 */
+function _canManualDownload() {
+  const info = _currentInfo || {};
+  const hasMeta = !!(info.title || info.artist || info.album || (info.path && baseName(info.path)));
+  return !!(hasMeta && window.lumen && window.lumen.downloadLyrics);
+}
+
+/** 工具栏「下载」按钮 loading 态（下载中禁用 + 转圈）。 */
+function _setLyricDownloading(on) {
+  if (mBtnLyricDownload) {
+    mBtnLyricDownload.classList.toggle('loading', !!on);
+    mBtnLyricDownload.disabled = !!on;
+  }
+}
+
+/** 手动下载歌词（绕过 music.lyrics-auto-download 开关）。
+ *  成功则重建歌词 + 补 credits + 自动校准偏移；失败在空态提示可重试。
+ *  切歌竞态：完成渲染前校验仍为同一曲目，避免旧结果覆盖新曲目。 */
+function _manualDownloadLyrics() {
+  const path = _currentLyricPath;
+  const info = _currentInfo || {};
+  if (!path || !_canManualDownload()) {
+    _renderLyricsEmpty('歌词下载不可用');
+    return;
+  }
+  if (_lyricDownloading) return;
+  _lyricDownloading = true;
+  _setLyricDownloading(true);
+  _renderLyricsEmpty('歌词下载中…', false);
+  Promise.resolve(window.lumen.downloadLyrics(path, {
+    title: info.title,
+    artist: info.artist || info.albumArtist,
+    album: info.album,
+    duration: info.duration,
+  }, { force: true }))
+    .then((r) => {
+      if (path !== _currentLyricPath) return; // 已切歌，丢弃旧结果
+      if (r && r.ok && Array.isArray(r.lines) && r.lines.length) {
+        _buildLyricsWithCredits(r.lines, r.meta, info);
+        if (!_lyricCreditsActive) _queryCredits(info);
+        _maybeAutoCalibrateLyricOffset(path);
+      } else {
+        const why = (r && r.error) ? _lyricErrorHint(r.error) : '';
+        _renderLyricsEmpty(`未找到在线歌词${why}`, true);
+      }
+    })
+    .catch((e) => {
+      if (path !== _currentLyricPath) return;
+      _renderLyricsEmpty(`歌词下载失败${_lyricErrorHint(e && e.message)}, 可重试`, true);
+    })
+    .finally(() => {
+      _lyricDownloading = false;
+      _setLyricDownloading(false);
+    });
+}
+
+/** 把底层错误码转成中文友好提示（窄屏也不至于太空）。 */
+function _lyricErrorHint(err) {
+  if (!err) return '';
+  const s = String(err);
+  if (/auto download disabled/.test(s)) return '（自动下载已关闭）';
+  if (/no metadata/.test(s)) return '（缺少歌名/歌手）';
+  if (/no lyrics found online|no timed lyrics/.test(s)) return '（在线无歌词）';
+  return '';
 }
 
 // 当前歌曲是否已有任何可显示的 credits（本地 LRC/ID3 或在线查询填充后更新）
@@ -2086,6 +2168,11 @@ function _bindLyrics() {
   if (mLyricsTransBtn) mLyricsTransBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     _toggleTranslation();
+  });
+  // 手动下载歌词：随时可触发（覆盖本地 .lrc），失败时空态提供重试入口。
+  if (mBtnLyricDownload) mBtnLyricDownload.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _manualDownloadLyrics();
   });
 }
 
