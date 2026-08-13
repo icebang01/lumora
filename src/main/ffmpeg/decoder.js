@@ -146,7 +146,7 @@ function fpsModeArgs(ffmpegPath) {
     const out = execFileSync(ffmpegPath, ['-hide_banner', '-h', 'full'], {
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 32 * 1024 * 1024,
     });
-    if (/\s-fps_mode\s/.test(out)) flag = '-fps_mode';
+    if (/\s-fps_mode\b/.test(out)) flag = '-fps_mode';
   } catch { /* 探测不到就用老参数，它在所有版本上都认 */ }
   fpsModeArgs._cache = [flag, 'cfr'];
   return fpsModeArgs._cache;
