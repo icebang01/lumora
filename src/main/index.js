@@ -330,7 +330,7 @@ async function bootstrap() {
   });
 
   // 按配置选择解码后端：mpv（默认）/ ffmpeg（内置 LGPL 解码管线，可去 GPL）/
-  // mediafoundation（路线 A，后端未实现，仅占位报错）。
+  // mediafoundation（路线 A，Windows Media Foundation，去 GPL）。
   // LUMORA_ENGINE 环境变量可临时覆盖（仅内存生效，不写回 player.conf），
   // 用于在无头/CI 环境用 `LUMORA_ENGINE=ffmpeg npm run test:smoke` 回归 ffmpeg 引擎。
   const engine = process.env.LUMORA_ENGINE || config.get('engine') || 'mpv';
@@ -352,8 +352,17 @@ async function bootstrap() {
   mediaServer = new MediaServer();
   await mediaServer.listen();
 
-  // mediafoundation 后端尚未实现，不预建 MediaPipeline，避免误触发解码
-  if (engine !== 'mediafoundation') mediaPipeline.setupPipeline();
+  // 解码后端装配：
+  //   - mpv 默认 / ffmpeg 显式 → MediaPipeline（ffmpeg 子进程管线，LGPL）
+  //   - mediafoundation       → MfBackend（Windows Media Foundation，路线 A 去 GPL）
+  // 二者经 mediaPipeline.wirePipeline 接同一套 WebSocket 发送 + 背压，控制面零改动。
+  if (engine === 'mediafoundation') {
+    const { MfBackend } = require('./mf/backend');
+    pipeline = new MfBackend({ hwaccel: config.get('hwdec') });
+    mediaPipeline.wirePipeline(pipeline, { isPrimary: true });
+  } else {
+    mediaPipeline.setupPipeline();
+  }
 
   if (files.length) pendingOpenFile = path.resolve(files[0]);
 

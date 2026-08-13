@@ -86,25 +86,42 @@ function wirePipeline(pipeline, { isPrimary = false } = {}) {
         output: getPipeline().videoOutput || null,
       });
     });
+
+    // 背压：渲染端消费不动 → 同时掐住两个管线（主 + 交叉淡入淡出副）的音频 stdout。
+    // 两个声部共享同一个渲染端音频缓冲，必须一起限速，否则副声部一路解码到 EOF
+    // 会把环形缓冲灌爆。socket 满只掐视频（见 MediaServer._applyThrottle）。
+    getMediaServer().onThrottleChange = (throttled) => {
+      const p = getPipeline();
+      if (p) p.throttle(throttled);
+      const s = getSecondaryPipeline();
+      if (s) s.throttle(throttled);
+    };
   }
 }
 
-function setupPipeline() {
-  setPipeline(new MediaPipeline({
-    ffmpegPath: getConfig().get('ffmpeg-dir') || null,
-    hwaccel: getConfig().get('hwdec'),
-  }));
-  wirePipeline(getPipeline(), { isPrimary: true });
+/**
+ * 按当前 engine 选择解码后端：
+ *   - mpv 默认 / ffmpeg 显式 → MediaPipeline（ffmpeg 子进程管线，LGPL）
+ *   - mediafoundation       → MfBackend（Windows Media Foundation，路线 A 去 GPL）
+ * 副声部（交叉淡入淡出）也走这里，保证 MF 模式下连副声部都不引入 ffmpeg 二进制。
+ * 原生模块在 MfBackend 内懒加载，非 Windows / 未编译时仅在构造时抛清晰错误。
+ */
+function createDecodeBackend(opts = {}) {
+  const engine = getConfig() ? getConfig().get('engine') : null;
+  if (engine === 'mediafoundation') {
+    const { MfBackend } = require('./mf/backend');
+    return new MfBackend(opts);
+  }
+  return new MediaPipeline({
+    ffmpegPath: getConfig() ? (getConfig().get('ffmpeg-dir') || null) : null,
+    hwaccel: getConfig() ? getConfig().get('hwdec') : 'auto',
+    ...opts,
+  });
+}
 
-  // 背压：渲染端消费不动 → 同时掐住两个管线（主 + 交叉淡入淡出副）的音频 stdout。
-  // 两个声部共享同一个渲染端音频缓冲，必须一起限速，否则副声部一路解码到 EOF
-  // 会把环形缓冲灌爆。
-  getMediaServer().onThrottleChange = (throttled) => {
-    const p = getPipeline();
-    if (p) p.throttle(throttled);
-    const s = getSecondaryPipeline();
-    if (s) s.throttle(throttled);
-  };
+function setupPipeline() {
+  setPipeline(createDecodeBackend());
+  wirePipeline(getPipeline(), { isPrimary: true });
 }
 
 /**
@@ -121,10 +138,8 @@ function startCrossfade(info, reqId = 0) {
   CTX._cfReqId = reqId;
   let sec = getSecondaryPipeline();
   if (!sec) {
-    sec = new MediaPipeline({
-      ffmpegPath: getConfig().get('ffmpeg-dir') || null,
-      hwaccel: 'no', // 副声部只解音频，无需硬解试探
-    });
+    // 副声部只解音频，无需硬解试探；与主声部同款后端（MF 模式也走 MfBackend）
+    sec = createDecodeBackend({ hwaccel: 'no' });
     setSecondaryPipeline(sec);
   }
   wirePipeline(sec, { isPrimary: false });
@@ -186,4 +201,4 @@ function commitCrossfade() {
   sendToRenderer('player:crossfade-ended', {});
 }
 
-module.exports = { setCtx, setupPipeline, startCrossfade, endCrossfade, commitCrossfade };
+module.exports = { setCtx, setupPipeline, wirePipeline, createDecodeBackend, startCrossfade, endCrossfade, commitCrossfade };

@@ -173,8 +173,8 @@ function setupDebug() {
     const a = player.audio || {};
     const ctxState = a.ctx ? (a.ctx.state || '?') : '未创建';
     const lines = [
-      '引擎: ' + (document.body.className.includes('engine-ffmpeg') ? 'ffmpeg'
-        : document.body.className.includes('engine-mediafoundation') ? 'mediafoundation' : 'mpv'),
+      '引擎: ' + (document.body.dataset.engine
+        || (document.body.className.includes('engine-ffmpeg') ? 'ffmpeg' : 'mpv')),
       'audio.enabled: ' + a.enabled,
       'audio.ready:   ' + a.ready,
       'AudioContext:  ' + ctxState,

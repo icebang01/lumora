@@ -139,7 +139,7 @@ const DEFAULTS = {
   'danmaku-enabled': true,       // 默认开启弹幕显示
 
   // ---- 引擎 ----
-  'engine': 'mpv',                // mpv | ffmpeg | mediafoundation（路线 A 后端尚未实现）
+  'engine': 'mpv',                // mpv | ffmpeg | mediafoundation（路线 A：Windows Media Foundation，去 GPL）
   'file-association': false,      // 双击媒体文件用 Lumora 打开（写 HKCU 注册表）
 
   // ---- 路径 ----
@@ -455,7 +455,7 @@ flow-low-seconds=1.0
 #   mpv      —— 默认，进程内 GPU 解码，最稳，支持 8K
 #   ffmpeg   —— 内置 LGPL 解码管线：ffmpeg 子进程解码 → WebSocket → 渲染端 WebGL2，
 #              解码覆盖≈mpv（同底 libavcodec），且不含 GPL 二进制；分辨率上限 1080p
-#   mediafoundation —— 路线 A，用系统解码器彻底去 GPL（尚在开发）
+#   mediafoundation —— 路线 A，用系统解码器彻底去 GPL（Windows Media Foundation）
 engine=mpv
 # 关联到系统文件类型：双击 mp4/mkv 等用 Lumora 打开（写入当前用户注册表，无需管理员）
 file-association=no

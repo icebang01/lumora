@@ -23,7 +23,8 @@
     "gen-testmedia": "node tools/gen-testmedia.js",
     "fetch-deps": "node tools/fetch-ffmpeg.js",
     "dist": "electron-builder --publish=never",
-    "release": "electron-builder --publish=always"
+    "release": "electron-builder --publish=always",
+    "rebuild-mf": "node tools/rebuild-mf.js"
   },
   "keywords": [
     "player",
@@ -36,6 +37,7 @@
     "c8": "^10.1.2",
     "electron": "^33.4.11",
     "electron-builder": "^24.13.3",
+    "node-gyp": "^10.0.0",
     "typescript": "^7.0.2"
   },
   "dependencies": {
@@ -46,7 +48,8 @@
     "node-unrar-js": "^2.0.2",
     "opencc-js": "^1.4.1",
     "ws": "^8.18.0",
-    "yauzl": "^3.4.0"
+    "yauzl": "^3.4.0",
+    "node-addon-api": "^8.0.0"
   },
   "build": {
     "appId": "com.lumora.player",
@@ -202,6 +205,9 @@
         "role": "Viewer",
         "icon": "build/icons/icon.ico"
       }
+    ],
+    "asarUnpack": [
+      "**/*.node"
     ],
     "publish": [
       {

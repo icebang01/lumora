@@ -8,8 +8,10 @@
  *   - PlaybackEngine：基类，封装共享属性表、兼容桩、通用派生属性计算、
  *     通用 helper（observeProperty / _notify / _coerce / _cycleAbLoop /
  *     _currentChapter / _measuredFps）。
- *   - MediaFoundationEngine：路线 A 占位实现（后端未实现，给出清晰报错，
- *     不白屏）。
+ *
+ * 路线 A（mediafoundation）已落地：渲染端复用 ffmpeg 管线同款 Player
+ * （WebSocket → WebGL2），主进程由 src/main/mf/backend.js 的 MfBackend
+ * 驱动原生 Media Foundation 解码，本文件不再需要占位实现。
  *
  * 引擎工厂 createEngine() 放在 app.js，避免本文件反向依赖 mpv-player.js
  * 造成循环导入。
@@ -206,42 +208,6 @@ export class PlaybackEngine extends EventTarget {
   onLoaded(payload) { throw new Error('PlaybackEngine.onLoaded 未实现'); }
   async seek(target) { throw new Error('PlaybackEngine.seek 未实现'); }
   frameStep(dir) { throw new Error('PlaybackEngine.frameStep 未实现'); }
-}
-
-/**
- * MediaFoundationEngine —— 路线 A 占位。
- *
- * 当 config.engine === 'mediafoundation' 时由 app.js 实例化。
- * 后端（Windows Media Foundation 解码 addon）属于路线 A 阶段 2，尚未落地；
- * 此处给出明确错误而非白屏，避免用户困惑。
- */
-export class MediaFoundationEngine extends PlaybackEngine {
-  constructor(lumen) {
-    super();
-    this.lumen = lumen || (typeof window !== 'undefined' ? window.lumen : null);
-    this.implemented = false;
-    console.warn('[lumen] MediaFoundationEngine 尚未实现后端（路线 A 阶段 2）。请使用 engine=mpv。');
-    this.dispatchEvent(new CustomEvent('osd', {
-      detail: { text: 'Media Foundation 后端未实现', value: '请在配置中设置 engine=mpv' },
-    }));
-  }
-
-  async init() {
-    throw new Error(
-      'MediaFoundationEngine 后端未实现：路线 A 仍在进行中。' +
-      '请将 player.conf 中 engine 设为 mpv（默认）。'
-    );
-  }
-
-  command() { this._unimplemented('command'); return false; }
-  setProperty() {}
-  onLoaded() {}
-  async seek() { this._unimplemented('seek'); }
-  frameStep() { this._unimplemented('frameStep'); }
-
-  _unimplemented(method) {
-    console.warn(`[lumen] MediaFoundationEngine.${method} 未实现（路线 A 阶段 2）`);
-  }
 }
 
 export { fmtTime, trackLabel };
