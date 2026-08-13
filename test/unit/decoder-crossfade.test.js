@@ -17,7 +17,9 @@ test('startAudioOnly 在未载入媒体时抛错', () => {
 });
 
 test('startAudioOnly 在无音轨信息时不 spawn（audioEnded=true）', () => {
-  const p = new MediaPipeline({ ffmpegPath: 'ffmpeg' });
+  // ffmpegPath 用 process.execPath(一定存在):resolveBinary 校验通过即可,
+  // 无音轨分支不真正 spawn(CI 无 ffmpeg 二进制也能跑)
+  const p = new MediaPipeline({ ffmpegPath: process.execPath });
   p.load({ path: '/x.flac', audio: [], video: [] });
   // 无音轨：_spawnAudio 直接置 audioEnded 返回，不会拉起 ffmpeg 子进程
   p.startAudioOnly(0, 1);
@@ -26,7 +28,8 @@ test('startAudioOnly 在无音轨信息时不 spawn（audioEnded=true）', () =>
 });
 
 test('startAudioOnly 接受 voice 参数且不改变实例默认 voice 字段', () => {
-  const p = new MediaPipeline({ ffmpegPath: 'ffmpeg' });
+  const p = new MediaPipeline({ ffmpegPath: process.execPath });
+  p._spawnAudio = () => {};  // 不真 spawn(CI 无 ffmpeg 二进制)
   p.load({ path: '/x.flac', audio: [{ codec: 'flac' }], video: [] });
   assert.equal(p.voice, 0, '实例 voice 字段默认仍为 0，副声部靠参数传递');
 });
