@@ -27,7 +27,7 @@ function createMusicEngine() {
   const canvas = document.createElement('canvas');
   canvas.width = 2;
   canvas.height = 2;
-  return new Player(canvas);
+  return new Player(canvas, { audioOnly: true });
 }
 
 export async function createMusicPlayer(bootstrapData, ctx = {}) {

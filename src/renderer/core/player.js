@@ -18,12 +18,13 @@ import { RENDER_DEFAULTS } from './defaults.js';
 import { PlaybackEngine } from './engine.js';
 
 export class Player extends PlaybackEngine {
-  constructor(canvas) {
+  constructor(canvas, opts = {}) {
     // 基类 PlaybackEngine 负责：共享属性表(props)、observers、stats、
     // abLoop、info/videoTrackInfo/epoch/fps/frameDuration/needsRedraw/
     // voDisabled/voError/_lastReport，以及覆盖前用的兼容桩(buildStubs)。
     super();
     this.canvas = canvas;
+    this.audioOnly = !!opts.audioOnly;  // 2026-08: 纯音频引擎(音乐)——不请求/不渲染视频帧
 
     // 真实后端对象覆盖基类里的兼容桩（buildStubs 里的 queue/renderer/
     // audio/transport/clock 都是空壳，这里换成能干活的实现）
@@ -806,6 +807,7 @@ export class Player extends PlaybackEngine {
   /* ================= 数据回调 ================= */
 
   _onVideoFrame(f) {
+    if (this.audioOnly) return;  // 纯音频引擎(音乐)不渲染视频帧
     if (f.epoch !== this.epoch) return;
     this.queue.push(f);
     this._updateFlow(); // 在数据到达时立刻表态，比等下一次 rAF 快一整帧
@@ -1133,9 +1135,12 @@ export class Player extends PlaybackEngine {
     const qMax = this.queue.maxSize;
 
     // 视频水位（迟滞）
-    if (this._videoDemand === undefined) this._videoDemand = true;
-    if (qLen >= qMax - 1) this._videoDemand = false;
-    else if (qLen <= Math.max(2, qMax >> 1)) this._videoDemand = true;
+    if (this.audioOnly) this._videoDemand = false;  // 纯音频引擎不请求视频帧
+    else {
+      if (this._videoDemand === undefined) this._videoDemand = true;
+      if (qLen >= qMax - 1) this._videoDemand = false;
+      else if (qLen <= Math.max(2, qMax >> 1)) this._videoDemand = true;
+    }
 
     // 音频水位（迟滞）
     if (this._audioDemand === undefined) this._audioDemand = true;

@@ -26,7 +26,8 @@ class MediaServer {
   constructor() {
     this.server = null;
     this.wss = null;
-    this.client = null;
+    this.client = null;  // 兼容旧字段:主 client(最后连接)
+    this.clients = new Set();  // 2026-08:多 client 广播(视频/音乐双 Player 各连各的)
     this.port = 0;
     this.token = crypto.randomBytes(16).toString('hex');
     this.throttled = false;         // 兼容：整体限速状态（= audioThrottled || videoThrottled）
@@ -39,6 +40,8 @@ class MediaServer {
     this.onClientReady = null;
     this.bytesSent = 0;
     this.packetsSent = 0;
+    // 运行期诊断计数
+    this._diag = { v: 0, a: 0 };
     // 复用同一块头部缓冲：每秒几千个包，没必要每次都 alloc
     this._hdr = Buffer.allocUnsafe(HEADER_SIZE);
     // 发送缓冲空闲池：视频帧 ~3MB，避免每帧都 allocUnsafe + 整帧 memcpy。
@@ -57,12 +60,21 @@ class MediaServer {
         ws.close(1008, 'bad token');
         return;
       }
-      // 只服务一个渲染进程，后来者顶替前者（窗口重载时会发生）
-      if (this.client && this.client.readyState === this.client.OPEN) {
-        try { this.client.close(1000, 'replaced'); } catch { /* 旧连接已断 */ }
-      }
-      this.client = ws;
+      // 2026-08: 多 client 广播(视频/音乐双 Player 各连各的 transport,谁都不该被
+      // 顶替——顶替会让活跃引擎的 connected 标记变 false 且数据被截走)。
+      this.clients.add(ws);
+      this.client = ws;  // 兼容旧字段:主 client = 最后连接
       ws.binaryType = 'nodebuffer';
+      ws.on('close', () => {
+        console.log(`[lumen][media-server] 连接关闭`);
+        this.clients.delete(ws);
+        if (this.client === ws) this.client = null;
+        // 连接没了就别把上游一直掐着，否则重连后要等一轮才恢复
+        this.rendererAudioFull = false;
+        this.rendererVideoFull = false;
+        this.socketFull = false;
+        this._applyThrottle();
+      });
       // 新连接默认不掐：首曲靠 ffmpeg -re 限制输出速度，背压只负责常态限速。
       this.rendererAudioFull = false;
       this.rendererVideoFull = false;
@@ -97,16 +109,6 @@ class MediaServer {
         }
       });
 
-      ws.on('close', () => {
-        if (this.client === ws) {
-          this.client = null;
-          // 连接没了就别把上游一直掐着，否则重连后要等一轮才恢复
-          this.rendererAudioFull = false;
-          this.rendererVideoFull = false;
-          this.socketFull = false;
-          this._applyThrottle();
-        }
-      });
       ws.on('error', () => { /* 连接错误由 close 统一处理 */ });
       if (this.onClientReady) this.onClientReady();
     });
@@ -124,7 +126,7 @@ class MediaServer {
   }
 
   get connected() {
-    return !!(this.client && this.client.readyState === 1);
+    return this.clients.size > 0 && [...this.clients].some((c) => c.readyState === 1);
   }
 
   /**
@@ -153,10 +155,26 @@ class MediaServer {
     // 视频垃圾尾，worklet 当 PCM 播放 → 爆音 + 环形缓冲污染 + 误背压。
     // subarray 与 packet 共享底层内存，send 回调(数据已写入 socket)后才回收，
     // 复用依然安全。
-    this.client.send(packet.subarray(0, needed), { binary: true }, () => {
-      // 回收：放回空闲池供下次复用；长度不足的旧块自然被 GC 掉
+    // 2026-08 多 client 广播:每个连接都收(视频/音乐双 Player)。
+    // 回收用计数:所有目标的 send 回调都到齐后 packet 才能回空闲池
+    // (send 回调 = 数据已写入内核,缓冲可安全复用)。
+    const targets = [...this.clients].filter((c) => c.readyState === 1);
+    if (targets.length === 0) {
       this._freeBufs.push(packet);
-    });
+      this.bytesSent += packet.length;
+      this.packetsSent++;
+      this._checkBackpressure();
+      return true;
+    }
+    let remaining = targets.length;
+    const done = () => { if (--remaining === 0) this._freeBufs.push(packet); };
+    for (const c of targets) {
+      try {
+        c.send(packet.subarray(0, needed), { binary: true }, done);
+      } catch {
+        done();
+      }
+    }
     this.bytesSent += packet.length;
     this.packetsSent++;
     this._checkBackpressure();
@@ -164,8 +182,9 @@ class MediaServer {
   }
 
   _checkBackpressure() {
-    if (!this.client) return;
-    const buffered = this.client.bufferedAmount;
+    if (this.clients.size === 0) return;
+    // 多 client 取最慢者(最大 bufferedAmount)决定是否限速
+    const buffered = Math.max(0, ...[...this.clients].map((c) => c.bufferedAmount || 0));
     if (!this.socketFull && buffered > BACKPRESSURE_HIGH) this.socketFull = true;
     else if (this.socketFull && buffered < BACKPRESSURE_LOW) this.socketFull = false;
     else return; // 状态没变，省掉一次回调
@@ -190,6 +209,10 @@ class MediaServer {
   }
 
   sendVideoFrame(f) {
+    this._diag.v++;
+    if (this._diag.v <= 3 || this._diag.v % 60 === 0) {
+      console.log(`[lumen][ms] sendVideo #${this._diag.v} pts=${(f.pts || 0).toFixed(3)} epoch=${f.epoch} w=${f.width} h=${f.height} bytes=${f.data && f.data.length}`);
+    }
     return this._send({
       type: PacketType.VIDEO,
       seq: f.seq,
@@ -202,6 +225,10 @@ class MediaServer {
   }
 
   sendAudioChunk(c) {
+    this._diag.a++;
+    if (this._diag.a <= 3 || this._diag.a % 100 === 0) {
+      console.log(`[lumen][ms] sendAudio #${this._diag.a} pts=${(c.pts || 0).toFixed(3)} epoch=${c.epoch} frames=${c.frames} sr=${c.sampleRate} ch=${c.channels} bytes=${c.data && c.data.length}`);
+    }
     return this._send({
       type: PacketType.AUDIO,
       seq: c.seq,
@@ -232,6 +259,7 @@ class MediaServer {
     try { if (this.wss) this.wss.close(); } catch { /* 已关闭 */ }
     try { if (this.server) this.server.close(); } catch { /* 已关闭 */ }
     this.client = null;
+    this.clients.clear();
   }
 }
 

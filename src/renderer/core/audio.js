@@ -263,6 +263,17 @@ export class AudioOutput {
     this.voices = [null, null];
     this.activeVoice = 0;
 
+    // 2026-08: 声部化重构后 snapshot 属 Voice——暴露活跃声部快照给诊断/冒烟
+    // (app-diagnostics 读 audio.snapshot.consumedFrames 判断音频时钟是否在走)
+    this._snapshotFallback = { consumedFrames: 0, hasBase: false, playing: false, epoch: 0, bufferedFrames: 0, underruns: 0 };
+    Object.defineProperty(this, 'snapshot', {
+      enumerable: true,
+      get() {
+        const v = this.voices[this.activeVoice];
+        return v && v.snapshot ? v.snapshot : this._snapshotFallback;
+      },
+    });
+
     // 上下文就绪前（首个用户手势之前）暂存的音频块，避免这段窗口里
     // 到达的 PCM 被静默丢弃
     this._pending = [];

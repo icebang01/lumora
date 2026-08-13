@@ -18,6 +18,9 @@ export class Transport extends EventTarget {
     this.bytesReceived = 0;
     this.packetsReceived = 0;
 
+    // 运行期诊断计数
+    this._diag = { v: 0, a: 0, eos: 0 };
+
     this.onVideo = null;
     this.onAudio = null;
     this.onEos = null;
@@ -102,6 +105,10 @@ export class Transport extends EventTarget {
 
     switch (h.type) {
       case PacketType.VIDEO: {
+        this._diag.v++;
+        if (this._diag.v <= 3 || this._diag.v % 60 === 0) {
+          console.log(`[lumen][tr] recvVideo #${this._diag.v} pts=${h.pts.toFixed(3)} epoch=${h.epoch} w=${h.a} h=${h.b}`);
+        }
         if (!this.onVideo) return;
         // 零拷贝视图。注意 data 的生命周期绑定在这个 ArrayBuffer 上，
         // 帧队列持有它期间不能被复用 —— 每条 ws 消息都是独立 buffer，安全
@@ -117,6 +124,10 @@ export class Transport extends EventTarget {
         break;
       }
       case PacketType.AUDIO: {
+        this._diag.a++;
+        if (this._diag.a <= 3 || this._diag.a % 100 === 0) {
+          console.log(`[lumen][tr] recvAudio #${this._diag.a} pts=${h.pts.toFixed(3)} epoch=${h.epoch} frames=${h.a} sr=${h.b} ch=${h.c}`);
+        }
         if (!this.onAudio) return;
         // 音频要 transfer 给 worklet，必须是独立 ArrayBuffer 才能转移所有权。
         // 这里 slice 一次是不可避免的成本，但音频数据量只有视频的 1/100
@@ -134,6 +145,8 @@ export class Transport extends EventTarget {
         break;
       }
       case PacketType.EOS:
+        this._diag.eos++;
+        console.log(`[lumen][tr] recvEOS epoch=${h.epoch} decodeError=${h.pts === 1}`);
         // h.pts 在主进程被复用为 decodeError 标记（1=解码失败）
         if (this.onEos) this.onEos({ epoch: h.epoch, voice: h.voice, decodeError: h.pts === 1 });
         break;
