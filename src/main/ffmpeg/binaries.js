@@ -16,7 +16,17 @@ const EXE = process.platform === 'win32' ? '.exe' : '';
 // 仓库自带 bin/（git-bash 下为 D:/IDEA/videos/bin）：源码运行 / 独立 config-dir
 // 测试实例（冒烟等，空 player.conf 无 mpv-dir/ffmpeg-dir）也能找到 mpv/ffmpeg。
 // 路径相对本文件：src/main/ffmpeg/ → 仓库根。
-const REPO_BIN = path.join(__dirname, '..', '..', '..', 'bin');
+let REPO_BIN = path.join(__dirname, '..', '..', '..', 'bin');
+
+// 打包后修正：binaries.js 在 app.asar 内，__dirname 指向 app.asar/src/main/ffmpeg，
+// 但 extraResources 把仓库 bin/ 复制到 resources/app/bin（asar 外可执行）。
+// 当源码路径不存在时，回退到 resources/app/bin。
+if (!fs.existsSync(REPO_BIN)) {
+  try {
+    const packagedBin = path.join(process.resourcesPath, 'app', 'bin');
+    if (fs.existsSync(packagedBin)) REPO_BIN = packagedBin;
+  } catch { /* 非 Electron 环境无需处理 */ }
+}
 
 const COMMON_DIRS = {
   win32: [
