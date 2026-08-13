@@ -27,3 +27,4 @@ dist/
 # 其他工具的内部状态
 .workbuddy/
 tools/align-git-history.sh
+src/main/mf/native/build/
