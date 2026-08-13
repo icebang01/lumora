@@ -45,5 +45,10 @@ jobs:
         run: npm ci
       - name: 生成测试媒体
         run: npm run gen-testmedia
+      - name: 拉取解码二进制（bin/ 不入仓，CI 需自行下载 ffmpeg）
+        run: npm run fetch-deps
       - name: GUI 自动化测试（CDP 驱动 13 项）
         run: npm run test:gui
+        env:
+          # CI 无 mpv(无下载源脚本)——gui 播放检查走 ffmpeg 引擎(本地 32/32 证明健康)
+          LUMORA_ENGINE: ffmpeg
