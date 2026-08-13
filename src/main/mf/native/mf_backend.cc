@@ -25,6 +25,8 @@
 #include <mfobjects.h>
 #include <comdef.h>
 #include <cstdint>
+#include <cstdlib>
+#include <cmath>
 #include <vector>
 #include <string>
 #include <atomic>
@@ -156,7 +158,10 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   DWORD _audioStreamIndex = MF_SOURCE_READER_FIRST_AUDIO_STREAM;
   bool _hasVideo = false, _hasAudio = false;
   int _nativeW = 0, _nativeH = 0;
-  int _width = 0, _height = 0;
+  int _sarNum = 1, _sarDen = 1;   // 源像素宽高比（SAR/PAR）；MF 不自动按 SAR 拉伸，需原生修正
+  double _sar = 1.0;
+  int _width = 0, _height = 0;   // 请求/回报的输出尺寸（向渲染端承诺的帧尺寸）
+  int _trueH = 0;                // 实际解码高度（MF 常把高度补齐到宏块倍数，如 1080→1088）
   int _fpsNum = 25, _fpsDen = 1;
   int _sampleRate = 48000, _channels = 2;
   int _outChannels = 2;   // 输出强制立体声（与 ffmpeg 管线 -ac 2 对齐；MF 自动下混/上混）
@@ -169,6 +174,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   int _videoTrack = 0, _audioTrack = 0;
   bool _audioOnly = false;
   bool _decodeError = false;
+  int _vidReadLog = 0;   // 视频 ReadSample 诊断计数（VLOG 用）
 
   // ---- 线程 / 同步 ----
   std::thread _thread;
@@ -277,6 +283,9 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     meta.Set("fpsDen", Napi::Number::New(env, _fpsDen));
     meta.Set("sampleRate", Napi::Number::New(env, _sampleRate));
     meta.Set("channels", Napi::Number::New(env, _channels));
+    meta.Set("sar", Napi::Number::New(env, _sar));
+    meta.Set("sarNum", Napi::Number::New(env, _sarNum));
+    meta.Set("sarDen", Napi::Number::New(env, _sarDen));
     meta.Set("duration", Napi::Number::New(env, static_cast<double>(_duration) / 1e7));
     return meta;
   }
@@ -388,6 +397,19 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
           if (SUCCEEDED(MFGetAttributeRatio(mt, MF_MT_FRAME_RATE, &num, &den)) && den) {
             _fpsNum = static_cast<int>(num); _fpsDen = static_cast<int>(den);
           }
+          // 读取源像素宽高比（SAR）。MF 默认按存储尺寸解码、不自动拉伸到显示
+          // 宽高比；SAR≠1（如 1440x1080 anamorphic，SAR 4:3 → 应显示 16:9）不处理
+          // 会导致画面横向拉伸/压扁。原生侧读出 SAR 经 meta 回报给渲染端，由
+          // 渲染端 _buildTransform 按 DAR（宽度×SAR）做 contain 适配（原生层
+          // 不做缩放，因为 MF 解码器拒绝非原生输出尺寸）。
+          UINT32 sarNum = 0, sarDen = 0;
+          if (SUCCEEDED(MFGetAttributeRatio(mt, MF_MT_PIXEL_ASPECT_RATIO, &sarNum, &sarDen)) && sarDen) {
+            _sarNum = static_cast<int>(sarNum);
+            _sarDen = static_cast<int>(sarDen);
+            _sar = static_cast<double>(sarNum) / static_cast<double>(sarDen);
+          } else {
+            _sarNum = 1; _sarDen = 1; _sar = 1.0;
+          }
         }
         videoCount++;
       } else if (major == MFMediaType_Audio) {
@@ -436,6 +458,18 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     int w = _nativeW, h = _nativeH;
     if (w <= 0) w = 1280;
     if (h <= 0) h = 720;
+
+    // 重要：MF 的 H.264 解码器不支持输出尺寸缩放——给 SetCurrentMediaType 设
+    // 非源原生尺寸会静默失败（返回失败 HRESULT 且 _hasVideo 被置 false，视频轨
+    // 整条丢失）。因此 MF 必须按「源原生存储尺寸」输出，SAR（像素宽高比）拉伸
+    // 改由渲染端 _buildTransform 按 DAR（宽度×SAR）做 contain 适配。此前在原生
+    // 层按 SAR 预拉伸（1440→1920）正是 videoEmitted=0 的根因。
+    //
+    // 架构限制：WebSocket 单帧上限约 1080p（3MB/帧）。对宽于 maxWidth 的源本应
+    // 降采样，但 MF 无法缩放——此分支当前为「已知限制」：2560×1440 / 4K 等源会因
+    // SetCurrentMediaType 失败而整条丢失视频轨，待改为「超 maxWidth 时回退 ffmpeg
+    // 引擎」或「服务端缩放」。SAR≠1 的 anamorphic 源（如 1440x1080 SAR 4:3）原生
+    // 尺寸 1440 未超 maxWidth，不受影响，可正常解码并交由渲染端按 DAR 拉伸。
     if (_maxWidth > 0 && w > _maxWidth) {
       double r = static_cast<double>(_maxWidth) / static_cast<double>(w);
       w = _maxWidth;
@@ -450,13 +484,17 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     outType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
     outType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12);
     MFSetAttributeSize(outType, MF_MT_FRAME_SIZE, w, h);
+    // 输出保持源原生存储尺寸（方形像素缓冲），SAR 由渲染端按 DAR 拉伸，
+    // 不在此设输出 PIXEL_ASPECT_RATIO（设非原生尺寸 MF 也会失败）。
     outType->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
     outType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE);
 
     HRESULT hr = _reader->SetCurrentMediaType(_videoStreamIndex, nullptr, outType);
     if (FAILED(hr)) { outType->Release(); return hr; }
 
-    // 回查真实协商出的尺寸（MF 可能未按要求缩放）
+    // 回查真实协商出的尺寸（MF 可能未按要求缩放）。此处把协商尺寸当作「承诺
+    // 尺寸」回报渲染端；实际解码高度可能更大（宏块补齐，如 1080→1088），由
+    // _trueH 在解码期通过 CURRENTMEDIATYPECHANGED 的再查询捕获。
     IMFMediaType* cur = nullptr;
     if (SUCCEEDED(_reader->GetCurrentMediaType(_videoStreamIndex, &cur))) {
       UINT32 cw = 0, ch = 0;
@@ -465,6 +503,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       } else { _width = w; _height = h; }
       cur->Release();
     } else { _width = w; _height = h; }
+    _trueH = _height;
 
     outType->Release();
     return S_OK;
@@ -543,6 +582,11 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     LONGLONG time = 0;
     IMFSample* sample = nullptr;
     HRESULT hr = _reader->ReadSample(idx, 0, &actual, &flags, &time, &sample);
+    if (isVideo && _vidReadLog < 16 && getenv("LUMORA_MF_VLOG")) {
+      fprintf(stderr, "[mf-vlog] vidRead#%d hr=0x%08lx flags=0x%08lx sample=%d w=%d h=%d\n",
+        _vidReadLog, (unsigned long)hr, (unsigned long)flags, sample ? 1 : 0, _width, _height);
+      _vidReadLog++;
+    }
     if (FAILED(hr)) {
       _decodeError = true;
       EmitError("ReadSample 失败（解码中断）");
@@ -555,8 +599,24 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       return false;
     }
     if (flags & MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED) {
-      // 类型中途切换（极少数封装）：重新配置输出类型
-      if (isVideo) ConfigureVideoOutput(); else ConfigureAudioOutput();
+      // 收到「当前媒体类型已变更」标志时，绝不能再调用 SetCurrentMediaType 重新
+      // 设置输出类型——MF 在已开始读取后重设输出类型会重置解码器，下一帧直接返回
+      // ENDOFSTREAM（实测 anamorphic / SAR≠1 源因此只解出 1 帧，视频轨整条丢失）。
+      // 正确做法只是重新查询实际协商出的尺寸，无需（也不能）再次设置。
+      if (isVideo) {
+        IMFMediaType* cur = nullptr;
+        if (SUCCEEDED(_reader->GetCurrentMediaType(_videoStreamIndex, &cur))) {
+          UINT32 cw = 0, ch = 0;
+          if (SUCCEEDED(MFGetAttributeSize(cur, MF_MT_FRAME_SIZE, &cw, &ch)) && cw && ch) {
+            // 仅更新「实际解码高度」_trueH（用于色度偏移），不要覆盖向渲染端承诺的
+            // _height——否则回报尺寸与实际缓冲高度不一致会导致纹理尺寸错配/色彩错位。
+            _trueH = static_cast<int>(ch);
+          }
+          cur->Release();
+        }
+      } else {
+        ConfigureAudioOutput();
+      }
     }
     if (!sample) return true;  // 需要继续读取
 
@@ -602,8 +662,10 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     for (int y = 0; y < h; y++) {
       memcpy(Y + static_cast<size_t>(y) * w, p0 + static_cast<size_t>(y) * stride, static_cast<size_t>(w));
     }
-    // NV12 → I420：解交织 UV（UV 行跨距 = Y 行跨距）
-    const uint8_t* uv = p0 + static_cast<size_t>(stride) * h;
+    // NV12 → I420：解交织 UV（UV 行跨距 = Y 行跨距；色度起始需按「实际解码高度」
+    // _trueH 定位，而非承诺高度 _height——MF 常把高度补齐到宏块倍数（如 1080→1088），
+    // 否则色度会偏移到错误行、画面下半部出现色彩/错位伪影。输出仍裁剪到 _height。
+    const uint8_t* uv = p0 + static_cast<size_t>(stride) * _trueH;
     uint8_t* U = out + ySize;
     uint8_t* V = U + uvSize;
     for (int y = 0; y < h; y++) {

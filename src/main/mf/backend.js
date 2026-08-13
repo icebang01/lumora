@@ -168,6 +168,10 @@ class MfBackend extends EventEmitter {
     this._nativeChannels = 2;
     this._fpsNum = meta.fpsNum || 25;
     this._fpsDen = meta.fpsDen || 1;
+    // 解码侧真实像素宽高比（SAR）；MF 原生层输出「源原生存储尺寸」、不预拉伸，
+    // 此处把 sar 带入 videoOutput 供渲染端 _buildTransform 按 DAR（宽×SAR）适配；
+    // 同时回写媒体信息使窗口尺寸（ipc-window.js 的 v.width * v.sar）拿到正确值。
+    this._sar = (typeof meta.sar === 'number' && meta.sar > 0) ? meta.sar : 1;
 
     if (meta.hasVideo && !this._audioOnly) {
       const w = meta.width | 0;
@@ -178,7 +182,20 @@ class MfBackend extends EventEmitter {
         pixfmt: 'yuv420p', // 原生层已把 NV12 解交织成 I420，渲染端零改动
         frameSize: Math.floor(w * h * 1.5),
         fps: (this._fpsNum / Math.max(this._fpsDen, 1)) || 25,
+        sar: this._sar,
       };
+      // 以解码侧真实 SAR 为准回写媒体信息：anamorphic 素材（如 1440x1080 SAR
+      // 4:3 → 应显示 16:9）窗口尺寸（v.width * v.sar）必须拿到正确 SAR，否则
+      // OS 窗口会被压成 4:3。仅当 SAR 显著非 1 时才覆盖（方形像素源保留 probe
+      // 的原值，避免无意义改动）。注意：此处只影响窗口尺寸，渲染端显示由
+      // videoOutput.sar 经 _configureVideo 单独传入，不会与窗口尺寸重复计算。
+      if (this._sar > 1.001 || this._sar < 0.999) {
+        const v = this.info && this.info.video && this.info.video[this.videoTrack];
+        if (v) {
+          v.sar = this._sar;
+          v.dar = ((v.width || w) * this._sar) / (v.height || h);
+        }
+      }
     } else {
       this.videoOutput = null;
     }
@@ -237,7 +254,7 @@ class MfBackend extends EventEmitter {
     this.emit('started', {
       epoch: this.epoch,
       startTime: this.startTime,
-      video: this.videoOutput || null,
+      video: this.videoOutput ? { ...this.videoOutput, hwaccel: this.hwaccel } : null,
       audio: this.currentAudio
         ? { sampleRate: AUDIO_SAMPLE_RATE, channels: this._nativeChannels }
         : null,

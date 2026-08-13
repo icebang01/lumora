@@ -742,6 +742,11 @@ export class Player extends PlaybackEngine {
       colorRange: v.colorRange,
       hdrType: v.hdrType,
       hdr: v.hdr,
+      // SAR（像素宽高比）：仅 MF 引擎在「输出原生存储尺寸」的同时携带此值
+      // （ffmpeg 引擎已在输出帧内烘焙 DAR、不携带 sar → 默认 1，绝不二次拉伸）。
+      // 渲染端 _buildTransform 按 width*sar 做 contain 适配，anamorphic 才能正确
+      // 显示为 16:9 而非被压扁的 4:3。
+      sar: (typeof output.sar === 'number' && output.sar > 0) ? output.sar : 1,
     };
 
     try {
