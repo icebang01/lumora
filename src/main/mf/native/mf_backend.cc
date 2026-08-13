@@ -33,6 +33,13 @@
 #include <thread>
 #include <chrono>
 
+// MFSampleExtension_Device：硬件 MFT 解码出的 sample 会带此属性 GUID；软件回退则不带。
+// 用于观测 DXVA/D3D11 是否真正生效。个别 Windows SDK 分区下该符号未被 mfapi.h 暴露，
+// 这里手动定义（值取自 Windows SDK），避免编译期 "未声明的标识符"。
+static const GUID MF_SampleExtension_Device_GUID = {
+  0xb2bfa0ad, 0x7e6c, 0x41fd, { 0xa1, 0x2b, 0xf3, 0x42, 0xc2, 0xd1, 0x38, 0x24 }
+};
+
 #pragma comment(lib, "mfplat.lib")
 #pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib, "mf.lib")
@@ -49,6 +56,7 @@ constexpr int EV_VIDEO = 0;
 constexpr int EV_AUDIO = 1;
 constexpr int EV_EOS   = 2;
 constexpr int EV_ERROR = 3;
+constexpr int EV_HWACCEL = 4;   // 首帧硬件解码状态观测（DXVA/D3D11 回退可观测）
 
 // 跨线程传递的事件描述（通过 ThreadSafeFunction 的指针搬运，data 由 JS 侧 finalizer 释放）。
 struct FrameEvent {
@@ -66,6 +74,7 @@ struct FrameEvent {
   int chunkCount = 1;       // 保留
   int64_t frameId = -1;     // 视频帧槽位(TSFN 只发信号,数据由 JS 主动 readFrame 拉取)
   int poolIndex = -1;       // 保留(外部缓冲池方案在 electron 不可用)
+  const char* hwaccel = nullptr;  // EV_HWACCEL：实际生效的硬件加速状态（"d3d11"/"software"）
   std::string message;
 };
 
@@ -112,6 +121,9 @@ static void TsfnCallback(Napi::Env env, Napi::Function jsCb, void* /*context*/, 
     } else if (ev->type == EV_EOS) {
       o.Set("type", Napi::String::New(env, "eos"));
       o.Set("decodeError", Napi::Boolean::New(env, ev->decodeError));
+    } else if (ev->type == EV_HWACCEL) {
+      o.Set("type", Napi::String::New(env, "hwaccel"));
+      o.Set("hwaccel", Napi::String::New(env, ev->hwaccel ? ev->hwaccel : "unknown"));
     } else if (ev->type == EV_ERROR) {
       o.Set("type", Napi::String::New(env, "error"));
       o.Set("message", Napi::String::New(env, ev->message));
@@ -176,6 +188,8 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   bool _audioOnly = false;
   bool _decodeError = false;
   int _vidReadLog = 0;   // 视频 ReadSample 诊断计数（VLOG 用）
+  bool _hwDetected = false;   // 首帧硬件解码状态是否已探测
+  std::string _hwAccelActual = "pending";  // 实际生效：d3d11 / software
 
   // ---- 线程 / 同步 ----
   std::thread _thread;
@@ -240,6 +254,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     std::string pathUtf8 = info[0].As<Napi::String>().Utf8Value();
     _videoTrack = 0; _audioTrack = 0; _maxWidth = 1920; _audioOnly = false;
     _hwaccel = "auto"; _speed = 1.0; _decodeError = false;
+    _hwDetected = false; _hwAccelActual = "pending";
     _videoFrameIndex = 0; _audioFrameCount = 0;
 
     if (info.Length() > 1 && info[1].IsObject()) {
@@ -694,6 +709,20 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   }
 
   void ProcessVideoSample(IMFSample* sample, LONGLONG /*time*/) {
+    // 首帧探测硬件解码是否真正生效（让 DXVA/D3D11 回退可被观测）。
+    // 硬件 MFT 产生的 sample 会带 MFSampleExtension_Device 属性；软件回退则不带。
+    // 整段要么硬件要么软解，首帧定一次即可，经 TSFN 回报实际 hwaccel 状态。
+    if (!_hwDetected) {
+      _hwDetected = true;
+      GUID devGuid = GUID_NULL;
+      bool hw = SUCCEEDED(sample->GetGUID(MF_SampleExtension_Device_GUID, &devGuid)) && devGuid != GUID_NULL;
+      const char* actual = hw ? "d3d11" : "software";
+      _hwAccelActual = actual;
+      FrameEvent* ev = new FrameEvent{};
+      ev->type = EV_HWACCEL;
+      ev->hwaccel = actual;
+      if (_tsfn) _tsfn.NonBlockingCall(ev);
+    }
     IMFMediaBuffer* buf = nullptr;
     if (FAILED(sample->GetBufferByIndex(0, &buf))) return;
 

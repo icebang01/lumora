@@ -96,6 +96,7 @@ class MfBackend extends EventEmitter {
     this._videoEmitted = 0;
 
     this.hwaccel = opts.hwaccel || 'auto'; // 'auto' | 'no'
+    this.hwaccelActual = null;   // 实际生效的硬件加速状态：'d3d11'（硬解）| 'software'（回退）| null（未定）
     this.voice = opts.voice || 0;          // 0=主声部 1=交叉淡入淡出副声部
     this._maxWidth = opts.maxWidth || 1920;
     this._audioOnly = false;
@@ -423,6 +424,11 @@ class MfBackend extends EventEmitter {
           decodeError: realDecodeError,
           detail: realDecodeError ? 'MediaFoundation 解码中断' : null,
         });
+        break;
+      case 'hwaccel':
+        // 首帧硬件解码状态观测：让 DXVA/D3D11 回退从黑盒变为可见。
+        this.hwaccelActual = ev.hwaccel;
+        this.emit('hwaccel', { requested: this.hwaccel, actual: ev.hwaccel });
         break;
       case 'error':
         this._diag.err++;

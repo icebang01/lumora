@@ -18,7 +18,7 @@ const abs = path.resolve(process.cwd(), file);
 
 console.log('[mf-sar-test] 打开:', abs);
 
-const backend = new MfBackend({ maxWidth: 1920, hwaccel: 'auto' });
+const backend = new MfBackend({ maxWidth: 1920, hwaccel: process.env.LUMORA_MF_HWACCEL || 'auto' });
 if (!backend.available) {
   console.error('[mf-sar-test] 原生模块不可用:', backend._initError && backend._initError.message);
   process.exit(2);
@@ -50,6 +50,9 @@ backend.on('error', (e) => {
   errSeen = e.message;
   console.error('[mf-sar-test] error:', e.message);
 });
+backend.on('hwaccel', (e) => {
+  console.log(`[mf-sar-test] hwaccel requested=${e.requested} actual=${e.actual}`);
+});
 
 const epoch = backend.start(0);
 console.log('[mf-sar-test] start() -> epoch', epoch, 'videoOutput=', JSON.stringify(backend.videoOutput));
@@ -63,7 +66,8 @@ const timer = setInterval(() => {
       ' eos=' + eosSeen +
       ' err=' + (errSeen || 'null') +
       ' outDims=' + firstVW + 'x' + firstVH +
-      ' sar=' + (backend.videoOutput && backend.videoOutput.sar));
+      ' sar=' + (backend.videoOutput && backend.videoOutput.sar) +
+      ' hwaccel=' + (backend.hwaccelActual || 'pending'));
     // 判定：SAR 修复成功 = 有视频帧产出且输出尺寸为原生（未拉伸）；
     // 额外统计 readFrame 命中率（validV/vCount），揭示槽位覆盖丢帧。
     const ok = vCount > 0 && firstVW > 0;
