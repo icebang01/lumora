@@ -68,6 +68,10 @@ function loadNative() {
 const AUDIO_SAMPLE_RATE = 48000; // 回报渲染端的采样率恒为 48000（PTS 公式基准）
 const AUDIO_CHUNK_FRAMES = 2048; // 与原生侧切片一致
 
+// MF 逐帧/逐包诊断日志开关。生产环境保持静默（避免每 60 帧/100 包的高频
+// console.log 拖慢主进程）；设 LUMORA_MF_DEBUG=1 才开启，便于本地排查解码。
+const MF_DEBUG = process.env.LUMORA_MF_DEBUG === '1';
+
 class MfBackend extends EventEmitter {
   constructor(opts = {}) {
     super();
@@ -84,6 +88,12 @@ class MfBackend extends EventEmitter {
 
     // 运行期诊断计数（release 后可删）
     this._diag = { v: 0, a: 0, eos: 0, err: 0 };
+
+    // 已产出计数：用于 EOS 时区分"自然放完"与"解码失败"（对齐 ffmpeg 管线的
+    // realDecodeError = _decodeError && audioFrameCount===0 守卫，避免把偶发
+    // 可恢复坏帧误报成"无法解码该文件"并误回主页）
+    this._audioEmitted = 0;
+    this._videoEmitted = 0;
 
     this.hwaccel = opts.hwaccel || 'auto'; // 'auto' | 'no'
     this.voice = opts.voice || 0;          // 0=主声部 1=交叉淡入淡出副声部
@@ -125,6 +135,8 @@ class MfBackend extends EventEmitter {
     this.startTime = 0;
     this.videoSeq = 0;
     this.audioSeq = 0;
+    this._audioEmitted = 0;
+    this._videoEmitted = 0;
     this._audioOnly = !!(info && info.audioOnly);
     this.hwaccelFailed = false;
     this.videoOutput = null;
@@ -150,7 +162,10 @@ class MfBackend extends EventEmitter {
 
   _applyMeta(meta) {
     this._nativeSampleRate = meta.sampleRate || AUDIO_SAMPLE_RATE;
-    this._nativeChannels = meta.channels || 2;
+    // 输出强制立体声（原生 ConfigureAudioOutput 已下混），所以"已交付音频格式"
+    // 的声道数恒为 2，与 ffmpeg 管线 started 报告的 AUDIO_CHANNELS=2 对齐；
+    // meta.channels 是源文件原始声道数（仅作诊断），不用于播放契约。
+    this._nativeChannels = 2;
     this._fpsNum = meta.fpsNum || 25;
     this._fpsDen = meta.fpsDen || 1;
 
@@ -182,6 +197,8 @@ class MfBackend extends EventEmitter {
 
     this.epoch++;
     this.startTime = Math.max(0, atTime);
+    this._audioEmitted = 0;
+    this._videoEmitted = 0;
     this._decodeError = false;
 
     let meta;
@@ -239,6 +256,8 @@ class MfBackend extends EventEmitter {
     this.epoch++;
     this.startTime = Math.max(0, atTime);
     this.voice = voice;
+    this._audioEmitted = 0;
+    this._videoEmitted = 0;
     this._decodeError = false;
 
     let meta;
@@ -341,11 +360,12 @@ class MfBackend extends EventEmitter {
     switch (ev.type) {
       case 'video':
         this._diag.v++;
+        this._videoEmitted++;
         // 2026-08 Pull 方案:TSFN 只发 frameId 信号,数据经 readFrame 普通调用拉取
         // (TSFN 回调里创建大 Buffer 在 electron 必崩;普通调用 3MB 安全)。
         let data = null;
         try { data = this._reader.readFrame(ev.frameId); } catch { data = null; }
-        if (this._diag.v <= 3 || this._diag.v % 60 === 0) {
+        if (MF_DEBUG && (this._diag.v <= 3 || this._diag.v % 60 === 0)) {
           console.log(`[lumen][mf] video-frame #${this._diag.v} pts=${ev.pts.toFixed(3)} w=${ev.width} h=${ev.height} bytes=${data && data.length}`);
         }
         this.emit('video-frame', {
@@ -359,7 +379,8 @@ class MfBackend extends EventEmitter {
         break;
       case 'audio':
         this._diag.a++;
-        if (this._diag.a <= 3 || this._diag.a % 100 === 0) {
+        this._audioEmitted++;
+        if (MF_DEBUG && (this._diag.a <= 3 || this._diag.a % 100 === 0)) {
           console.log(`[lumen][mf] audio-chunk #${this._diag.a} pts=${ev.pts.toFixed(3)} frames=${ev.frames} sr=${ev.sampleRate} ch=${ev.channels} bytes=${ev.buffer && ev.buffer.length}`);
         }
         this.emit('audio-chunk', {
@@ -375,11 +396,15 @@ class MfBackend extends EventEmitter {
         break;
       case 'eos':
         this._diag.eos++;
-        console.log(`[lumen][mf] eos decodeError=${ev.decodeError}`);
+        console.log(`[lumen][mf] eos decodeError=${ev.decodeError} audioEmitted=${this._audioEmitted} videoEmitted=${this._videoEmitted}`);
+        // 与 ffmpeg 管线对齐（2026-08-09 健壮性修正）：仅当「确无音频产出」时
+        // 才算解码失败，否则中途遇到的可恢复坏帧（已产出音频）按自然放完处理，
+        // 避免把偶发坏帧误报成"无法解码该文件"并误回主页。
+        const realDecodeError = ev.decodeError && this._audioEmitted === 0;
         this.emit('eos', {
           epoch: this.epoch,
-          decodeError: ev.decodeError,
-          detail: ev.decodeError ? 'MediaFoundation 解码中断' : null,
+          decodeError: realDecodeError,
+          detail: realDecodeError ? 'MediaFoundation 解码中断' : null,
         });
         break;
       case 'error':

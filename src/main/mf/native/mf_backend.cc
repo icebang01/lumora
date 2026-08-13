@@ -159,6 +159,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   int _width = 0, _height = 0;
   int _fpsNum = 25, _fpsDen = 1;
   int _sampleRate = 48000, _channels = 2;
+  int _outChannels = 2;   // 输出强制立体声（与 ffmpeg 管线 -ac 2 对齐；MF 自动下混/上混）
   int64_t _duration = 0;   // 100ns
   std::wstring _path;
   double _startTime = 0;
@@ -482,11 +483,14 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     outType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
     outType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_Float);
     outType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, static_cast<UINT32>(outRate));
-    outType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, static_cast<UINT32>(_channels));
+    // 强制立体声输出：与 ffmpeg 管线 -ac 2 对齐。MF 在输出类型声道数少于/多于
+    // 输入时会自动下混/上混，避免把 5.1/7.1 多声道裸数据直接喂给仅支持双声道的
+    // 渲染端 WebGL2/AudioWorklet 路径（否则音频错位或静音）。
+    outType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, static_cast<UINT32>(_outChannels));
     outType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 32);
     outType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
-                       static_cast<UINT32>(outRate * _channels * 4));
-    outType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, static_cast<UINT32>(_channels * 4));
+                       static_cast<UINT32>(outRate * _outChannels * 4));
+    outType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, static_cast<UINT32>(_outChannels * 4));
 
     HRESULT hr = _reader->SetCurrentMediaType(_audioStreamIndex, nullptr, outType);
     outType->Release();
@@ -667,7 +671,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     DWORD maxLen = 0, curLen = 0;
     if (FAILED(buf->Lock(&p0, &maxLen, &curLen))) { buf->Release(); return; }
 
-    const int ch = _channels;
+    const int ch = _outChannels;
     int frames = static_cast<int>(curLen / (static_cast<size_t>(ch) * 4));
     const float* src = reinterpret_cast<const float*>(p0);
     for (int i = 0; i < frames * ch; i++) _audioStaging.push_back(src[i]);
@@ -700,7 +704,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   }
 
   void FlushAudioStaging() {
-    const int ch = _channels;
+    const int ch = _outChannels;
     int avail = static_cast<int>(_audioStaging.size() / ch);
     if (avail <= 0) return;
     size_t nbytes = static_cast<size_t>(avail) * ch * 4;
