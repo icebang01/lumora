@@ -823,11 +823,11 @@ export class Player extends PlaybackEngine {
       // 副声部（下一曲目）的 chunk 带独立 epoch，必须匹配副声部 epoch，
       // 否则是过期/错轨数据，直接丢弃。路由到槽位 1（副声部）。
       if (this._secondaryEpoch == null || c.epoch !== this._secondaryEpoch) return;
-      this.audio.pushVoice(1, c.buffer, c.pts, c.epoch);
+      this.audio.pushVoice(1, c.buffer, c.pts, c.epoch, c.pitched);
     } else {
       // 主声部：epoch 必须匹配当前激活曲目。
       if (c.epoch !== this.epoch) return;
-      this.audio.pushVoice(0, c.buffer, c.pts, c.epoch);
+      this.audio.pushVoice(0, c.buffer, c.pts, c.epoch, c.pitched);
     }
     this._updateFlow();
   }

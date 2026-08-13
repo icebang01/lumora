@@ -332,8 +332,10 @@ class MfBackend extends EventEmitter {
     const s = Math.min(Math.max(speed, 0.05), 16);
     if (Math.abs(s - this.speed) < 1e-6) return null;
     this.speed = s;
-    // 变速需重启解码：原生按 48000/speed 重配置输出采样率（与 ffmpeg atempo 同 PTS 公式）
-    return this.start(currentTime);
+    // 变速不再由解码侧变采样率实现（那会让音高跟着变）。MF 恒以原始 48k 输出，
+    // 倍速的"时间伸缩"改由渲染端 AudioWorklet 的 WSOLA 完成（保音高）。
+    // 这里只更新 speed 记录；真正的变速在 worklet 消费侧，无需重启解码。
+    return null;
   }
 
   setVideoTrack(idx, currentTime) {
@@ -410,6 +412,7 @@ class MfBackend extends EventEmitter {
           frames: ev.frames,
           sampleRate: ev.sampleRate,
           channels: ev.channels,
+          pitched: false, // MF 按原始 48k 输出，变速保音高在消费侧 WSOLA 完成
         });
         break;
       case 'eos':

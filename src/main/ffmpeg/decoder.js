@@ -451,6 +451,7 @@ class MediaPipeline extends EventEmitter {
         frames: AUDIO_CHUNK_FRAMES,
         sampleRate: AUDIO_SAMPLE_RATE,
         channels: AUDIO_CHANNELS,
+        pitched: true, // ffmpeg 已用 atempo 在解码侧保音高，消费侧 worklet 直出
       });
     });
 

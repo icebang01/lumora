@@ -7,9 +7,10 @@
 // 设计要点（与 ffprobe+MediaPipeline 保持同形，使主进程控制面零改动）：
 //   - 视频输出 NV12（MF 最原生格式）→ 原生层解交织成 I420(yuv420p)，
 //     渲染端 WebGL2 的 yuv420p 路径零改动复用。
-//   - 音频输出 32-bit float PCM；变速用「输出采样率 = 48000/speed」实现
-//     （与 ffmpeg atempo 使用同一套 PTS 公式：pts = startTime + 输出帧数/48000*speed，
-//     区别是 MF 方案会随倍速改变音高——1.0 已知限制，保留音高的变速需 WSOLA）。
+//   - 音频输出 32-bit float PCM，采样率恒为 48000（不变调）。变速保音高改由
+//     渲染端 AudioWorklet 的 WSOLA 完成（pts = startTime + 输出帧数/48000，
+//     speed 仅影响消费侧时间伸缩，不进入 PTS）；ffmpeg 引擎则在解码侧用 atempo
+//     已保音高、消费侧直出。两种引擎 PTS 公式统一为 startTime + frames/48000。
 //   - 解码在独立工作线程进行，通过 N-API ThreadSafeFunction 把裸帧/音频回传
 //     主线程的 JS 回调；背压由 setThrottle 暂停对应流的读取实现。
 //
@@ -533,10 +534,9 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   HRESULT ConfigureAudioOutput() {
     if (!_reader || _audioStreamIndex == MF_SOURCE_READER_FIRST_AUDIO_STREAM) return E_FAIL;
 
-    // 变速：输出采样率 = 48000 / speed（与 ffmpeg atempo 同 PTS 公式；1.0 限制：音高随倍速变化）
-    int outRate = static_cast<int>(48000.0 / (_speed > 0.001 ? _speed : 1.0));
-    if (outRate < 8000) outRate = 8000;
-    if (outRate > 192000) outRate = 192000;
+    // 输出采样率恒为 48000（原始）。变速保音高改由渲染端 AudioWorklet 的
+    // WSOLA 完成（消费侧时域伸缩），不再用"变采样率"实现——那会让音高跟着变。
+    int outRate = 48000;
 
     IMFMediaType* outType = nullptr;
     MFCreateMediaType(&outType);
@@ -857,7 +857,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       _audioStaging.erase(_audioStaging.begin(),
                           _audioStaging.begin() + static_cast<size_t>(framesPerChunk) * ch);
 
-      double pts = _startTime + (static_cast<double>(_audioFrameCount.load()) / 48000.0) * _speed;
+      double pts = _startTime + (static_cast<double>(_audioFrameCount.load()) / 48000.0);
       _audioFrameCount += framesPerChunk;
 
       FrameEvent* ev = new FrameEvent{};
@@ -882,7 +882,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     memcpy(out, _audioStaging.data(), nbytes);
     _audioStaging.clear();
 
-    double pts = _startTime + (static_cast<double>(_audioFrameCount.load()) / 48000.0) * _speed;
+    double pts = _startTime + (static_cast<double>(_audioFrameCount.load()) / 48000.0);
     _audioFrameCount += avail;
 
     FrameEvent* ev = new FrameEvent{};

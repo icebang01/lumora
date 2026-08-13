@@ -109,11 +109,11 @@ class Voice {
   }
 
   /** 推入一块 PCM（指定声部）。buffer 为交错 f32，会被 transfer。 */
-  push(buffer, pts, epoch) {
+  push(buffer, pts, epoch, pitched) {
     if (!this.ready) return; // 上下文未就绪：由 AudioOutput 层暂存补发
     if (epoch !== this.epoch) return; // seek 前的陈旧数据，直接丢
 
-    this.pending.push({ data: new Float32Array(buffer), pts, epoch });
+    this.pending.push({ data: new Float32Array(buffer), pts, epoch, pitched: !!pitched });
     this.pendingFrames += buffer.byteLength / 4 / this.parent.channels;
 
     // 兜底：真出现上游完全不理会背压的情况，也不能让内存无限涨。
@@ -138,7 +138,7 @@ class Voice {
       this.sentFrames += n;
       const buf = chunk.data.buffer;
       this.node.port.postMessage(
-        { type: 'push', buffer: buf, pts: chunk.pts, epoch: chunk.epoch }, [buf],
+        { type: 'push', buffer: buf, pts: chunk.pts, epoch: chunk.epoch, pitched: chunk.pitched }, [buf],
       );
     }
   }
@@ -437,7 +437,7 @@ export class AudioOutput {
     // 上下文就绪前暂存的音频块补发到主声部
     const pend = this._pending;
     this._pending = [];
-    for (const p of pend) this.pushVoice(this.activeVoice, p.buffer, p.pts, p.epoch);
+    for (const p of pend) this.pushVoice(this.activeVoice, p.buffer, p.pts, p.epoch, p.pitched);
     this._drainVoice(this.activeVoice);
   }
 
@@ -526,16 +526,16 @@ export class AudioOutput {
     }
   }
 
-  /** 推入一块 PCM 到指定声部。buffer 会被 transfer。 */
-  pushVoice(voice, buffer, pts, epoch) {
+  /** 推入一块 PCM 到指定声部。buffer 会被 transfer。pitched=源是否已保音高。 */
+  pushVoice(voice, buffer, pts, epoch, pitched) {
     if (!this.ready) {
       // 上下文还没创建（首个手势之前）：暂存到主声部槽，待 _ensureContext 后补发
-      this._pending.push({ voice, buffer, pts, epoch });
+      this._pending.push({ voice, buffer, pts, epoch, pitched });
       return;
     }
     const v = this.voices[voice];
     if (!v) return;
-    v.push(buffer, pts, epoch);
+    v.push(buffer, pts, epoch, pitched);
   }
 
   /** 兼容旧调用：推到当前主声部。 */
@@ -687,7 +687,14 @@ export class AudioOutput {
     return v ? (v.snapshot.dropped || 0) : 0;
   }
 
-  setSpeed(speed) { this.speed = speed; }
+  setSpeed(speed) {
+    this.speed = speed;
+    // 下发到所有已就绪声部 worklet：MF 源走 WSOLA 变速，ffmpeg(atempo) 源
+    // 在 worklet 内不进入 WSOLA 分支，此值仅用于主线程时钟换算。
+    for (const v of this.voices) {
+      if (v && v.ready && v.node) v.node.port.postMessage({ type: 'speed', speed: this.speed });
+    }
+  }
 
   /**
    * 开始交叉淡入淡出斜坡：主声部系数 1→0，副声部系数 0→1。
