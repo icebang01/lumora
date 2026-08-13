@@ -160,8 +160,9 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   int _nativeW = 0, _nativeH = 0;
   int _sarNum = 1, _sarDen = 1;   // 源像素宽高比（SAR/PAR）；MF 不自动按 SAR 拉伸，需原生修正
   double _sar = 1.0;
-  int _width = 0, _height = 0;   // 请求/回报的输出尺寸（向渲染端承诺的帧尺寸）
+  int _width = 0, _height = 0;   // 解码器原生输出尺寸（MF 必须按源原生尺寸，不能缩放）
   int _trueH = 0;                // 实际解码高度（MF 常把高度补齐到宏块倍数，如 1080→1088）
+  int _outW = 0, _outH = 0;      // 实际回报/发送的帧尺寸（>maxWidth 时由拷贝环节降采样得到）
   int _fpsNum = 25, _fpsDen = 1;
   int _sampleRate = 48000, _channels = 2;
   int _outChannels = 2;   // 输出强制立体声（与 ffmpeg 管线 -ac 2 对齐；MF 自动下混/上混）
@@ -277,8 +278,8 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     Napi::Object meta = Napi::Object::New(env);
     meta.Set("hasVideo", Napi::Boolean::New(env, _hasVideo));
     meta.Set("hasAudio", Napi::Boolean::New(env, _hasAudio));
-    meta.Set("width", Napi::Number::New(env, _width));
-    meta.Set("height", Napi::Number::New(env, _height));
+    meta.Set("width", Napi::Number::New(env, _outW));
+    meta.Set("height", Napi::Number::New(env, _outH));
     meta.Set("fpsNum", Napi::Number::New(env, _fpsNum));
     meta.Set("fpsDen", Napi::Number::New(env, _fpsDen));
     meta.Set("sampleRate", Napi::Number::New(env, _sampleRate));
@@ -459,22 +460,17 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     if (w <= 0) w = 1280;
     if (h <= 0) h = 720;
 
-    // 重要：MF 的 H.264 解码器不支持输出尺寸缩放——给 SetCurrentMediaType 设
+    // 关键：MF 的 H.264 解码器不支持输出尺寸缩放——给 SetCurrentMediaType 设
     // 非源原生尺寸会静默失败（返回失败 HRESULT 且 _hasVideo 被置 false，视频轨
     // 整条丢失）。因此 MF 必须按「源原生存储尺寸」输出，SAR（像素宽高比）拉伸
-    // 改由渲染端 _buildTransform 按 DAR（宽度×SAR）做 contain 适配。此前在原生
-    // 层按 SAR 预拉伸（1440→1920）正是 videoEmitted=0 的根因。
+    // 改由渲染端 _buildTransform 按 DAR（宽度×SAR）做 contain 适配（此前在原生
+    // 层按 SAR 预拉伸正是 videoEmitted=0 的根因）。
     //
-    // 架构限制：WebSocket 单帧上限约 1080p（3MB/帧）。对宽于 maxWidth 的源本应
-    // 降采样，但 MF 无法缩放——此分支当前为「已知限制」：2560×1440 / 4K 等源会因
-    // SetCurrentMediaType 失败而整条丢失视频轨，待改为「超 maxWidth 时回退 ffmpeg
-    // 引擎」或「服务端缩放」。SAR≠1 的 anamorphic 源（如 1440x1080 SAR 4:3）原生
-    // 尺寸 1440 未超 maxWidth，不受影响，可正常解码并交由渲染端按 DAR 拉伸。
-    if (_maxWidth > 0 && w > _maxWidth) {
-      double r = static_cast<double>(_maxWidth) / static_cast<double>(w);
-      w = _maxWidth;
-      h = static_cast<int>(static_cast<double>(h) * r);
-    }
+    // 对宽于 maxWidth 的源（2560×1440 / 4K 等），>1920 的部分不再尝试在解码器
+    // 端降采样（MF 不接受），改为「解码器保原生 + 拷贝环节降采样」：ProcessVideoSample
+    // 把原生 NV12 帧按 maxWidth 做 box 平均下采样到 _outW×_outH 再转 I420 发送，
+    // 既修掉「静默丢视频轨」，又保留单帧带宽/显存收益（传输层无硬上限，但 4K 裸帧
+    // ~12MB/帧无谓浪费 loopback 带宽与 WebGL 纹理显存）。
     w -= w % 2; h -= h % 2;
     if (w < 2) w = 2;
     if (h < 2) h = 2;
@@ -492,9 +488,9 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     HRESULT hr = _reader->SetCurrentMediaType(_videoStreamIndex, nullptr, outType);
     if (FAILED(hr)) { outType->Release(); return hr; }
 
-    // 回查真实协商出的尺寸（MF 可能未按要求缩放）。此处把协商尺寸当作「承诺
-    // 尺寸」回报渲染端；实际解码高度可能更大（宏块补齐，如 1080→1088），由
-    // _trueH 在解码期通过 CURRENTMEDIATYPECHANGED 的再查询捕获。
+    // 回查真实协商出的尺寸（MF 可能未按要求缩放）。此处把协商尺寸当作「解码器
+    // 原生输出尺寸」_width/_height；实际解码高度可能更大（宏块补齐，如 1080→1088），
+    // 由 _trueH 在解码期通过 CURRENTMEDIATYPECHANGED 的再查询捕获。
     IMFMediaType* cur = nullptr;
     if (SUCCEEDED(_reader->GetCurrentMediaType(_videoStreamIndex, &cur))) {
       UINT32 cw = 0, ch = 0;
@@ -504,6 +500,16 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       cur->Release();
     } else { _width = w; _height = h; }
     _trueH = _height;
+
+    // 计算「实际回报/发送尺寸」：超 maxWidth 时由拷贝环节降采样到 maxWidth 内。
+    _outW = _width; _outH = _height;
+    if (_maxWidth > 0 && _width > _maxWidth) {
+      _outW = _maxWidth;
+      _outH = static_cast<int>(std::round(static_cast<double>(_height) * _maxWidth / _width));
+      _outW -= _outW % 2; _outH -= _outH % 2;
+      if (_outW < 2) _outW = 2;
+      if (_outH < 2) _outH = 2;
+    }
 
     outType->Release();
     return S_OK;
@@ -626,6 +632,67 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     return true;
   }
 
+  // box 平均降采样单平面（亮度 Y）。源尺寸 srcW×srcH，输出 dstW×dstH，行跨距
+  // srcStride（MF 缓冲常含对齐 padding）。用于 MF 解码器不支持输出缩放时的替代：
+  // 解码原生尺寸后在拷贝环节降采样，避免给 SetCurrentMediaType 设非原生尺寸导致
+  // 视频轨整条丢失。
+  static void downscalePlane(const uint8_t* src, int srcW, int srcH, int srcStride,
+                             uint8_t* dst, int dstW, int dstH) {
+    if (dstW <= 0 || dstH <= 0 || srcW <= 0 || srcH <= 0) return;
+    const double sx = static_cast<double>(srcW) / dstW;
+    const double sy = static_cast<double>(srcH) / dstH;
+    for (int dy = 0; dy < dstH; dy++) {
+      int y0 = static_cast<int>(dy * sy);
+      int y1 = static_cast<int>((dy + 1) * sy);
+      if (y1 > srcH) y1 = srcH;
+      if (y1 <= y0) y1 = y0 + 1;
+      for (int dx = 0; dx < dstW; dx++) {
+        int x0 = static_cast<int>(dx * sx);
+        int x1 = static_cast<int>((dx + 1) * sx);
+        if (x1 > srcW) x1 = srcW;
+        if (x1 <= x0) x1 = x0 + 1;
+        int sum = 0, n = 0;
+        for (int yy = y0; yy < y1; yy++) {
+          const uint8_t* srow = src + static_cast<size_t>(yy) * srcStride;
+          for (int xx = x0; xx < x1; xx++) { sum += srow[xx]; n++; }
+        }
+        dst[static_cast<size_t>(dy) * dstW + dx] = static_cast<uint8_t>(sum / n);
+      }
+    }
+  }
+
+  // box 平均降采样 NV12 交错色度（U/V 同字节，stride 内每像素占 2 字节）。源色度
+  // 逻辑尺寸 srcCW×srcCH（= luma/2），输出 dstCW×dstCH。
+  static void downscaleChromaNV12(const uint8_t* uv, int srcCW, int srcCH, int srcStride,
+                                  uint8_t* dstU, uint8_t* dstV, int dstCW, int dstCH) {
+    if (dstCW <= 0 || dstCH <= 0 || srcCW <= 0 || srcCH <= 0) return;
+    const double sx = static_cast<double>(srcCW) / dstCW;
+    const double sy = static_cast<double>(srcCH) / dstCH;
+    for (int dy = 0; dy < dstCH; dy++) {
+      int y0 = static_cast<int>(dy * sy);
+      int y1 = static_cast<int>((dy + 1) * sy);
+      if (y1 > srcCH) y1 = srcCH;
+      if (y1 <= y0) y1 = y0 + 1;
+      for (int dx = 0; dx < dstCW; dx++) {
+        int x0 = static_cast<int>(dx * sx);
+        int x1 = static_cast<int>((dx + 1) * sx);
+        if (x1 > srcCW) x1 = srcCW;
+        if (x1 <= x0) x1 = x0 + 1;
+        int su = 0, sv = 0, n = 0;
+        for (int yy = y0; yy < y1; yy++) {
+          const uint8_t* srow = uv + static_cast<size_t>(yy) * srcStride;
+          for (int xx = x0; xx < x1; xx++) {
+            su += srow[2 * xx];
+            sv += srow[2 * xx + 1];
+            n++;
+          }
+        }
+        dstU[static_cast<size_t>(dy) * dstCW + dx] = static_cast<uint8_t>(su / n);
+        dstV[static_cast<size_t>(dy) * dstCW + dx] = static_cast<uint8_t>(sv / n);
+      }
+    }
+  }
+
   void ProcessVideoSample(IMFSample* sample, LONGLONG /*time*/) {
     IMFMediaBuffer* buf = nullptr;
     if (FAILED(sample->GetBufferByIndex(0, &buf))) return;
@@ -643,9 +710,11 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     }
     if (stride == 0) stride = _width;
 
-    const int w = _width, h = _height;
-    const int cw = w / 2, ch = h / 2;
-    const size_t ySize = static_cast<size_t>(w) * h;
+    const int w = _width, h = _height;        // 源（解码原生，逻辑尺寸）
+    const int dstW = _outW, dstH = _outH;     // 输出（可能降采样到 maxWidth）
+    const bool needScale = (dstW != w) || (dstH != h);
+    const int cw = dstW / 2, ch = dstH / 2;
+    const size_t ySize = static_cast<size_t>(dstW) * dstH;
     const size_t uvSize = static_cast<size_t>(cw) * ch;
     const size_t total = ySize + 2 * uvSize;
 
@@ -657,27 +726,36 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       return;
     }
 
-    // Y 平面：逐行拷贝（考虑 stride 对齐）
     uint8_t* Y = out;
-    for (int y = 0; y < h; y++) {
-      memcpy(Y + static_cast<size_t>(y) * w, p0 + static_cast<size_t>(y) * stride, static_cast<size_t>(w));
-    }
-    // NV12 → I420：解交织 UV（UV 行跨距 = Y 行跨距；色度起始需按「实际解码高度」
-    // _trueH 定位，而非承诺高度 _height——MF 常把高度补齐到宏块倍数（如 1080→1088），
-    // 否则色度会偏移到错误行、画面下半部出现色彩/错位伪影。输出仍裁剪到 _height。
     const uint8_t* uv = p0 + static_cast<size_t>(stride) * _trueH;
     uint8_t* U = out + ySize;
     uint8_t* V = U + uvSize;
-    for (int y = 0; y < h; y++) {
-      int cy = y / 2;
-      const uint8_t* srow = uv + static_cast<size_t>(cy) * stride;
-      uint8_t* urow = U + static_cast<size_t>(cy) * cw;
-      uint8_t* vrow = V + static_cast<size_t>(cy) * cw;
-      for (int x = 0; x < w; x++) {
-        int cx = x >> 1;
-        urow[cx] = srow[2 * cx];
-        vrow[cx] = srow[2 * cx + 1];
+
+    if (!needScale) {
+      // 1:1 路径：Y 平面逐行拷贝（考虑 stride 对齐）
+      for (int y = 0; y < h; y++) {
+        memcpy(Y + static_cast<size_t>(y) * w, p0 + static_cast<size_t>(y) * stride, static_cast<size_t>(w));
       }
+      // NV12 → I420：解交织 UV（UV 行跨距 = Y 行跨距；色度起始需按「实际解码高度」
+      // _trueH 定位，而非承诺高度 _height——MF 常把高度补齐到宏块倍数（如 1080→1088），
+      // 否则色度会偏移到错误行、画面下半部出现色彩/错位伪影。
+      for (int y = 0; y < h; y++) {
+        int cy = y / 2;
+        const uint8_t* srow = uv + static_cast<size_t>(cy) * stride;
+        uint8_t* urow = U + static_cast<size_t>(cy) * cw;
+        uint8_t* vrow = V + static_cast<size_t>(cy) * cw;
+        for (int x = 0; x < w; x++) {
+          int cx = x >> 1;
+          urow[cx] = srow[2 * cx];
+          vrow[cx] = srow[2 * cx + 1];
+        }
+      }
+    } else {
+      // 降采样路径：MF 解码器不支持输出缩放，故在拷贝环节按 maxWidth 做 box 平均
+      // 下采样 NV12 → I420。源色度按 _trueH 定位（与 1:1 路径同口径），下采样到
+      // dstW×dstH，避免给解码器设非原生尺寸导致视频轨整条丢失（>1920 源静默丢轨）。
+      downscalePlane(p0, w, h, stride, Y, dstW, dstH);
+      downscaleChromaNV12(uv, w / 2, h / 2, stride, U, V, cw, ch);
     }
 
     if (locked2d) {
@@ -717,8 +795,8 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       FrameEvent* ev = new FrameEvent{};
       ev->type = EV_VIDEO;
       ev->pts = pts;
-      ev->width = w;
-      ev->height = h;
+      ev->width = dstW;
+      ev->height = dstH;
       ev->frameId = id;
       if (_tsfn) _tsfn.NonBlockingCall(ev);
     }
