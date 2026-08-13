@@ -797,6 +797,20 @@ function buildSettings() {
       ],
     },
     {
+      id: 'cast', label: '投屏',
+      desc: 'DLNA 投屏开箱即用，无需配置。Chromecast 投屏需自备「标准 Cast 客户端证书 + 私钥 + Salt」（Google 通过 Cast SDK 分发，Lumora 不内置任何证书）——在下方填入三项后方可连接 Chromecast。证书/私钥填 .pem 文件路径或粘贴 PEM 文本均可。',
+      rows: [
+        { type: 'divider' },
+        { type: 'section', name: 'Chromecast 鉴权' },
+        { type: 'text', key: 'cast.chromecastCert', name: '客户端证书',
+          hint: '标准 Cast 客户端证书（.pem）。填文件路径（如 C:\\certs\\client.pem）或粘贴 PEM 文本（以 -----BEGIN CERTIFICATE----- 开头）。' },
+        { type: 'password', key: 'cast.chromecastKey', name: '客户端私钥',
+          hint: '与证书配对的私钥（.pem）。填文件路径或粘贴 PEM（-----BEGIN PRIVATE KEY-----）。明文存于 player.conf，仅私人机器使用。', placeholder: '路径或 PEM 文本' },
+        { type: 'password', key: 'cast.chromecastSalt', name: '签名 Salt',
+          hint: 'Google 分发的客户端签名 salt（十六进制/base64 字符串）。与证书、私钥一同获取。', placeholder: 'salt' },
+      ],
+    },
+    {
       id: 'shortcuts', label: '快捷键',
       desc: '自定义按键与命令（点击按键后按下新键即可重新绑定；Esc 取消）。修改立即生效。',
       custom: 'keybinds',  // 由 KeybindEditor 接管渲染

@@ -162,6 +162,12 @@ const DEFAULTS = {
   'ai-api-key': '',
   'ai-base-url': 'https://api.openai.com/v1',
   'ai-model': 'gpt-4o-mini',
+
+  // Chromecast 鉴权（标准 Cast 客户端证书/私钥/salt，需用户自备；Lumora 不内置任何证书）。
+  // 填 .pem 文件路径或粘贴 PEM 文本均可；缺失则 Chromecast 无法过 TLS 鉴权（DLNA 不受影响）。
+  'cast.chromecastCert': '',
+  'cast.chromecastKey': '',
+  'cast.chromecastSalt': '',
 };
 
 /** 布尔字段：接受 yes/no/true/false/1/0，向 mpv 的写法看齐 */
