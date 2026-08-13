@@ -108,6 +108,8 @@ function testMediaServerBuffer() {
       if (typeof cb === 'function') cb(); // 同步回收，模拟数据写入 socket 后
     },
   };
+  // 2026-08: media-server 改多 client 广播——_send 从 clients Set 过滤,测试补上
+  server.clients = new Set([server.client]);
 
   // 统计 Buffer.allocUnsafe 调用次数，验证复用
   let allocCount = 0;
@@ -509,9 +511,8 @@ function loadPlayer() {
     .replace("import { fmtTime, trackLabel } from './player.js';",
       "const fmtTime = (...a) => shared.fmtTime(...a); const trackLabel = (...a) => shared.trackLabel(...a);")
     .replace('export class PlaybackEngine', 'class PlaybackEngine')
-    .replace('export class MediaFoundationEngine', 'class MediaFoundationEngine')
     .replace("export { fmtTime, trackLabel };", '')
-    + '\nglobalThis.__PlaybackEngine = PlaybackEngine; globalThis.__MediaFoundationEngine = MediaFoundationEngine;';
+    + '\nglobalThis.__PlaybackEngine = PlaybackEngine;';
   vm.runInContext(engineSrc, sbE);
   shared.PlaybackEngine = sbE.__PlaybackEngine;
 
