@@ -96,6 +96,12 @@ async function runGuiTests(MEDIA) {
   }
   // 1. 初始状态:确保处于 idle 落地页(若上次运行遗留播放状态,先返回主页)
   let s = JSON.parse(await evalJS(SNAPSHOT));
+  // 2026-08: ffmpeg 引擎 boot 比 mpv 慢(创建 Player/音频链)——轮询等待 idle-mode
+  // 出现,避免"idle 落地页就绪"时序假失败(CI 上更明显)
+  for (let i = 0; i < 10 && !s.idleMode; i++) {
+    await wait(500);
+    s = JSON.parse(await evalJS(SNAPSHOT));
+  }
   if (!s.idleMode) {
     await evalJS(`(() => {
       const b = Array.from(document.querySelectorAll('button')).find((x) => (x.title || '').includes('返回主界面'));
