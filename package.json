@@ -55,9 +55,14 @@
     "files": [
       "src/**/*",
       "config/**/*",
-      "bin/**/*",
       "scripts/**/*",
       "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "app/bin"
+      }
     ],
     "fileAssociations": [
       {
