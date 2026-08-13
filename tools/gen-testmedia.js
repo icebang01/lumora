@@ -22,7 +22,7 @@ const CLIPS = [
     args: [
       '-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30:duration=20',
       '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=20',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+      '-c:v', 'mpeg4', '-preset', 'veryfast', '-crf', '20',
       '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k',
       '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709',
     ],
@@ -35,7 +35,7 @@ const CLIPS = [
       "color=c=black:s=1280x720:r=60:d=20,geq=lum='if(lt(mod(T,1),0.06),235,16)':cb=128:cr=128",
       '-f', 'lavfi', '-i',
       "sine=frequency=1000:sample_rate=48000:duration=20,volume='if(lt(mod(t,1),0.06),1,0)':eval=frame",
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p',
+      '-c:v', 'mpeg4', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '128k',
     ],
   },
@@ -59,7 +59,7 @@ const CLIPS = [
     desc: '平滑渐变 · 验证去色带（deband）效果',
     args: [
       '-f', 'lavfi', '-i', 'gradients=size=1920x1080:rate=25:duration=12:nb_colors=2:speed=0.02',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '30', '-pix_fmt', 'yuv420p',
+      '-c:v', 'mpeg4', '-preset', 'veryfast', '-crf', '30', '-pix_fmt', 'yuv420p',
     ],
   },
   {
@@ -70,7 +70,7 @@ const CLIPS = [
       '-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=48000:duration=30',
       '-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000:duration=30',
       '-map', '0:v', '-map', '1:a', '-map', '2:a',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '24', '-pix_fmt', 'yuv420p',
+      '-c:v', 'mpeg4', '-preset', 'veryfast', '-crf', '24', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '96k',
       '-metadata:s:a:0', 'title=低音测试轨', '-metadata:s:a:0', 'language=chi',
       '-metadata:s:a:1', 'title=高音测试轨', '-metadata:s:a:1', 'language=eng',
@@ -90,7 +90,11 @@ const CLIPS = [
 
 function ffmpeg() {
   const dir = process.env.FFMPEG_DIR;
-  return dir ? path.join(dir, 'ffmpeg') : 'ffmpeg';
+  if (dir) return path.join(dir, 'ffmpeg');
+  // 2026-08: 仓库 bin/ 回退(CI 已 fetch-deps 下载,但 PATH 无 ffmpeg 命令)
+  const repoBin = path.join(__dirname, '..', 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
+  if (fs.existsSync(repoBin)) return repoBin;
+  return 'ffmpeg';
 }
 
 function writeChapterFile(marks, duration) {
