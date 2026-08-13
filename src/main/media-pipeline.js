@@ -101,16 +101,23 @@ function wirePipeline(pipeline, { isPrimary = false } = {}) {
 
 /**
  * 按当前 engine 选择解码后端：
- *   - mpv 默认 / ffmpeg 显式 → MediaPipeline（ffmpeg 子进程管线，LGPL）
- *   - mediafoundation       → MfBackend（Windows Media Foundation，路线 A 去 GPL）
+ *   - mpv / ffmpeg           → MediaPipeline（ffmpeg 子进程管线，LGPL）
+ *   - mediafoundation（默认）→ MfBackend（Windows Media Foundation，路线 A 去 GPL）
  * 副声部（交叉淡入淡出）也走这里，保证 MF 模式下连副声部都不引入 ffmpeg 二进制。
- * 原生模块在 MfBackend 内懒加载，非 Windows / 未编译时仅在构造时抛清晰错误。
+ * 原生模块在 MfBackend 内懒加载，非 Windows / 未编译时仅在构造时抛清晰错误；
+ * 此时此处自动降级回 ffmpeg 管线（保持去 GPL 语义）。
  */
 function createDecodeBackend(opts = {}) {
   const engine = getConfig() ? getConfig().get('engine') : null;
   if (engine === 'mediafoundation') {
-    const { MfBackend } = require('./mf/backend');
-    return new MfBackend(opts);
+    try {
+      const { MfBackend } = require('./mf/backend');
+      const mf = new MfBackend(opts);
+      if (mf.available) return mf;
+      console.warn('[lumen][mf] MediaFoundation 后端不可用，降级 ffmpeg 管线');
+    } catch (e) {
+      console.warn('[lumen][mf] MediaFoundation 后端构造失败，降级 ffmpeg 管线:', e.message);
+    }
   }
   return new MediaPipeline({
     ffmpegPath: getConfig() ? (getConfig().get('ffmpeg-dir') || null) : null,

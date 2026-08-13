@@ -329,11 +329,11 @@ async function bootstrap() {
     biliCookie: config.get('bilibili-cookie') || '',
   });
 
-  // 按配置选择解码后端：mpv（默认）/ ffmpeg（内置 LGPL 解码管线，可去 GPL）/
-  // mediafoundation（路线 A，Windows Media Foundation，去 GPL）。
+  // 按配置选择解码后端：mediafoundation（默认，路线 A 去 GPL）/ ffmpeg（内置 LGPL 解码管线，可去 GPL）/
+  // mpv（进程内 GPU 解码，最稳，支持 8K）。
   // LUMORA_ENGINE 环境变量可临时覆盖（仅内存生效，不写回 player.conf），
   // 用于在无头/CI 环境用 `LUMORA_ENGINE=ffmpeg npm run test:smoke` 回归 ffmpeg 引擎。
-  const engine = process.env.LUMORA_ENGINE || config.get('engine') || 'mpv';
+  const engine = process.env.LUMORA_ENGINE || config.get('engine') || 'mediafoundation';
   config.values.engine = engine; // 让渲染端 bootstrap 与主进程判定一致（同走 engineName）
   useMpv = engine === 'mpv';
 
@@ -353,13 +353,23 @@ async function bootstrap() {
   await mediaServer.listen();
 
   // 解码后端装配：
-  //   - mpv 默认 / ffmpeg 显式 → MediaPipeline（ffmpeg 子进程管线，LGPL）
-  //   - mediafoundation       → MfBackend（Windows Media Foundation，路线 A 去 GPL）
+  //   - mediafoundation（默认）→ MfBackend（Windows Media Foundation，路线 A 去 GPL）
+  //   - mpv / ffmpeg           → MediaPipeline（ffmpeg 子进程管线，LGPL）
   // 二者经 mediaPipeline.wirePipeline 接同一套 WebSocket 发送 + 背压，控制面零改动。
+  // MF 后端仅在 Windows + 已编译 mf_backend.node 时可用；不可用时自动回退 ffmpeg 管线（保持去 GPL）。
   if (engine === 'mediafoundation') {
     const { MfBackend } = require('./mf/backend');
-    pipeline = new MfBackend({ hwaccel: config.get('hwdec') });
-    mediaPipeline.wirePipeline(pipeline, { isPrimary: true });
+    const mf = new MfBackend({ hwaccel: config.get('hwdec') });
+    if (mf.available) {
+      pipeline = mf;
+      mediaPipeline.wirePipeline(pipeline, { isPrimary: true });
+    } else {
+      // 非 Windows 或 mf_backend.node 未编译：MF 不可用，回退 ffmpeg 管线（不启动 mpv，保持去 GPL 语义）
+      console.warn('[lumen][mf] MediaFoundation 后端不可用，回退 ffmpeg 管线:', mf._initError && mf._initError.message);
+      useMpv = false;
+      config.values.engine = 'ffmpeg'; // 让渲染端 engine 展示与实际一致
+      mediaPipeline.setupPipeline();
+    }
   } else {
     mediaPipeline.setupPipeline();
   }

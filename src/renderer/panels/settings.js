@@ -628,11 +628,11 @@ function buildSettings() {
       desc: '播放引擎与基础行为。',
       rows: [
         { type: 'select', key: 'engine', name: '播放引擎',
-          hint: 'mpv 稳定且支持 8K；ffmpeg 走内置 LGPL 解码管线（可去 GPL，分辨率≤1080p）；mediafoundation 走 Windows 系统解码器（路线 A，彻底去 GPL，需 Windows + 已编译原生模块）。修改需重启生效。',
+          hint: 'mediafoundation（默认）走 Windows 系统解码器（路线 A，彻底去 GPL，需 Windows + 已编译原生模块）；mpv 稳定且支持 8K；ffmpeg 走内置 LGPL 解码管线（可去 GPL，分辨率≤1080p）。修改需重启生效。',
           options: [
-            ['mpv', 'mpv（默认，稳定）'],
+            ['mpv', 'mpv（稳定，GPU 解码）'],
             ['ffmpeg', 'ffmpeg（LGPL 内置解码）'],
-            ['mediafoundation', 'mediafoundation（系统解码器，去 GPL）'],
+            ['mediafoundation', 'mediafoundation（默认，系统解码器去 GPL）'],
           ] },
         { type: 'toggle', key: 'file-association', name: '关联到系统文件类型',
           hint: '双击 mp4/mkv 等文件用 Lumora 打开（写入当前用户注册表，无需管理员）' },
