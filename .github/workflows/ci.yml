@@ -23,6 +23,8 @@ jobs:
         run: npm run test:opt
       - name: 类型检查（src/shared 契约层，checkJs）
         run: npm run typecheck
+      - name: 拉取解码二进制（bin/ 不入仓，CI 需自行下载 ffmpeg）
+        run: npm run fetch-deps
       - name: 生成测试媒体
         run: npm run gen-testmedia
       - name: 冒烟测试（22 项，隔离 userData）
