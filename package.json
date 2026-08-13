@@ -64,6 +64,11 @@
         "to": "app/bin"
       }
     ],
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
     "fileAssociations": [
       {
         "ext": "mp4",
