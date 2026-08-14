@@ -254,12 +254,6 @@ export function clearLoadingState() {
   if (ls) { ls.classList.remove('fading'); ls.style.opacity = ''; ls.classList.add('hidden'); }
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}
-
 export function setIdleMode(active, instant = false) {
   const idle = $('idle-screen');
   const isIdle = document.body.classList.contains('idle-mode');

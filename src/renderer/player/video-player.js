@@ -17,14 +17,9 @@ import {
   markVoReconfig, markVideoFrame, clearLoadingState,
 } from '../panels/idle.js';
 import { applySubtitleStyle } from '../panels/subtitle-style.js';
+import { escapeHtml } from '../../shared/escape-html.js';
 
 const $ = (id) => document.getElementById(id);
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}
 
 /* ---------------- 引擎创建 ---------------- */
 

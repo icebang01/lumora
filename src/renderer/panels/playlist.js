@@ -353,12 +353,6 @@ export function showPlaylist() {
 
 /* ---------------- 可视化播放列表面板 ---------------- */
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}
-
 /** 渲染列表内容到面板（单一连续列表，当前曲目在原来位置高亮） */
 export function renderPlaylist() {
   const list = $('playlist-list');

@@ -13,6 +13,7 @@
  */
 
 import { keyCandidates, wheelCandidates, mouseCandidates, keyDisplay, groupOf, describeBind } from './keys.js';
+import { escapeHtml } from '../../shared/escape-html.js';
 
 /**
  * 命令下拉的可选项：覆盖默认键位表中的全部命令，且命令写法与默认表一致
@@ -133,10 +134,6 @@ function describeRow(b) {
 
 function sig(b) {
   return `${b.command} ${(b.args || []).join(' ')}`.trim();
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 export class KeybindEditor {

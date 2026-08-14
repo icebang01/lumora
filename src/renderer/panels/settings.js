@@ -9,6 +9,7 @@ import { KeybindEditor } from '../ui/keybind-editor.js';
 import { toggleLicenses, isLicensesVisible } from './licenses.js';
 import { parseICCProfile } from '../gl/display-profile.js';
 import { applySubtitleStyle } from './subtitle-style.js';
+import { escapeHtml } from '../../shared/escape-html.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -87,12 +88,6 @@ function bindVerifyButton(btnId, inputKey, testPath, label) {
     // 8 秒后淡出结果
     if (resultSpan) setTimeout(() => { resultSpan.textContent = ''; resultSpan.className = 'verify-result'; }, 8000);
   });
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
 }
 
 let CTX = {};

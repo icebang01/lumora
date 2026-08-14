@@ -9,6 +9,7 @@
  * 是一条不断跳数的提示，而不是十条堆叠的消息。所以每条消息带一个
  * 归并键，同键消息就地更新并重置计时。
  */
+import { escapeHtml } from '../../shared/escape-html.js';
 
 const ICONS = {
   play:    '<path d="M8 5 L19.5 12 L8 19 Z"/>',
@@ -124,8 +125,3 @@ export class Osd {
   }
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}

@@ -4,6 +4,8 @@
  * visible 状态模块内自持,对外暴露 isSubSearchVisible()。
  * 用法:setupSubtitlesPanel({ player, osd });(boot 时注入)
  */
+import { escapeHtml } from '../../shared/escape-html.js';
+
 const $ = (id) => document.getElementById(id);
 
 let visible = false;
@@ -19,12 +21,6 @@ const player = new Proxy({}, {
   },
 });
 const osd = { message: (...a) => CTX.osd && CTX.osd.message(...a) };
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}
 
 export function toggleSubSearch(force) {
   const next = (force !== undefined) ? force : !visible;

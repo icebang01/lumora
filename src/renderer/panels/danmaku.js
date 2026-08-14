@@ -4,16 +4,9 @@
  * visible 状态模块内自持,对外暴露 isDanmakuVisible()。
  * 用法:setupDanmakuPanel({ player, osd, getDanmakuRenderer, closeOthers });(boot 时注入)
  */
-const $ = (id) => document.getElementById(id);
+import { escapeHtml } from '../../shared/escape-html.js';
 
-function escapeHtml(s) {
-  return String(s || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+const $ = (id) => document.getElementById(id);
 
 let visible = false;
 export function isDanmakuVisible() { return visible; }
