@@ -12,6 +12,7 @@
 
 import { escapeHtml as esc } from '../shared/escape-html.js';
 import { baseName } from '../shared/path-base.js';
+import { isAudioPath } from '../shared/audio-path.js';
 import { KeybindManager } from './ui/keys.js';
 import { Osd } from './ui/osd.js';
 import { Osc } from './ui/osc.js';
@@ -91,8 +92,7 @@ function _pmode() {
   return document.body.classList.contains('audio-mode') ? 'audio' : 'video';
 }
 // 文件类型 → 列表模式（音频文件归音乐列表，其余归视频列表）。
-const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i;
-function _modeForPath(p) { return AUDIO_EXT.test(String(p || '')) ? 'audio' : 'video'; }
+function _modeForPath(p) { return isAudioPath(p) ? 'audio' : 'video'; }
 // 写某一模式的列表（原地替换数组内容，保持数组对象引用稳定，Proxy 不会失效）。
 function _writeMode(mode, paths, index) {
   const arr = _modePlaylists[mode];
@@ -386,7 +386,7 @@ async function boot() {
       const all = _restored.items.map((it) => it.path).filter(Boolean);
       const v = [];
       const a = [];
-      for (const p of all) { (AUDIO_EXT.test(p) ? a : v).push(p); }
+      for (const p of all) { (isAudioPath(p) ? a : v).push(p); }
       _writeMode('video', v, v.length ? (typeof _restored.index === 'number' ? _restored.index : 0) : -1);
       _writeMode('audio', a, a.length ? 0 : -1);
     } else {
@@ -397,8 +397,8 @@ async function boot() {
         ? _restored.audio.items.map((it) => it.path).filter(Boolean) : [];
       const v = [];
       const a = [];
-      for (const p of vRaw) { (AUDIO_EXT.test(p) ? a : v).push(p); }
-      for (const p of aRaw) { (AUDIO_EXT.test(p) ? a : v).push(p); }
+      for (const p of vRaw) { (isAudioPath(p) ? a : v).push(p); }
+      for (const p of aRaw) { (isAudioPath(p) ? a : v).push(p); }
       _writeMode('video', v, v.length ? (typeof _restored.video.index === 'number' ? _restored.video.index : 0) : -1);
       _writeMode('audio', a, a.length ? (typeof _restored.audio.index === 'number' ? _restored.audio.index : 0) : -1);
     }
@@ -638,9 +638,9 @@ async function openDialog(append = false, mode = 'all') {
     // 过滤：视频列表不收音频，音乐列表不收视频（禁止跨模式导入）
     let accepted = r.paths;
     if (targetMode === 'video') {
-      accepted = r.paths.filter((p) => !AUDIO_EXT.test(p));
+      accepted = r.paths.filter((p) => !isAudioPath(p));
     } else if (targetMode === 'audio') {
-      accepted = r.paths.filter((p) => AUDIO_EXT.test(p));
+      accepted = r.paths.filter((p) => isAudioPath(p));
     }
     if (!accepted.length) {
       osd.message('未导入符合类型的文件', targetMode === 'video' ? '视频列表不支持音频文件' : '音乐列表仅支持音频文件', { duration: 2400, force: true });

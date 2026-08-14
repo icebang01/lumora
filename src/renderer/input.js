@@ -14,6 +14,7 @@ import { isSetSelectOpen, closeSetSelect, toggleSettings, isSettingsVisible } fr
 import { toggleLicenses, isLicensesVisible } from './panels/licenses.js';
 import { toggleSubSearch, isSubSearchVisible } from './panels/subtitles.js';
 import { toggleDanmaku, isDanmakuVisible } from './panels/danmaku.js';
+import { isAudioPath } from '../shared/audio-path.js';
 
 let CTX = {};
 export function setupInput(ctx) { CTX = ctx || {}; }
@@ -576,7 +577,3 @@ function samePath(a, b) {
   return String(a).toLowerCase().replace(/\\/g, '/') === String(b).toLowerCase().replace(/\\/g, '/');
 }
 
-/** 估算路径对应的列表模式：音频文件归音乐列表，其余归视频列表（与 app.js _modeForPath 一致） */
-function isAudioPath(p) {
-  return /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i.test(String(p || ''));
-}

@@ -5,6 +5,7 @@
  */
 import { closePlaylistPanel, togglePlaylistPanel, requestThumbnail } from './playlist.js';
 import { baseName } from '../../shared/path-base.js';
+import { isAudioPath } from '../../shared/audio-path.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -32,8 +33,6 @@ const _playlist = new Proxy([], {
 function getPlaylistIndex() { return CTX.getPlaylistIndex ? CTX.getPlaylistIndex() : -1; }
 function playlistGoto(i) { if (CTX.playlistGoto) CTX.playlistGoto(i); }
 
-const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i;
-function isAudioPath(p) { return AUDIO_EXT.test(String(p || '')); }
 
 // 从文件名粗略提取分辨率标签（免费、即时，覆盖绝大多数命名规范），供海报 badge
 const RES_4K = /\b(4k|2160p|uhd)\b/i;

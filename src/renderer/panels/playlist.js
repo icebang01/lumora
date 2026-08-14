@@ -9,13 +9,12 @@
 import { isLiked, toggleLiked, onLikeChange } from '../core/likes.js';
 import { collectDroppedPaths, endExternalDrag, naturalCompare } from '../input.js';
 import { baseName } from '../../shared/path-base.js';
+import { isAudioPath } from '../../shared/audio-path.js';
 
 const $ = (id) => document.getElementById(id);
 
-// 音频/视频扩展名（与 app.js/input.js 保持一致）：列表按当前模式过滤。
-const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i;
+// 视频扩展名（列表按当前模式过滤；音频判定见 src/shared/audio-path.js）。
 const VIDEO_EXT = /\.(mp4|mkv|webm|avi|mov|flv|ts|m2ts|wmv|mpg|mpeg|m4v|3gp|ogv)$/i;
-function isAudioPath(p) { return AUDIO_EXT.test(String(p || '')); }
 function isVideoPath(p) { return VIDEO_EXT.test(String(p || '')); }
 // 音乐模式仅显示音频；视频/idle 模式不显示音频（防止音乐文件混入视频列表）。
 function _playlistVisible(p) {

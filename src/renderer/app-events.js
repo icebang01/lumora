@@ -8,6 +8,7 @@ import { showLoadingScreen, endFirstFrameWait, setIdleMode } from './panels/idle
 import { renderPlaylist } from './panels/playlist.js';
 import { applyDanmakuDisplay } from './panels/danmaku.js';
 import { initMusicStage, enterAudioMode, exitAudioMode } from './ui/music-stage.js';
+import { isAudioPath } from '../shared/audio-path.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -42,8 +43,6 @@ function persistPlaylist() { if (CTX.persistPlaylist) CTX.persistPlaylist(); }
 function load(filePath, opts) { return CTX.load ? CTX.load(filePath, opts) : null; }
 function runCommand(args) { return CTX.runCommand ? CTX.runCommand(args) : null; }
 function warnNoVideoOutput(reason) { if (CTX.warnNoVideoOutput) CTX.warnNoVideoOutput(reason); }
-// 文件类型 → 列表模式（与 app.js _modeForPath 一致）
-function isAudioPath(p) { return /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i.test(String(p || '')); }
 
 /* ================================================================== */
 /* 主进程事件                                                          */
