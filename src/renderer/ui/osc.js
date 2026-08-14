@@ -190,6 +190,7 @@ export class Osc {
       this.dragging = true;
       this._hoveringSeekbar = true;
       zone.setPointerCapture(e.pointerId);
+      zone.classList.add('dragging');
       this._previewAt(ratioAt(e.clientX));
       this._paintSeekPreview(ratioAt(e.clientX), e.clientX);
       e.preventDefault();
@@ -216,12 +217,13 @@ export class Osc {
     const finish = (e) => {
       if (!this.dragging) return;
       this.dragging = false;
+      zone.classList.remove('dragging');
       try { zone.releasePointerCapture(e.pointerId); } catch { /* 指针已释放 */ }
       const r = ratioAt(e.clientX);
       this.player.command(['seek', r * 100, 'absolute-percent']);
     };
     zone.addEventListener('pointerup', finish);
-    zone.addEventListener('pointercancel', () => { this.dragging = false; });
+    zone.addEventListener('pointercancel', () => { this.dragging = false; zone.classList.remove('dragging'); });
 
     // 进度条上滚轮 = 细粒度跳转，比用鼠标精确点位置舒服得多
     zone.addEventListener('wheel', (e) => {
@@ -497,6 +499,14 @@ export class Osc {
     this.el.btnDanmaku.addEventListener('click', () => {
       if (window.toggleDanmaku) window.toggleDanmaku(true);
     });
+    // 弹幕按钮激活态：与字幕按钮(.active 圆点)对称，反映 body.danmaku-open。
+    // 点击 OSC 弹幕键走 toggleDanmaku(true) 强制开，键盘 d 走 toggle；
+    // 用 body class 的 MutationObserver 统一反射，避免重复绑定。
+    const syncDanmakuActive = () => {
+      this.el.btnDanmaku.classList.toggle('active', document.body.classList.contains('danmaku-open'));
+    };
+    syncDanmakuActive();
+    new MutationObserver(syncDanmakuActive).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     // 注意：btn-screenshot 已通过上面的 [data-cmd] 循环绑定（data-cmd="screenshot"），
     // 这里不要再显式绑定，否则点击会触发两条 screenshot 命令（重复截图）
     if (this.el.btnScreenshot) {

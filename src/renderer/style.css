@@ -1699,12 +1699,14 @@ body.playlist-open #side-rail {
   border-radius: 4px;
   pointer-events: none;
 }
-#seek-buffered { background: rgba(255,255,255,.17); width: 0; }
+#seek-buffered { background: rgba(255,255,255,.30); width: 0; box-shadow: 0 0 8px rgba(255,255,255,.12); }
 #seek-progress {
   width: 0;
   background: linear-gradient(90deg, var(--accent-cyan), var(--accent));
   box-shadow: 0 0 12px var(--accent-glow);
 }
+/* 悬停进度条时辉光升一档，呼应磁性反馈 */
+#seekbar-zone:hover #seek-progress { box-shadow: 0 0 16px var(--accent-glow, rgba(124,140,255,.45)); }
 
 #seek-ab-range {
   position: absolute; top: 0; bottom: 0;
@@ -1723,11 +1725,18 @@ body.playlist-open #side-rail {
   background: #fff;
   border-radius: 50%;
   transform: translateY(-50%) scale(0);
-  transition: transform .2s var(--ease);
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease);
   box-shadow: 0 2px 8px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.14);
   pointer-events: none;
 }
-#seekbar-zone:hover #seek-handle { transform: translateY(-50%) scale(1); }
+/* 悬停/拖拽时播放头点亮：accent 描边 + 辉光，与进度渐变呼应 */
+#seekbar-zone:hover #seek-handle,
+#seekbar-zone.dragging #seek-handle {
+  transform: translateY(-50%) scale(1);
+  box-shadow: 0 2px 10px rgba(0,0,0,.6),
+              0 0 0 2px var(--accent, #7c8cff),
+              0 0 10px var(--accent-glow, rgba(124,140,255,.45));
+}
 
 #seek-tooltip {
   position: absolute;
@@ -1911,7 +1920,7 @@ body.playlist-open #side-rail {
 #volume-fill {
   position: absolute; inset: 0 auto 0 0;
   width: 100%;
-  background: var(--style-accent, var(--accent, #7c8cff));
+  background: linear-gradient(90deg, var(--accent-cyan), var(--style-accent, var(--accent, #7c8cff)));
   border-radius: 4px;
 }
 #volume-handle {
