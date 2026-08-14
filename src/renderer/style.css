@@ -6482,3 +6482,26 @@ body.audio-mode.eq-open .eq-window {
   #music-stage.style-square .ms-right { width: 94vw; max-height: min(46vh, 340px); }
   #music-stage.style-square .ms-lyrics-wrap { max-height: min(30vh, 220px); }
 }
+
+/* 控件按下态(:active)反馈一致性——与 .ctl-btn:active(scale .94)/.mc-btn:active
+   (scale .92)/.ms-win-btn:active(scale .96) 风格统一，覆盖此前缺按下反馈的控件：
+   .ghost-btn/.playlist-close/.settings-nav-item/.lib-tab/.mc-speed-opt/.tb-close/
+   .pl-del 采用轻微缩放 + 快速响应；.playlist-item 用背景加深（列表项不缩放避免
+   抖动）；.poster 用轻微下压缩放。纯视觉增强，无布局改动。 */
+.ghost-btn:active,
+.playlist-close:active,
+.settings-nav-item:active,
+.lib-tab:active,
+.mc-speed-opt:active,
+.tb-close:active,
+.pl-del:active {
+  transform: scale(0.95);
+  transition-duration: 0.08s;
+}
+.playlist-item:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+.poster:active {
+  transform: translateY(-1px) scale(0.99);
+  transition-duration: 0.08s;
+}
