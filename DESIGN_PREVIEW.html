@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumora · Design System Preview</title>
+<style>
+:root{
+  /* 品牌色 */
+  --accent:#7c8cff; --accent-bright:#9aa5ff; --accent-cyan:#6ee7ff;
+  --accent-pink:#ff7ac6; --accent-mid:#8b7bff; --like-color:#ff5d8f;
+  --accent-glow:rgba(124,140,255,.45);
+  /* 暗表面 / 文本 / 发丝边 */
+  --surface-0:rgba(14,15,20,.72); --surface-1:rgba(22,24,32,.86);
+  --surface-2:rgba(32,35,46,.94); --hairline:rgba(255,255,255,.09);
+  --hairline-strong:rgba(255,255,255,.16);
+  --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68);
+  --text-3:rgba(255,255,255,.42);
+  /* 控件表面 */
+  --control-bg:rgba(255,255,255,.06); --control-bg-strong:rgba(255,255,255,.12);
+  --hover-bg:rgba(255,255,255,.12); --fill-track:rgba(255,255,255,.14);
+  --scroll-thumb:rgba(255,255,255,.18); --surface-sidebar:rgba(0,0,0,.22);
+  /* 语义色 */
+  --error:#ff8585; --error-solid:#e5484d; --danger:#ff8a8e; --warning:#ffb454;
+  /* 动效 / 半径 */
+  --ease:cubic-bezier(.16,1,.3,1); --ease-soft:cubic-bezier(.32,.72,0,1);
+  --radius-s:8px; --radius-m:12px; --radius-l:16px; --window-radius:24px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei UI","Hiragino Sans GB",system-ui,sans-serif;
+  --font-mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
+  --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+}
+.light-surface{
+  --surface-0:rgba(255,255,255,.72); --surface-1:rgba(255,255,255,.86);
+  --surface-2:rgba(248,249,252,.96); --hairline:rgba(10,12,20,.10);
+  --hairline-strong:rgba(10,12,20,.16);
+  --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+  --control-bg:rgba(10,12,20,.05); --control-bg-strong:rgba(10,12,20,.08);
+  --hover-bg:rgba(10,12,20,.07); --fill-track:rgba(10,12,20,.12);
+  --scroll-thumb:rgba(10,12,20,.16); --surface-sidebar:rgba(10,12,20,.05);
+  --base-bg:#f4f5f8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:var(--font); font-size:13px; line-height:1.45;
+  -webkit-font-smoothing:antialiased; color:var(--text-1);
+  background:
+    radial-gradient(62% 52% at 50% 18%,rgba(124,140,255,.10),transparent 70%),
+    radial-gradient(42% 40% at 12% 78%,rgba(110,231,255,.055),transparent 62%),
+    radial-gradient(42% 40% at 88% 78%,rgba(255,122,198,.055),transparent 62%),
+    #0b0c12;
+  min-height:100vh; padding:32px 20px 80px;
+}
+.light-surface body,.light-surface{background:var(--base-bg)}
+.wrap{max-width:1080px;margin:0 auto}
+/* aurora text */
+h1.brand{
+  font-size:42px;font-weight:700;letter-spacing:-.02em;line-height:1.05;
+  background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.sub{color:var(--text-2);margin-top:6px;font-size:15px;max-width:680px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:22px 0 36px;flex-wrap:wrap}
+.toggle{
+  display:inline-flex;gap:4px;padding:4px;border-radius:999px;
+  background:var(--control-bg-strong);border:1px solid var(--hairline);
+}
+.toggle button{
+  font-family:var(--font);font-size:12px;color:var(--text-2);background:transparent;
+  border:0;padding:7px 14px;border-radius:999px;cursor:pointer;transition:all .15s var(--ease)
+}
+.toggle button.on{background:var(--brand-gradient);color:#0b0d14;font-weight:600}
+section{margin:40px 0}
+.sec-title{font-size:20px;font-weight:600;margin-bottom:4px}
+.sec-note{color:var(--text-3);font-size:12px;margin-bottom:18px}
+.grid{display:grid;gap:16px}
+.grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.grid.cols-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:760px){.grid.cols-3,.grid.cols-4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:1fr}}
+/* swatch */
+.swatch{
+  border-radius:var(--radius-m);padding:14px;border:1px solid var(--hairline);
+  background:var(--surface-1);backdrop-filter:blur(22px) saturate(160%);
+  -webkit-backdrop-filter:blur(22px) saturate(160%);
+}
+.swatch .chip{height:54px;border-radius:8px;margin-bottom:10px;border:1px solid var(--hairline)}
+.swatch .nm{font-weight:600;font-size:13px}
+.swatch .vr{font-family:var(--font-mono);font-size:11px;color:var(--text-3);margin-top:2px;word-break:break-all}
+.swatch .he{font-family:var(--font-mono);font-size:11px;color:var(--text-2)}
+/* type scale rows */
+.type-row{display:flex;align-items:baseline;gap:18px;padding:12px 0;border-bottom:1px solid var(--hairline)}
+.type-row .lvl{width:120px;flex:none;color:var(--text-3);font-family:var(--font-mono);font-size:11px}
+.type-row .smp{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* buttons */
+.btn{
+  font-family:var(--font);font-size:13px;font-weight:600;border:0;cursor:pointer;
+  padding:10px 18px;border-radius:var(--radius-s);transition:all .15s var(--ease);
+  display:inline-flex;align-items:center;gap:8px
+}
+.btn.primary{background:var(--brand-gradient);color:#0b0d14}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.primary:active{transform:scale(.97)}
+.btn.secondary{background:var(--control-bg);color:var(--text-1);box-shadow:inset 0 0 0 1px var(--hairline)}
+.btn.secondary:hover{background:var(--hover-bg)}
+.btn.ghost{background:transparent;color:var(--text-2)}
+.btn.ghost:hover{background:var(--hover-bg);color:var(--text-1)}
+.btn.danger{background:rgba(255,80,80,.2);color:var(--danger);border:1px solid rgba(229,72,77,.4)}
+.btn.danger:hover{background:rgba(255,80,80,.28)}
+.btn-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+/* card */
+.card{
+  background:var(--surface-2);border-radius:var(--radius-l);padding:18px;
+  box-shadow:0 14px 38px rgba(0,0,0,.42),inset 0 0 0 1px rgba(124,140,255,.12)
+}
+.light-surface .card{box-shadow:0 14px 38px rgba(20,24,40,.18),inset 0 0 0 1px var(--hairline)}
+.card h3{font-size:16px;font-weight:600;margin-bottom:6px}
+.card p{color:var(--text-2);font-size:13px}
+/* input */
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;color:var(--text-2)}
+.input{
+  font-family:var(--font);font-size:13px;color:var(--text-1);
+  background:var(--control-bg-strong);border:1px solid var(--hairline);
+  border-radius:var(--radius-s);padding:10px 12px;transition:all .14s var(--ease);outline:none
+}
+.input::placeholder{color:var(--text-3)}
+.input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+/* badge */
+.badge{
+  display:inline-flex;align-items:center;font-size:11px;font-weight:500;
+  padding:4px 10px;border-radius:999px;border:1px solid transparent
+}
+.badge.warn{color:var(--warning);border-color:rgba(255,180,84,.35);background:rgba(255,180,84,.10)}
+.badge.err{color:var(--error);border-color:rgba(255,133,133,.35);background:rgba(255,133,133,.10)}
+.badge.info{color:var(--accent-cyan);border-color:rgba(110,231,255,.35);background:rgba(110,231,255,.10)}
+.badge.like{color:var(--like-color);border-color:rgba(255,93,143,.35);background:rgba(255,93,143,.10)}
+/* OSC mock */
+.osc{
+  border-radius:var(--radius-l);padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--surface-1);border:1px solid var(--hairline);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%)
+}
+.osc .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  background:var(--control-bg);color:var(--text-1);font-size:15px;cursor:pointer;transition:background .15s var(--ease)}
+.osc .ic:hover{background:var(--hover-bg)}
+.osc .track{flex:1;min-width:120px;height:6px;border-radius:999px;background:var(--fill-track);position:relative;overflow:hidden}
+.osc .track::before{content:"";position:absolute;inset:0 70% 0 0;background:var(--brand-gradient)}
+/* music stage mini */
+.ms{
+  border-radius:var(--radius-l);padding:22px;display:flex;gap:22px;align-items:center;flex-wrap:wrap;
+  background:linear-gradient(180deg,#131521,#0b0d16);border:1px solid var(--hairline);position:relative;overflow:hidden
+}
+.ms::after{content:"";position:absolute;inset:0;background:
+  radial-gradient(60% 60% at 80% 20%,rgba(124,140,255,.12),transparent 70%),
+  radial-gradient(50% 50% at 10% 90%,rgba(255,122,198,.10),transparent 70%);pointer-events:none}
+.vinyl{width:120px;height:120px;border-radius:50%;flex:none;position:relative;
+  background:radial-gradient(circle at 50% 50%,#1a1c26 0 38%,#0c0d14 38% 100%);
+  box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 0 0 2px rgba(255,255,255,.06);animation:spin 9s linear infinite}
+.vinyl::before{content:"";position:absolute;inset:42%;border-radius:50%;background:var(--brand-gradient)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ms-meta{position:relative;z-index:1}
+.ms-meta .t{font-size:18px;font-weight:600}
+.ms-meta .a{color:var(--text-2);font-size:13px;margin-top:2px}
+/* modal */
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:50;
+  opacity:0;visibility:hidden;transition:opacity .26s var(--ease),visibility .26s}
+.modal-mask.show{opacity:1;visibility:visible}
+.modal{width:min(420px,92vw);background:var(--surface-2);border-radius:var(--radius-l);padding:22px;
+  backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);
+  box-shadow:0 18px 52px rgba(0,0,0,.68),0 0 0 1px rgba(0,0,0,.35);
+  transform:scale(.95);transition:transform .26s var(--ease)}
+.modal-mask.show .modal{transform:scale(1)}
+.modal h3{font-size:18px;font-weight:600;margin-bottom:8px}
+.modal p{color:var(--text-2);font-size:13px;margin-bottom:18px}
+.modal .acts{display:flex;gap:10px;justify-content:flex-end}
+/* shadow ladder */
+.sh{height:70px;border-radius:var(--radius-m);background:var(--surface-1);border:1px solid var(--hairline);
+  display:grid;place-items:center;font-family:var(--font-mono);font-size:11px;color:var(--text-2)}
+.code{font-family:var(--font-mono);font-size:11px;color:var(--text-3);word-break:break-all}
+footer{margin-top:60px;color:var(--text-3);font-size:11px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div>
+      <h1 class="brand">Lumora</h1>
+      <div class="sub">桌面媒体播放器设计系统 · 暗色玻璃 + 青紫粉极光。本页所有数值与 <code>DESIGN.md</code> 一致，可直接作为实现参考。</div>
+    </div>
+    <div class="toggle" id="toggle">
+      <button data-t="dark" class="on">暗色 Dark</button>
+      <button data-t="light">亮色 Light</button>
+    </div>
+  </div>
+
+  <!-- 1. BRAND -->
+  <section>
+    <div class="sec-title">1 · Brand &amp; Aurora</div>
+    <div class="sec-note">品牌色来自 logo 的 青→紫→粉 渐变；环境极光以低透明度径向光斑洒在深空底色上。</div>
+    <div class="grid cols-4">
+      <div class="swatch"><div class="chip" style="background:#7c8cff"></div><div class="nm">Accent</div><div class="he">#7c8cff</div><div class="vr">--accent</div></div>
+      <div class="swatch"><div class="chip" style="background:#6ee7ff"></div><div class="nm">Cyan</div><div class="he">#6ee7ff</div><div class="vr">--accent-cyan</div></div>
+      <div class="swatch"><div class="chip" style="background:#8b7bff"></div><div class="nm">Mid (紫)</div><div class="he">#8b7bff</div><div class="vr">--accent-mid</div></div>
+      <div class="swatch"><div class="chip" style="background:#ff7ac6"></div><div class="nm">Pink</div><div class="he">#ff7ac6</div><div class="vr">--accent-pink</div></div>
+      <div class="swatch"><div class="chip" style="background:#9aa5ff"></div><div class="nm">Bright</div><div class="he">#9aa5ff</div><div class="vr">--accent-bright</div></div>
+      <div class="swatch"><div class="chip" style="background:#ff5d8f"></div><div class="nm">Like</div><div class="he">#ff5d8f</div><div class="vr">--like-color</div></div>
+      <div class="swatch" style="grid-column:span 2"><div class="chip" style="background:var(--brand-gradient)"></div><div class="nm">Brand Gradient</div><div class="vr">linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6)</div></div>
+    </div>
+  </section>
+
+  <!-- 2. SURFACE / TEXT -->
+  <section>
+    <div class="sec-title">2 · Surfaces &amp; Text</div>
+    <div class="sec-note">三级暗表面 + 三级文本 + 发丝边；切换右上角可看亮色覆盖（仅独立窗口）。</div>
+    <div class="grid cols-3">
+      <div class="swatch"><div class="chip" style="background:var(--surface-0)"></div><div class="nm">Surface 0</div><div class="vr">--surface-0</div></div>
+      <div class="swatch"><div class="chip" style="background:var(--surface-1)"></div><div class="nm">Surface 1</div><div class="vr">--surface-1</div></div>
+      <div class="swatch"><div class="chip" style="background:var(--surface-2)"></div><div class="nm">Surface 2</div><div class="vr">--surface-2</div></div>
+      <div class="swatch"><div class="chip" style="background:transparent;box-shadow:inset 0 0 0 1px var(--hairline)"></div><div class="nm">Hairline</div><div class="vr">--hairline</div></div>
+      <div class="swatch"><div class="chip" style="background:transparent;box-shadow:inset 0 0 0 1px var(--hairline-strong)"></div><div class="nm">Hairline Strong</div><div class="vr">--hairline-strong</div></div>
+      <div class="swatch"><div style="color:var(--text-1);font-weight:600;font-size:18px">Text 1</div><div class="he" style="color:var(--text-2)">Text 2 示例</div><div class="he" style="color:var(--text-3)">Text 3 示例</div></div>
+    </div>
+  </section>
+
+  <!-- 3. SEMANTIC -->
+  <section>
+    <div class="sec-title">3 · Semantic Colors</div>
+    <div class="sec-note">Lumora 无独立 success/info token；信息态借品牌青。状态色均来自真实代码。</div>
+    <div class="grid cols-4">
+      <div class="swatch"><div class="chip" style="background:var(--error)"></div><div class="nm">Error</div><div class="he">#ff8585</div></div>
+      <div class="swatch"><div class="chip" style="background:var(--error-solid)"></div><div class="nm">Error Solid</div><div class="he">#e5484d</div></div>
+      <div class="swatch"><div class="chip" style="background:var(--warning)"></div><div class="nm">Warning</div><div class="he">#ffb454</div></div>
+      <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="nm">Danger</div><div class="he">#ff8a8e</div></div>
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <span class="badge warn">⚠ 键位冲突</span>
+      <span class="badge err">更新失败</span>
+      <span class="badge info">连接中</span>
+      <span class="badge like">♥ 我喜欢</span>
+    </div>
+  </section>
+
+  <!-- 4. TYPOGRAPHY -->
+  <section>
+    <div class="sec-title">4 · Typography Scale</div>
+    <div class="sec-note">固定 px 阶梯（非 fluid rem）；层级由 字号 + 字重 + 文字色透明度 三轴区分。</div>
+    <div class="card">
+      <div class="type-row"><div class="lvl">Display Hero</div><div class="smp" style="font-size:42px;font-weight:700;letter-spacing:-.02em;line-height:1">Lumora 播放器</div></div>
+      <div class="type-row"><div class="lvl">Title L</div><div class="smp" style="font-size:26px;font-weight:600;letter-spacing:-.01em">面板主标题</div></div>
+      <div class="type-row"><div class="lvl">Title M</div><div class="smp" style="font-size:20px;font-weight:600">区块标题</div></div>
+      <div class="type-row"><div class="lvl">Title S</div><div class="smp" style="font-size:16px;font-weight:600">卡片标题 / 曲名</div></div>
+      <div class="type-row"><div class="lvl">Body L</div><div class="smp" style="font-size:15px;font-weight:400">较大的正文段落</div></div>
+      <div class="type-row"><div class="lvl">Body</div><div class="smp" style="font-size:13px;font-weight:400">基准正文，界面默认字号</div></div>
+      <div class="type-row"><div class="lvl">Caption</div><div class="smp" style="font-size:12px;font-weight:400;color:var(--text-2)">次级说明文字</div></div>
+      <div class="type-row"><div class="lvl">Caption S</div><div class="smp" style="font-size:11px;font-weight:400;color:var(--text-3)">标签 / 时间戳</div></div>
+      <div class="type-row"><div class="lvl">Nano</div><div class="smp" style="font-size:10px;font-weight:500;color:var(--text-3)">极细注脚 / 徽标</div></div>
+    </div>
+  </section>
+
+  <!-- 5. COMPONENTS -->
+  <section>
+    <div class="sec-title">5 · Components</div>
+    <div class="sec-note">所有组件：半透明表面 + 1px 内嵌描边 + 品牌渐变强调 + ease-out-expo 过渡。</div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Buttons</h3>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn primary">播放</button>
+          <button class="btn secondary">设置</button>
+          <button class="btn ghost">取消</button>
+          <button class="btn danger">删除</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Inputs</h3>
+        <div class="field" style="margin-top:12px">
+          <label>网络串流地址</label>
+          <input class="input" placeholder="https://example.com/stream.m3u8">
+        </div>
+      </div>
+      <div class="card">
+        <h3>Card / Elevation</h3>
+        <p>标准抬升卡：0 14px 38px rgba(0,0,0,.42) + inset 0 0 0 1px rgba(124,140,255,.12)，pop-in .26s 入场。</p>
+      </div>
+      <div class="card">
+        <h3>Modal / Dialog</h3>
+        <p>遮罩 rgba(0,0,0,.55)；内容卡 blur(28px) saturate(170%)，z-index 50。</p>
+        <div class="btn-row" style="margin-top:12px"><button class="btn secondary" onclick="document.getElementById('m').classList.add('show')">打开示例模态</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. OSC + MUSIC STAGE -->
+  <section>
+    <div class="sec-title">6 · Player Surfaces</div>
+    <div class="sec-note">屏幕控制器（OSC）与音乐舞台——播放器最具辨识度的两个玻璃界面。</div>
+    <div class="grid cols-2">
+      <div>
+        <div class="sec-note">OSC · z-index 42 · 玻璃 blur(22px)</div>
+        <div class="osc">
+          <div class="ic">⏮</div><div class="ic">▶</div><div class="ic">⏭</div>
+          <div class="track"></div>
+          <div class="ic">🔊</div><div class="ic">⚙</div>
+        </div>
+      </div>
+      <div>
+        <div class="sec-note">Music Stage · 黑胶变体（vinyl）</div>
+        <div class="ms">
+          <div class="vinyl"></div>
+          <div class="ms-meta"><div class="t">夜空中最亮的星</div><div class="a">逃跑计划 · 世界</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. DEPTH -->
+  <section>
+    <div class="sec-title">7 · Depth &amp; Elevation</div>
+    <div class="sec-note">命名阴影系统（实测值归纳）。全窗口圆角层只用 inset 描边，禁外投影。</div>
+    <div class="grid cols-4">
+      <div class="sh" style="box-shadow:0 1px 3px rgba(0,0,0,.3)">shadow-xs</div>
+      <div class="sh" style="box-shadow:0 2px 8px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.14)">shadow-s</div>
+      <div class="sh" style="box-shadow:0 14px 38px rgba(0,0,0,.42),inset 0 0 0 1px rgba(124,140,255,.12)">shadow-m</div>
+      <div class="sh" style="box-shadow:0 18px 52px rgba(0,0,0,.68),0 0 0 1px rgba(0,0,0,.35)">shadow-l</div>
+      <div class="sh" style="box-shadow:0 26px 70px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.04)">shadow-xl</div>
+      <div class="sh" style="box-shadow:0 6px 18px rgba(139,123,255,.4)">shadow-glow</div>
+      <div class="sh" style="box-shadow:0 0 0 3px var(--accent-glow)">focus-ring</div>
+      <div class="sh" style="backdrop-filter:blur(22px) saturate(160%);background:var(--surface-1)">glass 22px</div>
+    </div>
+  </section>
+
+  <footer>Lumora Design System · 由 DESIGN.md 驱动生成 · 暗色优先，亮色仅独立窗口</footer>
+</div>
+
+<!-- Modal -->
+<div class="modal-mask" id="m" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <h3>确认删除？</h3>
+    <p>此操作将把「夜空中最亮的星」从我喜欢列表移除，且不可撤销。</p>
+    <div class="acts">
+      <button class="btn ghost" onclick="document.getElementById('m').classList.remove('show')">取消</button>
+      <button class="btn danger" onclick="document.getElementById('m').classList.remove('show')">删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('toggle').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#toggle button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  document.body.classList.toggle('light-surface', b.dataset.t==='light');
+});
+</script>
+</body>
+</html>
