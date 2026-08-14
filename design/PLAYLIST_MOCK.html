@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumora — Playlist Panel (DESIGN.md 交付 · 播放列表面板)</title>
+<style>
+  :root{
+    --accent:#7c8cff; --accent-mid:#8b7bff; --like-color:#ff5d8f;
+    --ease:cubic-bezier(0.16,1,0.3,1);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --playlist-panel-w:min(380px,85vw);
+    /* 暗色令牌（默认） */
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --hairline:rgba(255,255,255,.09); --control-bg:rgba(255,255,255,.06); --control-bg-strong:rgba(255,255,255,.12);
+    --win-bg:rgba(20,22,32,.82); --item-muted:#6f7488;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--font);-webkit-font-smoothing:antialiased;color:var(--text-1)}
+
+  /* 演示舞台：暗色媒体背景 + 半透明遮罩，播放列表面板从右侧滑入 */
+  .stage{position:fixed; inset:0; overflow:hidden;
+    background:
+      radial-gradient(62% 52% at 50% 40%, rgba(124,140,255,.10), transparent 70%),
+      radial-gradient(42% 40% at 18% 64%, rgba(110,231,255,.05), transparent 62%),
+      radial-gradient(42% 40% at 82% 64%, rgba(255,122,198,.05), transparent 62%),
+      #0b0c12;}
+  .stage::before{ /* 伪视频帧，暗示面板浮于播放界面之上 */
+    content:""; position:absolute; left:6%; right:6%; top:14%; bottom:14%;
+    border-radius:16px; border:1px solid rgba(255,255,255,.06);
+    background:linear-gradient(135deg, rgba(124,140,255,.08), rgba(255,122,198,.05));
+    box-shadow:inset 0 0 60px rgba(0,0,0,.4);}
+  .stage-hint{ position:absolute; left:8%; top:18%; color:rgba(255,255,255,.18); font-size:13px; letter-spacing:.04em;}
+
+  /* ===== 播放列表面板 ===== */
+  .playlist-panel{ position:fixed; inset:0; }
+  .playlist-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.30); animation:fade-in .25s var(--ease) both; }
+  @keyframes fade-in{ from{opacity:0;} to{opacity:1;} }
+  .playlist-window{
+    position:absolute; top:0; right:0; height:100%;
+    width:var(--playlist-panel-w); max-height:100vh;
+    display:flex; flex-direction:column;
+    background:var(--win-bg);
+    border-left:1px solid var(--hairline); border-radius:0;
+    backdrop-filter:blur(28px) saturate(170%); -webkit-backdrop-filter:blur(28px) saturate(170%);
+    box-shadow:-8px 0 40px rgba(0,0,0,.45);
+    overflow:hidden; animation:slide-in-right .3s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes slide-in-right{ from{opacity:0; transform:translateX(100%);} to{opacity:1; transform:translateX(0);} }
+
+  .playlist-header{ display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--hairline); }
+  .playlist-title{ font-size:14px; font-weight:600; color:#f4f5fb; }
+  .playlist-count{ font-size:12px; color:var(--text-3); }
+  .playlist-like-filter{
+    border:0; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:600;
+    background:var(--control-bg); color:var(--text-3); cursor:pointer;
+    transition:background .14s var(--ease), color .14s var(--ease);
+  }
+  .playlist-like-filter:hover{ background:var(--control-bg-strong); color:var(--text-2); }
+  .playlist-like-filter.active{ background:rgba(255,93,143,.18); color:#ff7aa6; }
+  .playlist-add-music{
+    border:0; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:600;
+    background:rgba(124,140,255,.12); color:#a8b0ff; cursor:pointer;
+    transition:background .14s var(--ease), color .14s var(--ease);
+  }
+  .playlist-add-music:hover{ background:rgba(124,140,255,.22); color:#c7cbff; }
+  .playlist-close{
+    margin-left:auto; width:26px; height:26px; display:grid; place-items:center;
+    border:0; border-radius:8px; background:var(--control-bg); color:var(--text-2);
+    cursor:pointer; font-size:13px; transition:background .14s var(--ease), color .14s var(--ease);
+  }
+  .playlist-close:hover{ background:#e5484d; color:#fff; }
+
+  .playlist-list{ flex:1 1 auto; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:4px; scroll-behavior:smooth; overscroll-behavior:contain; }
+  .playlist-list::-webkit-scrollbar{ display:none; }
+  .playlist-list{ scrollbar-width:none; }
+  .playlist-empty{ padding:28px 16px; text-align:center; color:var(--text-3); font-size:12px; }
+
+  .playlist-item{
+    position:relative; display:flex; align-items:center; gap:12px; padding:9px 10px; padding-right:42px;
+    border-radius:10px; cursor:default; color:var(--text-2);
+    transition:background .14s var(--ease), color .14s var(--ease);
+  }
+  .playlist-item:hover{ background:var(--control-bg); }
+  .playlist-item.active{
+    background:linear-gradient(90deg, rgba(124,140,255,.22), rgba(124,140,255,.06));
+    color:#f4f5fb; box-shadow:inset 2px 0 0 var(--accent-mid);
+  }
+  .pl-nowplaying-tag{
+    flex:0 0 auto; margin-right:6px; padding:1px 8px; font-size:10px; font-weight:700; letter-spacing:.03em;
+    color:#fff; background:rgba(124,140,255,.55); border-radius:999px; white-space:nowrap;
+  }
+  .pl-index{ flex:0 0 auto; width:22px; text-align:center; font-size:11px; color:var(--item-muted); font-variant-numeric:tabular-nums; }
+  .playlist-item.active .pl-index{ color:var(--accent-mid); }
+  .pl-title{ flex:1 1 auto; min-width:0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pl-like{
+    flex:0 0 auto; width:22px; height:22px; margin-right:4px; display:grid; place-items:center;
+    border:0; border-radius:6px; background:transparent; color:var(--item-muted); cursor:pointer; font-size:14px; line-height:1;
+    opacity:0; pointer-events:none; transition:opacity .14s var(--ease), color .14s var(--ease), transform .12s var(--ease);
+  }
+  .playlist-item:hover .pl-like{ opacity:1; pointer-events:auto; }
+  .pl-like.liked{ color:var(--like-color); opacity:1; pointer-events:auto; }
+  .pl-like:hover{ color:#ff7aa6; transform:scale(1.12); }
+  .playlist-item.liked:not(.active){ background:rgba(255,93,143,.05); }
+  .pl-del{
+    position:absolute; right:10px; top:50%; width:22px; height:22px; display:grid; place-items:center;
+    border:0; border-radius:6px; background:transparent; color:var(--item-muted); cursor:pointer; font-size:11px;
+    opacity:0; pointer-events:none; transform:translateY(-50%) translateX(8px);
+    transition:opacity .14s var(--ease), transform .2s var(--ease), background .14s var(--ease), color .14s var(--ease);
+  }
+  .playlist-item:hover .pl-del{ opacity:1; pointer-events:auto; transform:translateY(-50%) translateX(0); }
+  .pl-del:hover{ background:rgba(229,72,77,.18); color:#ff6b6f; }
+
+  /* 外部文件拖入高亮「稍后播放」投放区 */
+  .playlist-panel.drag-add-active .playlist-window{ outline:2px dashed rgba(124,140,255,.9); outline-offset:-8px; box-shadow:-8px 0 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(124,140,255,.5); }
+  .playlist-panel.drag-add-active .playlist-list{ background:linear-gradient(rgba(124,140,255,.06), rgba(124,140,255,.06)); }
+  .playlist-panel.drag-add-active .playlist-window::after{
+    content:'松开以加入「稍后播放」'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    padding:10px 16px; font-size:13px; font-weight:600; color:#c7cbff; background:rgba(124,140,255,.16);
+    border:1px solid rgba(124,140,255,.5); border-radius:12px; pointer-events:none; z-index:5;
+  }
+
+  /* ===== 浅色变体（audio-mode vinyl/glass：侧栏切换为浅色毛玻璃） ===== */
+  .playlist-panel.pl-light{
+    --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+    --hairline:rgba(10,12,20,.10); --control-bg:rgba(10,12,20,.05); --control-bg-strong:rgba(10,12,20,.10);
+    --win-bg:rgba(255,255,255,.84); --item-muted:rgba(26,27,37,.45);
+  }
+  .playlist-panel.pl-light .playlist-backdrop{ background:rgba(255,255,255,.16); }
+  .playlist-panel.pl-light .playlist-window{ border-left:1px solid rgba(0,0,0,.10); box-shadow:-8px 0 40px rgba(0,0,0,.18); }
+  .playlist-panel.pl-light .playlist-header{ border-bottom:1px solid rgba(0,0,0,.08); }
+  .playlist-panel.pl-light .playlist-title{ color:#1a1b25; }
+  .playlist-panel.pl-light .playlist-count{ color:rgba(26,27,37,.55); }
+  .playlist-panel.pl-light .playlist-close{ background:rgba(0,0,0,.05); color:rgba(26,27,37,.7); }
+  .playlist-panel.pl-light .playlist-like-filter{ background:rgba(0,0,0,.05); color:rgba(26,27,37,.55); }
+  .playlist-panel.pl-light .playlist-like-filter:hover{ background:rgba(0,0,0,.1); color:rgba(26,27,37,.8); }
+  .playlist-panel.pl-light .playlist-like-filter.active{ background:rgba(255,93,143,.16); color:#d6427a; }
+  .playlist-panel.pl-light .playlist-add-music{ background:rgba(124,140,255,.16); color:#5a5fd8; }
+  .playlist-panel.pl-light .playlist-add-music:hover{ background:rgba(124,140,255,.26); color:#4a50c8; }
+  .playlist-panel.pl-light .playlist-item{ color:rgba(26,27,37,.78); }
+  .playlist-panel.pl-light .playlist-item:hover{ background:rgba(0,0,0,.05); }
+  .playlist-panel.pl-light .playlist-item.active{ background:linear-gradient(90deg, rgba(124,140,255,.20), rgba(124,140,255,.05)); color:#1a1b25; box-shadow:inset 2px 0 0 var(--accent-mid); }
+  .playlist-panel.pl-light .playlist-item.active .pl-index{ color:#6a5fd8; }
+
+  /* ===== 演示控制条（非产品 UI） ===== */
+  .demo-bar{ position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:99; display:flex; gap:8px; padding:8px 10px; background:rgba(20,22,32,.78); backdrop-filter:blur(14px) saturate(150%); border:1px solid rgba(255,255,255,.12); border-radius:999px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+  .demo-bar button{ font:inherit; font-size:12px; color:rgba(255,255,255,.82); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:999px; padding:7px 14px; cursor:pointer; transition:background .15s var(--ease), color .15s var(--ease); }
+  .demo-bar button:hover{ background:rgba(255,255,255,.12); color:#fff; }
+  .demo-bar button.on{ background:linear-gradient(135deg,#6ee7ff,var(--accent-mid) 55%,#ff7ac6); color:#fff; border-color:transparent; }
+  .demo-tag{ position:fixed; top:14px; left:16px; z-index:99; font-size:11px; letter-spacing:.04em; color:rgba(255,255,255,.5); background:rgba(20,22,32,.6); border:1px solid rgba(255,255,255,.1); padding:5px 10px; border-radius:8px; }
+  .playlist-panel.pl-light ~ .demo-bar{ background:rgba(255,255,255,.82); border-color:rgba(10,12,20,.12); }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="stage-hint">▣ 媒体画面（示意）</div>
+</div>
+
+<div class="demo-tag">Lumora · Playlist Panel · DESIGN.md 交付</div>
+
+<div class="playlist-panel" id="panel">
+  <div class="playlist-backdrop"></div>
+  <div class="playlist-window">
+    <div class="playlist-header">
+      <span class="playlist-title">播放列表</span>
+      <span class="playlist-count" id="count">8 首</span>
+      <button class="playlist-like-filter" id="likeFilter" aria-pressed="false">♥ 我喜欢的</button>
+      <button class="playlist-add-music">+ 添加音乐</button>
+      <button class="playlist-close" title="关闭">✕</button>
+    </div>
+    <div class="playlist-list" id="list">
+      <!-- 曲目示例：含 active / liked / 普通 状态 -->
+      <div class="playlist-item active">
+        <span class="pl-nowplaying-tag">播放中</span>
+        <span class="pl-index">1</span>
+        <span class="pl-title">Midnight City — M83</span>
+        <button class="pl-like liked" title="取消喜欢">♥</button>
+        <button class="pl-del" title="移除">✕</button>
+      </div>
+      <div class="playlist-item liked">
+        <span class="pl-index">2</span>
+        <span class="pl-title">Starboy — The Weeknd, Daft Punk</span>
+        <button class="pl-like liked" title="取消喜欢">♥</button>
+        <button class="pl-del" title="移除">✕</button>
+      </div>
+      <div class="playlist-item">
+        <span class="pl-index">3</span>
+        <span class="pl-title">Resonance — Home</span>
+        <button class="pl-like" title="喜欢">♡</button>
+        <button class="pl-del" title="移除">✕</button>
+      </div>
+      <div class="playlist-item">
+        <span class="pl-index">4</span>
+        <span class="pl-title">Nightcall — Kavinsky</span>
+        <button class="pl-like" title="喜欢">♡</button>
+        <button class="pl-del" title="移除">✕</button>
+      </div>
+      <div class="playlist-item">
+        <span class="pl-index">5</span>
+        <span class="pl-title">Instant Crush — Daft Punk, Julian Casablancas</span>
+        <button class="pl-like" title="喜欢">♡</button>
+        <button class="pl-del" title="移除">✕</button>
+      </div>
+      <div class="playlist-item liked">
+        <span class="pl-index">6</span>
+        <span class="pl-title">The Less I Know The Better — Tame Impala</span>
+        <button class="pl-like liked" title="取消喜欢">♥</button>
+        <button class="pl-del" title="移除">✕</button>
+      </div>
+      <div class="playlist-item">
+        <span class="pl-index">7</span>
+        <span class="pl-title">Sunflower — Post Malone, Swae Lee</span>
+        <button class="pl-like" title="喜欢">♡</button>
+        <button class="pl-del" title="移除">✕</button>
+      </div>
+      <div class="playlist-item">
+        <span class="pl-index">8</span>
+        <span class="pl-title">Lose Yourself to Dance — Daft Punk</span>
+        <button class="pl-like" title="喜欢">♡</button>
+        <button class="pl-del" title="移除">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="demo-bar">
+  <button id="btn-theme">主题 · 暗</button>
+  <button id="btn-filter">过滤 · 我喜欢的 关</button>
+  <button id="btn-drag">拖入高亮</button>
+</div>
+
+<script>
+  const panel = document.getElementById('panel');
+  const list = document.getElementById('list');
+  const count = document.getElementById('count');
+  const likeFilter = document.getElementById('likeFilter');
+  const items = Array.from(list.querySelectorAll('.playlist-item'));
+  const total = items.length;
+
+  function applyFilter(){
+    const on = likeFilter.classList.contains('active');
+    let shown = 0;
+    items.forEach(it => {
+      const liked = it.classList.contains('liked');
+      const visible = !on || liked;
+      it.style.display = visible ? '' : 'none';
+      if (visible) shown++;
+    });
+    count.textContent = on ? (shown + ' / ' + total + ' 首') : (total + ' 首');
+  }
+
+  document.getElementById('btn-theme').addEventListener('click', (e) => {
+    const on = panel.classList.toggle('pl-light');
+    e.target.textContent = on ? '主题 · 亮（黑胶/玻璃）' : '主题 · 暗';
+    e.target.classList.toggle('on', on);
+  });
+  document.getElementById('btn-filter').addEventListener('click', (e) => {
+    const on = likeFilter.classList.toggle('active');
+    likeFilter.setAttribute('aria-pressed', on);
+    e.target.textContent = on ? '过滤 · 我喜欢的 开' : '过滤 · 我喜欢的 关';
+    e.target.classList.toggle('on', on);
+    applyFilter();
+  });
+  document.getElementById('btn-drag').addEventListener('click', (e) => {
+    const on = panel.classList.toggle('drag-add-active');
+    e.target.textContent = on ? '拖入高亮 · 开' : '拖入高亮';
+    e.target.classList.toggle('on', on);
+  });
+</script>
+</body>
+</html>
