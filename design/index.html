@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumora · Design Kit</title>
+<style>
+:root{
+  --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-mid:#8b7bff;
+  --accent-glow:rgba(124,140,255,.45);
+  --surface-0:rgba(14,15,20,.72); --surface-1:rgba(22,24,32,.86); --surface-2:rgba(32,35,46,.94);
+  --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+  --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+  --control-bg:rgba(255,255,255,.06); --hover-bg:rgba(255,255,255,.12);
+  --ease:cubic-bezier(.16,1,.3,1); --radius-l:16px; --radius-m:12px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei UI","Hiragino Sans GB",system-ui,sans-serif;
+  --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased;color:var(--text-1);
+  min-height:100vh;padding:48px 24px 80px;
+  background:
+    radial-gradient(62% 52% at 50% 18%,rgba(124,140,255,.10),transparent 70%),
+    radial-gradient(42% 40% at 12% 78%,rgba(110,231,255,.055),transparent 62%),
+    radial-gradient(42% 40% at 88% 78%,rgba(255,122,198,.055),transparent 62%),
+    #0b0c12;}
+.wrap{max-width:920px;margin:0 auto}
+h1{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.05;
+  background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--text-2);font-size:15px;margin-top:8px;max-width:640px}
+.bar{margin:26px 0 36px}
+.spec{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;
+  background:var(--control-bg);border:1px solid var(--hairline);color:var(--text-1);text-decoration:none;
+  font-size:13px;transition:background .15s var(--ease)}
+.spec:hover{background:var(--hover-bg)}
+.spec b{color:var(--accent-bright);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+.card{display:block;text-decoration:none;color:inherit;border-radius:var(--radius-l);padding:22px;
+  background:var(--surface-2);border:1px solid var(--hairline);
+  box-shadow:0 14px 38px rgba(0,0,0,.42),inset 0 0 0 1px rgba(124,140,255,.12);
+  transition:transform .2s var(--ease),box-shadow .2s var(--ease);position:relative;overflow:hidden}
+.card:hover{transform:translateY(-3px);box-shadow:0 20px 48px rgba(0,0,0,.5),inset 0 0 0 1px rgba(124,140,255,.22)}
+.card::after{content:"";position:absolute;inset:0;background:
+  radial-gradient(60% 60% at 85% 10%,rgba(124,140,255,.10),transparent 60%);pointer-events:none}
+.card .tag{font-family:var(--font-mono);font-size:11px;color:var(--accent-cyan);letter-spacing:.04em}
+.card h2{font-size:19px;font-weight:600;margin:8px 0 6px}
+.card p{color:var(--text-2);font-size:13px}
+.card .go{margin-top:14px;font-size:12px;color:var(--accent-bright);font-weight:600}
+.card .chip{position:absolute;top:18px;right:18px;width:40px;height:40px;border-radius:11px}
+.chip.overview{background:var(--brand-gradient)}
+.chip.light{background:linear-gradient(135deg,#f4f5f8,#c9cdd6)}
+.chip.dark{background:linear-gradient(180deg,#2a2d3a,#0b0d16);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.foot{margin-top:46px;color:var(--text-3);font-size:11px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lumora Design Kit</h1>
+  <div class="sub">桌面媒体播放器设计系统 · 规范与实时预览合集。所有数值与 <code>../DESIGN.md</code> 一致，明暗两套主题、令牌总览、响应式与真实界面范例齐备。</div>
+  <div class="bar">
+    <a class="spec" href="../DESIGN.md">📐 设计规范 <b>DESIGN.md</b>（9 章节 · 334 行）</a>
+  </div>
+
+  <div class="grid">
+    <a class="card" href="DESIGN_PREVIEW.html">
+      <div class="chip overview"></div>
+      <div class="tag">TOKENS · 暗/亮</div>
+      <h2>设计令牌总览</h2>
+      <p>品牌色板 + 极光渐变、表面/文本、语义色、排版阶梯、组件、阴影阶梯，含暗/亮切换与响应式模拟器。</p>
+      <div class="go">打开预览 →</div>
+    </a>
+    <a class="card" href="SETTINGS_MOCK.html">
+      <div class="chip light"></div>
+      <div class="tag">SCREEN · 亮色</div>
+      <h2>设置面板</h2>
+      <p>light-surface 主题：侧栏导航 + 内容行、开关、下拉浮层、渐变滑块、文本输入、键位与响应式侧栏转顶栏。</p>
+      <div class="go">打开预览 →</div>
+    </a>
+    <a class="card" href="MUSIC_STAGE_MOCK.html">
+      <div class="chip dark"></div>
+      <div class="tag">SCREEN · 暗色</div>
+      <h2>音乐播放器</h2>
+      <p>暗色旗舰界面：极光背景、CSS 黑胶唱盘（播放旋转 + 唱臂落下）、逐行高亮歌词、FFT 频谱与音乐控制条。</p>
+      <div class="go">打开预览 →</div>
+    </a>
+    <a class="card" href="DESIGN_PREVIEW.html#responsive">
+      <div class="chip overview"></div>
+      <div class="tag">RESPONSIVE</div>
+      <h2>响应式模拟器</h2>
+      <p>拖动滑块模拟窗口宽度，直观观察 OSC 换行（≤900）与音乐舞台双栏→堆叠（≤720 / ≤560h）。</p>
+      <div class="go">打开预览 →</div>
+    </a>
+  </div>
+
+  <div class="foot">Lumora Design Kit · 由 DESIGN.md 驱动 · 纯预览件，未改动源码</div>
+</div>
+</body>
+</html>
