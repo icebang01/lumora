@@ -6469,3 +6469,14 @@ body.audio-mode.eq-open .eq-window {
   #music-stage.style-vinyl .ms-right { width: 94vw; max-height: min(46vh, 340px); }
   #music-stage.style-vinyl .ms-lyrics-wrap { max-height: min(30vh, 220px); }
 }
+
+/* 方封面模式窄窗/矮窗：与通用规则一致退化为上下堆叠。
+   根因同黑胶：#music-stage.style-square ... (1,2,0) 压过通用 .ms-content 列布局，
+   导致 ≤720/≤560 仍横排、方封面与信息栏挤压。数值全部复用通用规则，
+   纯响应式一致性修复，不动方封面圆角/尺寸视觉设计。 */
+@media (max-width: 720px), (max-height: 560px) {
+  #music-stage.style-square .ms-content { flex-direction: column; gap: 18px; }
+  #music-stage.style-square .ms-art { width: min(240px, 56vw); height: min(240px, 56vw); }
+  #music-stage.style-square .ms-right { width: 94vw; max-height: min(46vh, 340px); }
+  #music-stage.style-square .ms-lyrics-wrap { max-height: min(30vh, 220px); }
+}
