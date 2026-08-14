@@ -6396,3 +6396,24 @@ body.audio-mode.eq-open .eq-window {
   .audio-unlock-overlay { transition: none; }
   .audio-unlock-card { transition: none; transform: none; }
 }
+
+/* ==========================================================================
+   键盘聚焦可访问性：统一 :focus-visible 描边（accent #7c8cff）
+   覆盖此前缺键盘聚焦指示的可交互控件；纯视觉增强，不影响布局与鼠标交互。
+   与已有 .poster / .mc-btn 等 focus-visible 风格保持一致。
+   ========================================================================== */
+.ctl-btn:focus-visible,
+.ghost-btn:focus-visible,
+.playlist-close:focus-visible,
+.settings-nav-item:focus-visible,
+.playlist-item:focus-visible,
+.pl-del:focus-visible,
+.mc-speed-opt:focus-visible,
+.ms-win-btn:focus-visible,
+.idle-close-btn:focus-visible,
+.tb-close:focus-visible,
+.lib-tab:focus-visible,
+.lyric-search-close:focus-visible {
+  outline: 2px solid var(--accent, #7c8cff);
+  outline-offset: 2px;
+}
