@@ -89,7 +89,7 @@ background: linear-gradient(135deg, #6ee7ff, #7c8cff);
 
 ### 2.7 Light Theme Overrides（`.light-surface` / `[data-theme="light"] #idle-screen`）
 
-**仅作用于独立窗口（设置 / 许可证）与 idle 落地页**；播放覆盖层（OSC / 播放列表 / 弹幕 / 弹层）**一律保持暗色**。
+**仅作用于独立窗口（设置 / 许可证）与 idle 落地页**；播放覆盖层（OSC / 播放列表 / 书签 / 弹幕 / 弹层 / **投屏面板**）**一律保持暗色**（投屏面板 `rgba(12,13,18,.94)` 硬编暗玻璃，不进 `.light-surface` 作用域）。
 
 | Token | Light Value |
 |---|---|
@@ -195,6 +195,31 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 ### 4.9 Idle Landing（落地页）
 
 - 中央舞台 `grid-template-columns: 2fr 1fr 2fr`（音乐 / 品牌 / 视频三模块拼同一窗口，靠 2px 渐变光束接缝区分，无独立面板、无悬浮阴影）；整体拖拽区，仅交互元素 `no-drag`。
+
+### 4.10 Cast Panel（投屏面板）· v2 = DLNA + Chromecast + DIAL
+
+> 真实结构见 `index.html:#cast-panel` + `style.css:3692–3812` + `panels/cast.js`。居中玻璃浮层，`z-index:50`，**恒为暗色**（不随 app 主题切换，与 §2.7 亮色作用域互斥）。
+
+- **遮罩** `.cast-backdrop`：`position:absolute; inset:0; background:rgba(0,0,0,.45)`；`fade-in .2s`。
+- **窗口** `.cast-window`：`width:min(420px,90vw); max-width:calc(100vw - 40px); max-height:calc(100vh - 60px)`；`background:rgba(12,13,18,.94)`；`backdrop-filter:blur(30px) saturate(180%)`；`border:1px solid var(--hairline-strong)`；`border-radius:var(--radius-l)`；`box-shadow:0 26px 70px rgba(0,0,0,.72)`；`pop-in .26s`；`pointer-events:auto`。
+- **头部** `.panel-head.draggable`：「投屏到设备」+ `.playlist-close`（26×26，`hover`→`#e5484d`）；`border-bottom:1px hairline`。
+- **状态条** `.cast-status`：`padding:10px 16px; font-size:12px; color:var(--text-3)`；连接态 `.connected`→`color:#7ee0a8`（绿，实时显示 `设备名 · 状态 · 进度/时长`）。
+- **设备行** `.cast-device`：`display:flex; gap:12px; padding:10px 12px; border-radius:11px`；连接态 `.connected`→`box-shadow:inset 2px 0 0 var(--accent-mid); background:rgba(124,140,255,.10)`。
+  - 名称 `.cast-device-name`：`font-size:13px; color:var(--text-1)`；型号 `.cast-device-model`：`font-size:11px; color:var(--text-3)`。
+  - **类型徽章** `.cast-device-type`（圆角 `999px`，`font-size:10px`，`padding:2px 7px`）——三协议配色：
+    | 协议 | class | 文字色 | 边框 | 背景 |
+    |---|---|---|---|---|
+    | DLNA | `.type-dlna` | `#7fd0a8` | `rgba(127,208,168,.45)` | `rgba(127,208,168,.10)` |
+    | Chromecast | `.type-chromecast` | `#f4b400` | `rgba(244,180,0,.5)` | `rgba(244,180,0,.10)` |
+    | **DIAL** | `.type-dial` | `#8ab4ff` | `rgba(138,180,255,.45)` | `rgba(138,180,255,.10)` |
+    > DIAL 为 v2 新增协议（SSDP `ST=urn:dial-multiscreen-org:service:dial:1`），仅能 launch 应用自身拉取 URL，无通用 pause/seek/volume；类型徽章 `#8ab4ff` 蓝与 Chromecast 金黄、DLNA 绿区分。
+  - **连接按钮** `.cast-connect-btn`：`padding:6px 14px; border:1px solid rgba(124,140,255,.4); border-radius:9px; background:rgba(124,140,255,.12); color:#dfe2ff`；`hover:not(:disabled)`→`background:rgba(124,140,255,.24)`；已连接→`disabled`（`opacity:.5`）。
+- **控制区** `#cast-controls`（连接后显示，`border-top:1px hairline; padding:12px 14px; gap:12px`）：
+  - 主操作 `.cast-action-btn.primary`：「投屏当前内容」→`linear-gradient(90deg,rgba(124,140,255,.32),rgba(110,231,255,.22)); border-color:rgba(124,140,255,.5); color:#fff`。
+  - 串流行 `.cast-url-row` + `.cast-url-input`（聚焦 `border-color:var(--accent)`）+「投屏」按钮。
+  - 传输网格 `.cast-transport`：`grid-template-columns:repeat(4,1fr); gap:7px`；`.cast-tbtn`：暂停 / 继续 / 停止 / 同步进度。
+  - 电视音量 `.cast-vol-row` + `.cast-vol`（`accent-color:var(--accent)`）+ 数值 `.cast-vol-val`（`tabular-nums`）。
+  - 断开 `.cast-action-btn.danger`：「断开连接」→`border-color:rgba(229,72,77,.4); color:#ff8a8e; hover:rgba(229,72,77,.16)`。
 
 ---
 
@@ -319,6 +344,7 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 4. **危险按钮**：「做一个 Danger 按钮：默认透明文字 `#ff8a8e`、边框 `1px rgba(229,72,77,.4)`，hover `background:rgba(255,80,80,.2)`，圆角 8px。」
 5. **状态徽标**：「生成一个状态徽标：文字 `#ffb454`，边框 `1px rgba(255,180,84,.35)`，背景 `rgba(255,180,84,.10)`，圆角 999px，字号 11px，padding `4px 10px`。」
 6. **模态遮罩**：「做一个模态：遮罩 `fixed inset:0; background:rgba(0,0,0,.55)`，内容卡 `blur(28px) saturate(170%)` + `0 18px 52px rgba(0,0,0,.68), 0 0 0 1px rgba(0,0,0,.35)`，`pop-in .26s`，`z-index:50`。」
+7. **投屏面板**：「做一个投屏面板浮层：`z-index:50`；遮罩 `rgba(0,0,0,.45)`；窗口 `width:min(420px,90vw); background:rgba(12,13,18,.94); backdrop-filter:blur(30px) saturate(180%); border:1px solid var(--hairline-strong); border-radius:16px; box-shadow:0 26px 70px rgba(0,0,0,.72)`。设备行含类型徽章（DLNA 绿 `#7fd0a8` / Chromecast 金 `#f4b400` / DIAL 蓝 `#8ab4ff`），连接态 `inset 2px 0 0 var(--accent-mid)`；控制区含「投屏当前内容」主按钮 + 串流输入 + 4 格传输（暂停/继续/停止/同步进度）+ 电视音量滑块 + 断开（danger）。恒暗色，不进 `.light-surface`。」
 
 ### 9.3 Iteration Guide（AI 生成 UI 的迭代建议）
 
@@ -332,3 +358,23 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 8. z-index 严格按 §6.3，勿自创层级（尤其勿压过 OSC 42 / 菜单 60 / 拖放 200）。
 9. 新增组件先想「它该隐形还是浮出」——默认隐形，需要时优雅浮出。
 10. 任何偏离都应在 PR 说明，并优先沉淀为新的 `:root` 变量。
+
+---
+
+## 附录 A · 界面清单 / Screen Inventory（`design/` 目录）
+
+> 由本规范驱动的设计交付件（自包含 HTML 预览，令牌 1:1 还原 `style.css`，纯预览、零源码改动）。
+> 中心枢纽：`design/index.html`；规范自检：`design/DESIGN_PREVIEW.html`（令牌总览 + 暗↔亮 + 响应式模拟器）。
+
+| 交付件 | 文件 | 类型 | 主题 | 要点 |
+|---|---|---|---|---|
+| 设计令牌总览 | `DESIGN_PREVIEW.html` | TOKENS | 暗/亮 | 色板/表面/语义色/排版阶梯/组件/阴影 + 主题与响应式切换 |
+| 设置面板 | `SETTINGS_MOCK.html` | SCREEN | 亮 | `.light-surface` 侧栏→顶栏（≤640）、开关/下拉/渐变滑块/键位 |
+| 音乐播放器 | `MUSIC_STAGE_MOCK.html` | SCREEN | 暗 | 极光背景 + CSS 黑胶唱盘 + 逐字歌词 + FFT 频谱 + 控制条 |
+| 空闲落地页 | `IDLE_SCREEN_MOCK.html` | SCREEN | 暗/亮 | 2:1:2 三栏舞台、旋转光圈入口、胶囊主操作、≤860 堆叠 |
+| 播放列表面板 | `PLAYLIST_MOCK.html` | PANEL | 暗/亮 | 右侧滑入玻璃、曲目卡（播放中/红心/删除）、active 渐变态 |
+| 网络串流弹窗 | `NETWORK_STREAM_MOCK.html` | DIALOG | 暗 | 居中玻璃、等宽地址输入（聚焦 accent 光环）、错误态 |
+| 投屏面板 | `CAST_PANEL_MOCK.html` | PANEL | 暗/亮 | 设备列表（DLNA/Chromecast/DIAL 徽章）+ 连接后控制区；DIAL 置顶展示 v2 新协议 |
+| 响应式模拟器 | `DESIGN_PREVIEW.html#responsive` | TOOL | — | 拖拽模拟窗口宽度，观察 OSC 换行（≤900）/ 音乐堆叠（≤720·≤560h） |
+
+**投屏协议支持（v2）**：DLNA（UPnP/AVTransport，完整 pause/seek/volume）· Chromecast（CAstV2 + mDNS，标准 Cast 客户端证书需用户自备）· **DIAL**（SSDP `ST=urn:dial-multiscreen-org:service:dial:1`，仅 launch 应用自身拉取 URL，无通用传输控制）。类型徽章配色见 §4.10。
