@@ -3089,7 +3089,7 @@ body.playlist-open #idle-screen {
   font-size: 13px;
   font-weight: 600;
   color: #fff;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: linear-gradient(135deg, var(--accent), var(--accent-pink));
   border: none;
   border-radius: var(--radius-m);
   cursor: pointer;
@@ -3412,7 +3412,7 @@ body.playlist-open #idle-screen {
   font-size: 13px;
   font-weight: 600;
   color: #fff;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: linear-gradient(135deg, var(--accent), var(--accent-pink));
   border: none;
   border-radius: var(--radius-m);
   cursor: pointer;
