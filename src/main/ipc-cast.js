@@ -1,15 +1,18 @@
 'use strict';
 /**
  * IPC 注册·cast（自包含模块）。
- * 投屏域（cast-out，v1 = DLNA + Chromecast）。编排 CastManager：
+ * 投屏域（cast-out，v2 = DLNA + Chromecast + DIAL）。编排 CastManager：
  *   - 发现：DLNA（SSDP MediaRenderer）+ Chromecast（mDNS _googlecast._tcp）
- *   - 连接：按设备 type 建 DlnaRenderer 或 ChromecastClient
+ *          + DIAL（SSDP urn:dial-multiscreen-org:service:dial:1）
+ *   - 连接：按设备 type 建 DlnaRenderer / ChromecastClient / DialClient
  *   - 投本地文件（起 LAN 文件服务）/ 投远程 URL → 统一控制（play/pause/stop/seek/setVolume）
  *   - 状态变更 → 推 'cast:state' 给渲染端
  *
  * Chromecast 鉴权：CASTV2 TLS 要求标准 Cast 客户端证书（含 salt）。证书/私钥
  * 通过配置项 cast.chromecastCert / cast.chromecastKey / cast.chromecastSalt 注入
  * （PEM 字符串或文件路径，缺则无法过鉴权）。见 chromecast.js。
+ * DIAL：仅"发现 + 启动/停止目标 App"，由配置项 cast.dialApp 指定默认 App（默认 YouTube）。
+ * 见 dial.js。
  */
 const { ipcMain } = require('electron');
 const {
@@ -19,6 +22,9 @@ const {
 const {
   ChromecastDiscovery, ChromecastClient,
 } = require('./cast/chromecast');
+const {
+  DialDiscovery, DialClient, isDialDevice,
+} = require('./cast/dial');
 const { CastFileServer, resolveMime } = require('./cast/file-server');
 
 let CTX = {};
@@ -39,6 +45,7 @@ function buildCastOpts(ipcCtx) {
     o.authCertificate = pick('cast.chromecastCert');
     o.authKey = pick('cast.chromecastKey');
     o.authSalt = pick('cast.chromecastSalt');
+    o.dialAppName = pick('cast.dialApp') || 'YouTube';
     const fso = pick('cast.fileServer');
     if (fso && typeof fso === 'object') o.fileServerOpts = fso;
   }
@@ -57,9 +64,9 @@ function sendToRenderer(channel, payload) {
 class CastManager {
   constructor(opts) {
     this.opts = opts || {};
-    this.discoveries = new Map();   // type('dlna'|'chromecast') -> discovery instance
+    this.discoveries = new Map();   // type('dlna'|'chromecast'|'dial') -> discovery instance
     this.devices = new Map();        // udn/id -> { udn, type, ... }
-    this.client = null;              // 当前活动客户端（DlnaRenderer | ChromecastClient）
+    this.client = null;              // 当前活动客户端（DlnaRenderer | ChromecastClient | DialClient）
     this.activeUdn = null;
     this.fileServer = new CastFileServer(this.opts.fileServerOpts || {});
     this.httpRequest = this.opts.httpRequest || nodeHttpRequest;
@@ -67,6 +74,8 @@ class CastManager {
       (() => new DlnaDiscovery());
     this._createChromecastDiscovery = this.opts.createChromecastDiscovery ||
       (() => new ChromecastDiscovery());
+    this._createDialDiscovery = this.opts.createDialDiscovery ||
+      (() => new DialDiscovery());
   }
 
   /* ---- 发现 ---- */
@@ -75,6 +84,7 @@ class CastManager {
     if (this.discoveries.size) return { ok: true, already: true };
     this._startDlnaDiscovery();
     this._startChromecastDiscovery();
+    this._startDialDiscovery();
     return { ok: true };
   }
 
@@ -124,6 +134,26 @@ class CastManager {
     d.start().catch((e) => console.warn('[cast] Chromecast 发现启动失败:', e.message));
   }
 
+  _startDialDiscovery() {
+    let d;
+    try { d = this._createDialDiscovery(); }
+    catch (e) { console.warn('[cast] DIAL 发现初始化失败:', e.message); return; }
+    d.on('response', ({ headers, address }) => {
+      if (!isDialDevice(headers)) return;
+      const loc = headers.location;
+      if (!loc) return;
+      const usn = headers.usn || '';
+      const udn = (usn.split('::')[0]) || loc;
+      const existing = this.devices.get(udn);
+      if (existing && existing.dialServiceUrl) return;
+      this._fetchDialDescription(udn, loc, headers)
+        .catch((e) => console.warn('[cast] DIAL 设备描述拉取失败', loc, e.message));
+    });
+    d.on('error', (e) => console.warn('[cast] DIAL 发现错误:', e.message));
+    this.discoveries.set('dial', d);
+    d.start().catch((e) => console.warn('[cast] DIAL 发现启动失败:', e.message));
+  }
+
   async _fetchDescription(udn, loc, ssdpHeaders) {
     const res = await this.httpRequest(loc, { method: 'GET' });
     if (!res || (res.statusCode && res.statusCode >= 400)) {
@@ -133,6 +163,30 @@ class CastManager {
     const entry = {
       udn, type: 'dlna', ssdp: ssdpHeaders, desc, connected: false,
       friendlyName: undefined, modelName: undefined, manufacturer: undefined,
+    };
+    this.devices.set(udn, entry);
+    sendToRenderer('cast:device', this._deviceSummary(udn, entry));
+    return entry;
+  }
+
+  async _fetchDialDescription(udn, loc, ssdpHeaders) {
+    const res = await this.httpRequest(loc, { method: 'GET' });
+    if (!res || (res.statusCode && res.statusCode >= 400)) {
+      throw new Error('http ' + (res && res.statusCode));
+    }
+    const desc = parseDeviceDescription(res.body, loc);
+    // 从设备描述里找 DIAL 服务，取其 controlURL 作为"应用基址"
+    const dialSvc = (desc.services || []).find(
+      (s) => s.type && s.type.toLowerCase().includes('dial-multiscreen'));
+    const dialServiceUrl = dialSvc ? dialSvc.controlURL : '';
+    if (!dialServiceUrl) {
+      // 应答了 DIAL ST 但描述里没有 DIAL 服务，当作非 DIAL 设备跳过
+      console.warn('[cast] 设备', udn, '描述中无 DIAL 服务，跳过');
+      return null;
+    }
+    const entry = {
+      udn, type: 'dial', ssdp: ssdpHeaders, desc, dialServiceUrl, connected: false,
+      friendlyName: desc.friendlyName, modelName: desc.modelName, manufacturer: desc.manufacturer,
     };
     this.devices.set(udn, entry);
     sendToRenderer('cast:device', this._deviceSummary(udn, entry));
@@ -183,6 +237,13 @@ class CastManager {
       });
       await client.connect();
       this.client = client;
+    } else if (entry.type === 'dial') {
+      // DIAL 无需握手连接；直接建客户端（默认启动 cast.dialApp 指定的 App）
+      this.client = new DialClient({
+        device: { dialServiceUrl: entry.dialServiceUrl },
+        appName: this.opts.dialAppName || 'YouTube',
+        httpRequest: this.httpRequest,
+      });
     } else {
       if (!entry.desc) await this._fetchDescription(udn, entry.ssdp.location, entry.ssdp);
       this.client = new DlnaRenderer({ device: entry.desc, httpRequest: this.httpRequest });

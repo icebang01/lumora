@@ -168,6 +168,9 @@ const DEFAULTS = {
   'cast.chromecastCert': '',
   'cast.chromecastKey': '',
   'cast.chromecastSalt': '',
+  // DIAL 投屏：默认启动的目标 App（YouTube / Netflix 等；DIAL 只负责"发现 + 启动 App"，
+  // 由该 App 自行决定如何播放传入的 URL，暂停/进度/音量等依赖具体 App）。
+  'cast.dialApp': 'YouTube',
 };
 
 /** 布尔字段：接受 yes/no/true/false/1/0，向 mpv 的写法看齐 */

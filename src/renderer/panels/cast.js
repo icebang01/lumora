@@ -1,5 +1,5 @@
 /**
- * 投屏面板（自包含模块，cast-out，v1 = DLNA + Chromecast）。
+ * 投屏面板（自包含模块，cast-out，v2 = DLNA + Chromecast + DIAL）。
  * 从 app.js 拆出（2026-08）：设备发现列表 + 连接 + 投屏当前/URL + 播放控制。
  * 主进程逻辑在 src/main/cast/* + ipc-cast.js；本模块只负责 UI 与调用 window.lumen.cast*。
  * 用法：setupCast({ player, osd });  toggleCastPanel() 由 app.js 暴露给右键菜单/命令总线。
@@ -223,7 +223,7 @@ function renderCastPanel() {
   if (!devices.length) {
     const empty = document.createElement('div');
     empty.className = 'cast-empty';
-    empty.textContent = '未发现投屏设备。请确保电视/盒子已开机并连入同一 Wi-Fi，且开启了 DLNA 或 Chromecast 投屏。';
+    empty.textContent = '未发现投屏设备。请确保电视/盒子已开机并连入同一 Wi-Fi，且开启了 DLNA、Chromecast 或 DIAL 投屏。';
     list.appendChild(empty);
     return;
   }
