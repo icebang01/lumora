@@ -3974,11 +3974,12 @@ body.audio-mode #music-stage {
    #0a0a0f 而形成深色横条。 */
 .ms-backdrop {
   position: fixed;
-  inset: 0;
-  background-size: cover;
+  inset: 20px;                   /* 内缩，使模糊底成为漂浮圆角卡，去掉直角铺满 */
+  border-radius: 28px;
+  overflow: hidden;
+  background-size: 116% 116%;    /* 放大背景，避免 border-radius 裁切处出现模糊透明边 */
   background-position: center;
   filter: blur(120px) saturate(160%) brightness(1.0);
-  transform: scale(1.08);
   opacity: 0;
   pointer-events: auto;          /* 覆盖 #music-stage 的 pointer-events:none，使背景层可命中 */
   -webkit-app-region: drag;      /* 背景层负责整窗拖动 */
@@ -3991,6 +3992,7 @@ body.audio-mode #music-stage {
     radial-gradient(60% 60% at 28% 18%, rgba(110,231,255,.32), transparent 70%),
     radial-gradient(60% 60% at 82% 82%, rgba(255,122,198,.28), transparent 70%),
     linear-gradient(160deg, #3a3e50, #2a2d3a);
+  background-size: 116% 116%;
 }
 
 /* 氛围光层：在模糊封面之上叠加缓慢漂移的彩色光斑，让背景不那么「干净/单调」。
@@ -3998,7 +4000,8 @@ body.audio-mode #music-stage {
    与 backdrop 同步使用 fixed 定位，确保覆盖完整视口。 */
 .ms-ambient {
   position: fixed;
-  inset: 0;
+  inset: 20px;                   /* 与 .ms-backdrop 同步内缩，氛围光收进圆角卡内 */
+  border-radius: 28px;
   z-index: 1;
   pointer-events: none;
   overflow: hidden;
