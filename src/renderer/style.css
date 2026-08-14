@@ -3956,6 +3956,7 @@ body.audio-mode .ms-win-btn:hover {
    同时把 pointer-events 从全局 none 改为 auto，否则 drag 命中测试拿不到事件。 */
 body.audio-mode #music-stage {
   opacity: 1;
+  border-radius: 16px;           /* 音乐模式窗口裁成圆角，四角透出桌面（无边框透明窗口的 DWM 圆角常不生效，用 CSS 兜底） */
   /* 控制条已 fixed 贴底，不再占用 grid 的 row 3/4；去掉预留底边距行。
      底部安全距离改由 .ms-content 的 padding-bottom 提供，避免 #music-stage
      自身底部 padding 露出纯色 #0a0a0f 形成深色横条。 */
