@@ -1,4 +1,5 @@
 'use strict';
+const { clamp } = require('./clamp');
 /**
  * 桌面歌词窗口（独立辅助窗口，自包含模块）。
  *
@@ -127,7 +128,7 @@ function _createWindow() {
       const b = {
         x: dlBounds.x,
         y: dlBounds.y,
-        width: Math.max(DL_MIN_WIDTH, Math.min(1920, dlBounds.width || DL_DEFAULT_WIDTH)),
+        width: clamp(dlBounds.width || DL_DEFAULT_WIDTH, DL_MIN_WIDTH, 1920),
         height: Math.max(DL_DEFAULT_HEIGHT, dlBounds.height || DL_DEFAULT_HEIGHT),
       };
       win.setBounds(b);
@@ -187,7 +188,7 @@ function moveBy(dx, dy) {
 }
 
 function setFontSize(delta) {
-  dlFontSize = Math.max(16, Math.min(72, (dlFontSize || 30) + (delta || 0)));
+  dlFontSize = clamp((dlFontSize || 30) + (delta || 0), 16, 72);
   _saveSettings();
 }
 
@@ -203,7 +204,7 @@ function setFontFamily(family) {
 function setFontWeight(weight) {
   const w = parseInt(weight, 10);
   if (Number.isNaN(w)) return;
-  dlFontWeight = Math.max(100, Math.min(900, w));
+  dlFontWeight = clamp(w, 100, 900);
   _saveSettings();
   if (dlWin && !dlWin.isDestroyed() && dlWin.webContents) {
     try { dlWin.webContents.send('desktop-lyrics:font', { weight: dlFontWeight }); } catch {}

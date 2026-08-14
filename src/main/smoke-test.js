@@ -1,3 +1,4 @@
+const { clamp } = require('./clamp');
 /**
  * 冒烟测试(自包含模块)。
  * 从 index.js 拆出(2026-08):runSmokeTest 及其全部子测试块。
@@ -212,7 +213,7 @@ async function runSmokeTest(win, deps = {}) {
       // ---- 4. 跳转 ----
       // 先暂停再跳。跳完还让它继续播的话，等待期间时间码自然往前走，
       // 断言测到的是"跳转 + 播放"的混合结果，落点精度根本无从判断
-      const target = Math.min(8, Math.max(1, a.props.duration * 0.5));
+      const target = clamp(a.props.duration * 0.5, 1, 8);
       const epochBefore = a.transport.epoch;
       await send(['set', 'pause', true]);
       await wait(300);

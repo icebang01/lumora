@@ -1,4 +1,5 @@
 'use strict';
+const { clamp } = require('../clamp');
 /**
  * Chromecast 投屏客户端（cast-out，从零实现，DI 可注入）。
  *
@@ -507,7 +508,7 @@ class ChromecastClient extends EventEmitter {
     return this._request(NS.media, { type: 'SEEK', mediaSessionId: this._mediaSessionId, currentTime: Number(seconds) || 0 });
   }
   async setVolume(volume) {
-    const level = Math.max(0, Math.min(1, (Number(volume) || 0) / 100));
+    const level = clamp((Number(volume) || 0) / 100, 0, 1);
     return this._request(NS.receiver, { type: 'SET_VOLUME', volume: { level } });
   }
 

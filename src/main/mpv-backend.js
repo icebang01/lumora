@@ -1,4 +1,5 @@
 'use strict';
+const { clamp } = require('./clamp');
 /**
  * MPV 后端 —— 通过 --wid 将 mpv 嵌入 Electron 窗口，用 JSON IPC 遥控。
  *
@@ -219,7 +220,7 @@ class MpvBackend extends EventEmitter {
     if (this.config.get('sub-bg')) {
       const bgColor = this.config.get('sub-bg-color') || '#000000';
       const bgHex = (typeof bgColor === 'string' && bgColor.length === 7) ? bgColor : '#000000';
-      const bgOp = Math.max(0, Math.min(100, num(this.config.get('sub-bg-opacity'), 50))) / 100;
+      const bgOp = clamp(num(this.config.get('sub-bg-opacity'), 50), 0, 100) / 100;
       const bgA = Math.round(bgOp * 255).toString(16).padStart(2, '0');
       opts.push(`--sub-back-color=${bgHex}${bgA}`);
     }

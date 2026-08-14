@@ -1,4 +1,5 @@
 'use strict';
+const { clamp } = require('./clamp');
 /**
  * 播放历史存储。
  *
@@ -23,7 +24,7 @@ let LIMIT = DEFAULT_LIMIT;
  */
 function setHistoryLimit(n) {
   const v = parseInt(n, 10);
-  if (Number.isFinite(v)) LIMIT = Math.min(50, Math.max(1, v));
+  if (Number.isFinite(v)) LIMIT = clamp(v, 1, 50);
 }
 
 // 规范化用于去重比较：统一为正斜杠 + 小写，忽略路径分隔符/大小写差异

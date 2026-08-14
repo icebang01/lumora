@@ -1,3 +1,4 @@
+const { clamp } = require('./clamp');
 /**
  * 双窗口管理（自包含模块）。
  * 从 index.js 拆出（2026-08）：computeWindowSize / createWindow / syncWindows /
@@ -34,7 +35,7 @@ function computeWindowSize() {
   const autofit = String(getConfig().get('autofit') || '70%');
   let ratio = 0.7;
   const m = autofit.match(/^(\d+(?:\.\d+)?)%$/);
-  if (m) ratio = Math.min(Math.max(parseFloat(m[1]) / 100, 0.2), 1);
+  if (m) ratio = clamp(parseFloat(m[1]) / 100, 0.2, 1);
   // 默认按 16:9 起手，载入媒体后会按真实宽高比修正
   let w = Math.round(sw * ratio);
   let h = Math.round(w * 9 / 16);

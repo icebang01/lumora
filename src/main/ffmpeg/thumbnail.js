@@ -1,4 +1,5 @@
 'use strict';
+const { clamp } = require('../clamp');
 /**
  * 视频缩略图生成。
  *
@@ -104,7 +105,7 @@ function generateSheet(filePath, ffmpegDir, opts = {}) {
   if (!duration || duration < 1) return { ok: false, error: 'duration 未知' };
 
   if (!count) count = Math.round(duration / 45); // 约每 45s 一帧
-  count = Math.max(4, Math.min(120, Math.round(count)));
+  count = clamp(Math.round(count), 4, 120);
   const cols = SHEET_COLS;
   const rows = Math.ceil(count / cols);
   const file = sheetFile(filePath, count, duration);

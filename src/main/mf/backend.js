@@ -1,4 +1,5 @@
 'use strict';
+const { clamp } = require('../clamp');
 /**
  * Media Foundation 解码后端（JS 封装）。
  *
@@ -156,7 +157,7 @@ class MfBackend extends EventEmitter {
   get outputFps() {
     const v = this.currentVideo;
     if (!v) return 25;
-    return Math.min(Math.max(v.fps || 25, 1), 240);
+    return clamp(v.fps || 25, 1, 240);
   }
 
   /* ---------------- 内部：把原生 open 回报的 meta 落成本地状态 ---------------- */
@@ -324,12 +325,12 @@ class MfBackend extends EventEmitter {
 
   seek(time) {
     const dur = this.info ? this.info.duration : 0;
-    const t = Math.max(0, dur > 0 ? Math.min(time, dur - 0.05) : time);
+    const t = clamp(time, 0, dur > 0 ? dur - 0.05 : time);
     return this.start(t);
   }
 
   setSpeed(speed, currentTime) {
-    const s = Math.min(Math.max(speed, 0.05), 16);
+    const s = clamp(speed, 0.05, 16);
     if (Math.abs(s - this.speed) < 1e-6) return null;
     this.speed = s;
     // 变速不再由解码侧变采样率实现（那会让音高跟着变）。MF 恒以原始 48k 输出，

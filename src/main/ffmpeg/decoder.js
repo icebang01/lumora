@@ -1,4 +1,5 @@
 'use strict';
+const { clamp } = require('../clamp');
 /**
  * FFmpeg 解码管线。
  *
@@ -231,7 +232,7 @@ class MediaPipeline extends EventEmitter {
     const v = this.currentVideo;
     if (!v) return 25;
     // 限制在合理区间，防止损坏文件报出 1000fps 这种荒谬值把内存吃爆
-    return Math.min(Math.max(v.fps || 25, 1), 240);
+    return clamp(v.fps || 25, 1, 240);
   }
 
   _hwaccelArgs(v) {
@@ -581,12 +582,12 @@ class MediaPipeline extends EventEmitter {
 
   seek(time) {
     const dur = this.info ? this.info.duration : 0;
-    const t = Math.max(0, dur > 0 ? Math.min(time, dur - 0.05) : time);
+    const t = clamp(time, 0, dur > 0 ? dur - 0.05 : time);
     return this.start(t);
   }
 
   setSpeed(speed, currentTime) {
-    const s = Math.min(Math.max(speed, 0.05), 16);
+    const s = clamp(speed, 0.05, 16);
     if (Math.abs(s - this.speed) < 1e-6) return null;
     this.speed = s;
     // 变速必须重启管线：音频要重新过 atempo 滤镜，

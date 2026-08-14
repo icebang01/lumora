@@ -1,4 +1,5 @@
 'use strict';
+const { clamp } = require('../clamp');
 /**
  * DLNA / UPnP 控制点（cast-out，v1）。
  *
@@ -490,7 +491,7 @@ class DlnaRenderer {
 
   /** 设置音量（0~100） */
   async setVolume(volume) {
-    const v = Math.max(0, Math.min(100, Math.round(Number(volume) || 0)));
+    const v = clamp(Math.round(Number(volume) || 0), 0, 100);
     return this._soap(SERVICE.RenderingControl, 'SetVolume', {
       InstanceID: 0, Channel: 'Master', DesiredVolume: v,
     });
