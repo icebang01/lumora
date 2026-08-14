@@ -1,4 +1,13 @@
-import { clamp } from '../../shared/clamp.js';
+/**
+ * 本文件经 blob: URL 加载进 AudioWorkletGlobalScope，相对路径 import 无法解析
+ * （blob 是非层级化 scheme），故 clamp 必须内联、保持 worklet 自包含。
+ * 语义与 src/shared/clamp.js 逐字节一致（含 swap 保护）。
+ */
+function clamp(value, min, max) {
+  if (min > max) { const t = min; min = max; max = t; }
+  return Math.max(min, Math.min(value, max));
+}
+
 /**
  * 音频输出 Worklet —— 同时是整个播放器的主时钟源。
  *
