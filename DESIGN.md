@@ -361,9 +361,10 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 
 ---
 
-## 附录 A · 界面清单 / Screen Inventory（`design/` 目录）
+## 附录 A · 界面清单 / Screen Inventory
 
-> 由本规范驱动的设计交付件（自包含 HTML 预览，令牌 1:1 还原 `style.css`，纯预览、零源码改动）。
+### A.1 设计交付件（`design/` 目录，令牌 1:1 还原 `style.css`，零源码改动）
+
 > 中心枢纽：`design/index.html`；规范自检：`design/DESIGN_PREVIEW.html`（令牌总览 + 暗↔亮 + 响应式模拟器）。
 
 | 交付件 | 文件 | 类型 | 主题 | 要点 |
@@ -376,5 +377,45 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 | 网络串流弹窗 | `NETWORK_STREAM_MOCK.html` | DIALOG | 暗 | 居中玻璃、等宽地址输入（聚焦 accent 光环）、错误态 |
 | 投屏面板 | `CAST_PANEL_MOCK.html` | PANEL | 暗/亮 | 设备列表（DLNA/Chromecast/DIAL 徽章）+ 连接后控制区；DIAL 置顶展示 v2 新协议 |
 | 响应式模拟器 | `DESIGN_PREVIEW.html#responsive` | TOOL | — | 拖拽模拟窗口宽度，观察 OSC 换行（≤900）/ 音乐堆叠（≤720·≤560h） |
+
+### A.2 真实界面 · 交付（mock）状态总览
+
+> 渲染进程全部 UI 表面盘点（2026-08-14 审计）。✅ = 已有 `design/` mock；❌ = 真实界面但尚无 mock。
+> 主程序 chrome（OSC / 设置 / 播放列表 / 音乐 / 空闲 / 投屏 / EQ / 统计 / 弹幕 / 右键菜单 等）**零硬编码颜色**，已全量令牌化（见 A.3）。
+
+| 真实界面 | 源文件 | 类型 | Mock | 备注 |
+|---|---|---|---|---|
+| OSC 控制条 | `ui/osc.js` | OVERLAY | ❌ | **核心控制层**（播放头/缓冲条/进度辉光/音量渐变/弹幕激活态，见 commit `552e8b1`），最常用却无 mock —— 头号缺口 |
+| 视频画面/WebGL | `player/video-player.js` `gl/renderer.js` | CANVAS | — | 视频本身，非面板，无需 mock |
+| 设置面板 | `panels/settings.js` | PANEL | ✅ | `SETTINGS_MOCK.html` |
+| 音乐舞台 | `ui/music-stage.js` | SCREEN | ✅ | `MUSIC_STAGE_MOCK.html`（含迷你播放器） |
+| 空闲落地页 | `panels/idle.js` | SCREEN | ✅ | `IDLE_SCREEN_MOCK.html` |
+| 播放列表 | `panels/playlist.js` | PANEL | ✅ | `PLAYLIST_MOCK.html` |
+| 网络串流 | `panels/`（dialog） | DIALOG | ✅ | `NETWORK_STREAM_MOCK.html` |
+| 投屏面板 | `panels/cast.js` | PANEL | ✅ | `CAST_PANEL_MOCK.html` |
+| EQ 均衡器 | `panels/eq.js` | PANEL | ❌ | 10 段图示 + 预设，已令牌化（`8d21336`） |
+| 统计面板 | `ui/stats.js` | PANEL | ❌ | 帧/音频/解码实时统计，已令牌化 |
+| 字幕样式 | `panels/subtitle-style.js` | PANEL | ❌ | 用户可配置字幕外观（见 A.3：非 UI 令牌漂移） |
+| 字幕 | `panels/subtitles.js` | OVERLAY | ❌ | 双轨字幕渲染层 |
+| 歌词搜索 | `panels/lyrics-search.js` | DIALOG | ❌ | 歌词源检索弹窗 |
+| 键位编辑器 | `ui/keybind-editor.js` | DIALOG | ❌ | 快捷键重绑定（`7e6f092` 修复转义） |
+| AI 面板 | `ui/ai-panel.js` | PANEL | ❌ | AI 辅助面板 |
+| 右键菜单 | `panels/context-menu.js` | OVERLAY | ❌ | 上下文菜单（`796e12b` 令牌化） |
+| 弹幕 | `panels/danmaku.js` `core/danmaku-renderer.js` | OVERLAY | ❌ | 弹幕渲染（含本地/弹弹play/B站） |
+| 许可证 | `panels/licenses.js` | DIALOG | ❌ | 第三方许可证（`24b2202` 令牌化） |
+| 画中画 | `pip.html` `pip-preload.js` | FLOATING | ❌ | 独立浮动视频窗（见 A.3 漂移） |
+| 桌面歌词 | `desktop-lyrics.html` | FLOATING | ❌ | 独立浮动歌词窗（见 A.3 漂移） |
+| 音频解锁 | `panels/audio-unlock.js` | OVERLAY | ❌ | 无音卡环境解锁浮层 |
+| 设计令牌/响应式 | `design/DESIGN_PREVIEW.html` | TOOL | ✅ | 规范自检入口 |
+
+### A.3 已知设计漂移（Known Drift，2026-08-14 审计）
+
+- **浮动窗独立调色板**（桌面歌词 `desktop-lyrics.html`、画中画 `pip.html`）：定义**局部 accent 令牌**而非引用全局 `--accent`：
+  - `--dl-accent: #4d8dff` 偏离品牌 `--accent: #7c8cff`（已部分一致：`--dl-accent-b: #7c8cff`、hover `rgba(124,140,255,…)` 即 `#7c8cff`）。
+  - 暗色玻璃背景 `rgba(14,16,28,.86)` / `rgba(18,20,32,.6)` 与投屏面板 `rgba(12,13,18,.94)` 近似但未统一。
+  - 大量 `rgba(255,255,255,α)` 文本色属浮动窗叠加桌面场景的合理选择，非严格令牌化；如需 100% 合规可改引 `--text-1/2/3`。
+  - **建议**：将 `--dl-accent` 对齐 `#7c8cff`、背景统一到 `rgba(12,13,18,.94)` 体系，或文档明示「浮动窗允许独立调色板」为有意设计。
+- **字幕样式非漂移**：`subtitle-style.js` 的 `#FFFFFF`/`#000000` 默认与生成 `rgba(0,0,0,α)` 是**用户可配置字幕外观**（内容层），不属 UI 令牌，正确无需改。
+- **主程序 chrome 全量令牌化**：上述 ❌ 面板中 EQ/统计/右键菜单/许可证/键位/OSC 等实测零硬编码颜色，符合本规范，无需返工。
 
 **投屏协议支持（v2）**：DLNA（UPnP/AVTransport，完整 pause/seek/volume）· Chromecast（CAstV2 + mDNS，标准 Cast 客户端证书需用户自备）· **DIAL**（SSDP `ST=urn:dial-multiscreen-org:service:dial:1`，仅 launch 应用自身拉取 URL，无通用传输控制）。类型徽章配色见 §4.10。
