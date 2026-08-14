@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · 桌面歌词 Mock</title>
+<style>
+  :root {
+    --accent:#7c8cff; --accent-pink:#ff7ac6; --accent-cyan:#6ee7ff;
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --ease:cubic-bezier(.16,1,.3,1);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    /* 桌面歌词本地调色板（见 DESIGN.md A.3 漂移说明：--dl-accent 偏离品牌 #7c8cff） */
+    --dl-font:30px;
+    --dl-font-family:var(--font);
+    --dl-font-weight:800;
+    --dl-accent:#4d8dff;       /* 真源默认回退值（建议对齐 #7c8cff） */
+    --dl-accent-a:#8fe3ff; --dl-accent-b:#7c8cff; --dl-accent-c:#ff9ed6;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; }
+  body { font-family:var(--font); overflow:hidden; background:#0a0b10; }
+
+  .topbar { position:fixed; top:0; left:0; right:0; height:54px; z-index:90; display:flex; align-items:center; gap:14px; padding:0 18px; background:rgba(10,11,16,.6); backdrop-filter:blur(18px) saturate(160%); border-bottom:1px solid rgba(255,255,255,.09); }
+  .topbar .brand { font-size:16px; font-weight:700; background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar .meta { font-size:11.5px; color:rgba(255,255,255,.42); }
+  .topbar .spacer { flex:1; }
+
+  .desktop { position:absolute; inset:54px 0 0 0;
+    background:
+      radial-gradient(900px 600px at 15% 25%, #243a52 0%, transparent 55%),
+      radial-gradient(800px 600px at 88% 85%, #3a2350 0%, transparent 55%),
+      linear-gradient(135deg,#0e1320,#181024 70%,#0b0f18);
+  }
+
+  /* ===== 桌面歌词浮窗（镜像 src/renderer/desktop-lyrics.html，透明窗口叠桌面） ===== */
+  #dl-stage {
+    position:absolute; left:50%; top:58%; transform:translate(-50%,-50%);
+    width:min(760px,80vw);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    padding:14px 22px 10px; text-align:center;
+  }
+  .dl-meta { display:flex; flex-direction:column; align-items:center; gap:0; max-width:100%; margin-bottom:1px; line-height:1.2; }
+  .dl-meta-row { display:flex; align-items:baseline; justify-content:center; gap:8px; max-width:100%; }
+  .dl-title { font-size:calc(var(--dl-font) * .42); font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; text-shadow:0 1px 5px rgba(0,0,0,.55); }
+  .dl-artist { font-size:calc(var(--dl-font) * .34); font-weight:500; color:rgba(255,255,255,.72); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; text-shadow:0 1px 4px rgba(0,0,0,.5); }
+  .dl-album { font-size:calc(var(--dl-font) * .3); font-weight:500; color:rgba(255,255,255,.48); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; text-shadow:0 1px 4px rgba(0,0,0,.5); }
+  .dl-current { font-size:var(--dl-font); font-weight:var(--dl-font-weight); line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; color:rgba(255,255,255,.78); filter:drop-shadow(0 2px 10px rgba(0,0,0,.5)); }
+  .dl-current .dl-char { transition:color .25s ease, -webkit-text-fill-color .25s ease, text-shadow .25s ease; }
+  .dl-current .dl-char.lit { color:var(--dl-accent); -webkit-text-fill-color:var(--dl-accent); text-shadow:0 0 14px color-mix(in srgb, var(--dl-accent) 65%, transparent); }
+  .dl-next { font-size:calc(var(--dl-font) * .56); font-weight:600; line-height:1.2; color:rgba(255,255,255,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; text-shadow:0 1px 6px rgba(0,0,0,.55); }
+  .dl-trans { font-size:calc(var(--dl-font) * .44); font-weight:500; line-height:1.2; color:rgba(255,255,255,.4); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; text-shadow:0 1px 6px rgba(0,0,0,.55); }
+
+  /* 控制钮簇（悬停显现，演示常显） */
+  .dl-controls { position:absolute; top:6px; right:8px; display:flex; gap:6px; opacity:0; transition:opacity .2s ease; }
+  #dl-stage:hover ~ .dl-controls, .dl-controls.demo { opacity:1; }
+  .dl-btn { width:24px; height:24px; border:none; border-radius:50%; background:rgba(18,20,32,.6); backdrop-filter:blur(6px); color:#fff; font-size:14px; font-weight:700; line-height:24px; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s ease, transform .1s ease; }
+  .dl-btn:hover { background:rgba(124,140,255,.85); }
+  .dl-btn:active { transform:scale(.92); }
+  .dl-btn svg { width:13px; height:13px; display:block; }
+
+  /* 字体设置面板（演示展开） */
+  .dl-font-panel { position:absolute; top:36px; right:8px; min-width:188px; padding:12px 14px; background:rgba(14,16,28,.86); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.12); border-radius:12px; color:#fff; font-size:13px; display:flex; flex-direction:column; gap:10px; }
+  .dl-font-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .dl-font-row label { color:rgba(255,255,255,.72); font-size:12px; white-space:nowrap; }
+  .dl-font-row select { flex:1; min-width:0; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.16); border-radius:6px; color:#fff; font-size:12px; padding:5px 8px; outline:none; cursor:pointer; }
+  .dl-font-row select option { background:#1a1c2a; color:#fff; }
+
+  .footnote { position:fixed; left:18px; bottom:14px; right:18px; z-index:90; font-size:11px; color:rgba(255,255,255,.42); line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="brand">Lumora · 桌面歌词</span>
+    <span class="meta">src/renderer/desktop-lyrics.html · 透明浮动窗（逐字着色 + 字号/字体/锁定）</span>
+    <span class="spacer"></span>
+  </div>
+
+  <div class="desktop">
+    <div id="dl-stage">
+      <div class="dl-meta" id="dl-meta">
+        <div class="dl-meta-row">
+          <div class="dl-title" id="dl-title">夜空中最亮的星</div>
+          <div class="dl-artist" id="dl-artist">逃跑计划</div>
+        </div>
+        <div class="dl-album" id="dl-album">世界</div>
+      </div>
+      <div class="dl-current" id="dl-current" role="status" aria-live="polite"><!-- 逐字着色由脚本注入 --></div>
+      <div class="dl-next" id="dl-next">是否夜色太浓 蒙住你的眼睛</div>
+      <div class="dl-trans" id="dl-trans">Are the stars in the night too dim to see</div>
+    </div>
+
+    <div class="dl-controls demo" id="dl-controls">
+      <button class="dl-btn" id="dl-font-minus" title="缩小字号"><svg viewBox="0 0 24 24"><path d="M5 11h14v2H5z" fill="currentColor"/></svg></button>
+      <button class="dl-btn" id="dl-font-plus" title="放大字号"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" fill="currentColor"/></svg></button>
+      <button class="dl-btn dl-btn-settings" id="dl-font-settings" title="字体设置"><svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.66.07-1s-.03-.68-.07-1l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.73-1l-.38-2.65A.5.5 0 0 0 14.5 1h-5a.5.5 0 0 0-.49.41l-.38 2.65a7.03 7.03 0 0 0-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.66-.07 1s.03.68.07 1l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .61.22l2.49-1.01c.53.4 1.1.74 1.73 1l.38 2.65a.5.5 0 0 0 .49.41h5a.5.5 0 0 0 .49-.41l.38-2.65a7.03 7.03 0 0 0 1.73-1l2.49 1.01a.5.5 0 0 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65z" fill="currentColor"/></svg></button>
+      <button class="dl-btn dl-btn-lock" id="dl-lock" title="锁定/解锁位置"><svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm3 8H9V7a3 3 0 0 1 6 0v3z" fill="currentColor"/></svg></button>
+      <button class="dl-btn" id="dl-close" title="关闭桌面歌词"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg></button>
+    </div>
+
+    <div class="dl-font-panel" id="dl-font-panel">
+      <div class="dl-font-row">
+        <label>字体</label>
+        <select id="dl-font-family-select">
+          <option>系统默认</option>
+          <option>微软雅黑</option>
+          <option>苹方 / 思源黑体</option>
+          <option>宋体</option>
+          <option>黑体</option>
+          <option>楷体</option>
+          <option>自定义…</option>
+        </select>
+      </div>
+      <div class="dl-font-row">
+        <label>字重</label>
+        <select id="dl-font-weight-select">
+          <option>细体</option><option>常规</option><option>中等</option><option>粗体</option><option selected>特粗</option><option>黑体</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    1:1 还原桌面歌词浮窗（透明独立窗口，叠在桌面之上，整窗可拖拽 CSS app-region:drag）：当前行逐字着色（已唱字 = `--dl-accent`，未唱字暗灰白），下一行 + 翻译行暗调小字，顶部歌名/歌手/专辑元信息，右上角悬停控制钮（缩小/放大字号 · 字体设置 · 锁定 · 关闭）+ 字体面板（字体/字重）。<br>
+    属「浮动窗独立调色板」（DESIGN.md A.3）：`--dl-accent` 默认 `#4d8dff` 偏离品牌 `#7c8cff`，建议对齐；字号 16–72px 由主进程 A-/A+ 驱动。
+  </div>
+
+<script>
+  // 演示：当前行逐字着色（已唱字 = 前 7 个 lit）
+  const line = '夜空中最亮的星 能否听清';
+  const lit = 7;
+  const cur = document.getElementById('dl-current');
+  cur.innerHTML = '';
+  for (let i = 0; i < line.length; i++) {
+    const s = document.createElement('span');
+    s.className = 'dl-char' + (i < lit ? ' lit' : '');
+    s.textContent = line[i];
+    cur.appendChild(s);
+  }
+  // 字号 A-/A+
+  const root = document.documentElement;
+  document.getElementById('dl-font-plus').addEventListener('click', ()=>{ let f=parseInt(getComputedStyle(root).getPropertyValue('--dl-font')); root.style.setProperty('--dl-font',(Math.min(72,f+2))+'px'); });
+  document.getElementById('dl-font-minus').addEventListener('click', ()=>{ let f=parseInt(getComputedStyle(root).getPropertyValue('--dl-font')); root.style.setProperty('--dl-font',(Math.max(16,f-2))+'px'); });
+</script>
+</body>
+</html>

@@ -182,6 +182,34 @@ h1{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.05;
       <p>右侧玻璃抽屉，接到主进程 player:ai:* 事件流：用户气泡（青→紫渐变）/ 助手气泡（暗玻璃）/ 工具笔记（⏳→✓/✗ 回灌：加载字幕·加载弹幕·设置）；错误分支对 model_not_found / api_key / timeout / tool_calls 给中文诊断。覆盖层永远暗色。</p>
       <div class="go">打开预览 →</div>
     </a>
+    <a class="card" href="LICENSES_MOCK.html">
+      <div class="chip light"></div>
+      <div class="tag">DIALOG · 暗/亮(独立窗口)</div>
+      <h2>许可证面板</h2>
+      <p>可拖拽独立窗口（data-light-surface）：列出 mpv(GPLv2) / FFmpeg(LGPL) / Electron(MIT) / ws(MIT) 许可要点与上游链接，底部琥珀色「迁移到 Media Foundation 去 GPL」提示。亮色为真实可选外观。</p>
+      <div class="go">打开预览 →</div>
+    </a>
+    <a class="card" href="PIP_MOCK.html">
+      <div class="chip dark"></div>
+      <div class="tag">FLOATING · 透明浮窗</div>
+      <h2>画中画</h2>
+      <p>透明独立 BrowserWindow 叠桌面：顶栏（播放/暂停 + 标题 + 还原 + 关闭，悬停/拖拽显现）、视频画面、右下角保持宽高比缩放柄。单/双击画面 = 暂停 / 还原。</p>
+      <div class="go">打开预览 →</div>
+    </a>
+    <a class="card" href="DESKTOP_LYRICS_MOCK.html">
+      <div class="chip dark"></div>
+      <div class="tag">FLOATING · 透明浮窗</div>
+      <h2>桌面歌词</h2>
+      <p>透明浮动窗（整窗可拖拽）：当前行逐字着色（已唱字 = --dl-accent）+ 下一行 + 翻译 + 歌名/歌手/专辑元信息 + 右上角字号/字体/锁定控制钮。属浮动窗独立调色板（A.3 漂移）。</p>
+      <div class="go">打开预览 →</div>
+    </a>
+    <a class="card" href="AUDIO_UNLOCK_MOCK.html">
+      <div class="chip dark"></div>
+      <div class="tag">OVERLAY · 暗(z9000)</div>
+      <h2>音频解锁浮层</h2>
+      <p>自动播放策略兜底：AudioContext 被卡在 suspended 且无声音时广播 lumen:audio-blocked → z9000 半透明毛玻璃遮罩 + 渐变图标卡片；点击（真实手势）resumeContext 解锁后隐藏。不干扰 mpv 视频路径。</p>
+      <div class="go">打开预览 →</div>
+    </a>
     <a class="card" href="DESIGN_PREVIEW.html#responsive">
       <div class="chip overview"></div>
       <div class="tag">RESPONSIVE</div>
