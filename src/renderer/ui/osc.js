@@ -422,8 +422,8 @@ export class Osc {
     // 右上角的 AB 状态浮窗：A → B / 仅 A
     if (status) {
       status.classList.remove('hidden');
-      const aStr = formatTimeShort(a);
-      const bStr = b === null ? '…' : formatTimeShort(b);
+      const aStr = fmtTime(a);
+      const bStr = b === null ? '…' : fmtTime(b);
       status.innerHTML = `<span>AB</span><span style="opacity:.5">·</span><span>${aStr} → ${bStr}</span>`;
     }
   }
@@ -968,13 +968,3 @@ function slider({ label, value, min, max, onInput }) {
 }
 
 /* ---------- 工具函数 ---------- */
-
-function formatTimeShort(t) {
-  if (t == null || !isFinite(t)) return '0:00';
-  const s = Math.max(0, Math.floor(t));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  return `${m}:${String(sec).padStart(2, '0')}`;
-}

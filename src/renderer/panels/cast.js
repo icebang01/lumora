@@ -4,6 +4,8 @@
  * 主进程逻辑在 src/main/cast/* + ipc-cast.js；本模块只负责 UI 与调用 window.lumen.cast*。
  * 用法：setupCast({ player, osd });  toggleCastPanel() 由 app.js 暴露给右键菜单/命令总线。
  */
+import { fmtTime } from '../core/player.js';
+
 const $ = (id) => document.getElementById(id);
 
 let CTX = {};
@@ -399,12 +401,3 @@ function doCast(method, okMsg) {
   }
 }
 
-function fmtTime(sec) {
-  if (sec == null || isNaN(sec)) return '0:00';
-  const s = Math.max(0, Math.floor(sec));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const ss = s % 60;
-  const p2 = (n) => String(n).padStart(2, '0');
-  return h > 0 ? `${h}:${p2(m)}:${p2(ss)}` : `${m}:${p2(ss)}`;
-}
