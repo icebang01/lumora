@@ -7,7 +7,7 @@
 <style>
   :root {
     --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-mid:#8b7bff; --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
-    --accent-2:var(--accent-pink); /* 真源 .subsearch-btn/.danmaku-btn 用 --accent-2 但 style.css 未定义；此处收敛为 accent-pink（见 footnote） */
+    --accent-2:var(--accent-pink); /* 真源 .subsearch-btn/.danmaku-btn 已于 3374dae 修复为 --accent-pink；此处同步 */
     --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
     --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
     --surface-2:rgba(32,35,46,.94); --control-bg:rgba(255,255,255,.07); --hover-bg:rgba(255,255,255,.11);
@@ -147,7 +147,7 @@
 
   <div class="footnote">
     1:1 还原字幕层：① 视频内「双轨字幕渲染层」—— 主字幕（简体中文）+ 第二字幕（English）底部堆叠，mpv 走原生渲染、ffmpeg 走 cues 覆盖层；② 在线字幕搜索窗口 —— 片名预填、搜索 / 自动匹配、结果含语言旗标 + 来源标签（代理/OS/射手/字幕库/SubHD）+ 下载数 + 版本，点击整行加载主字幕、「副」按钮加载为第二字幕同屏显示。<br>
-    注：真源 `.subsearch-btn`/`.danmaku-btn` 引用 `--accent-2` 但 style.css 未定义；mock 收敛为 `--accent-pink` 渲染按钮渐变。覆盖层默认暗色，亮色为提案。
+    注：真源 `.subsearch-btn`/`.danmaku-btn` 引用 `--accent-2` 已于 3374dae 修复为 `--accent-pink`；mock 同步渲染按钮渐变。覆盖层默认暗色，亮色为提案。
   </div>
 
 <script>

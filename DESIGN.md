@@ -403,8 +403,8 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 | 右键菜单 | `panels/context-menu.js` | OVERLAY | ✅ | `CONTEXT_MENU_MOCK.html`（分层 + 子菜单 + 选中态） |
 | 弹幕 | `panels/danmaku.js` `core/danmaku-renderer.js` | OVERLAY | ✅ | `DANMAKU_MOCK.html`（搜索/匹配面板 + 实时弹幕层） |
 | 许可证 | `panels/licenses.js` | DIALOG | ✅ | `LICENSES_MOCK.html`（独立窗口 data-light-surface · mpv/FFmpeg/Electron/ws 许可要点 + 去 GPL 提示） |
-| 画中画 | `pip.html` `pip-preload.js` | FLOATING | ✅ | `PIP_MOCK.html`（透明浮窗 · 顶栏控制 + 保持宽高比缩放，见 A.3 漂移） |
-| 桌面歌词 | `desktop-lyrics.html` | FLOATING | ✅ | `DESKTOP_LYRICS_MOCK.html`（逐字着色 + 字号/字体/锁定，见 A.3 漂移） |
+| 画中画 | `pip.html` `pip-preload.js` | FLOATING | ✅ | `PIP_MOCK.html`（透明浮窗 · 顶栏控制 + 保持宽高比缩放，见 A.3 已闭环（有意设计）） |
+| 桌面歌词 | `desktop-lyrics.html` | FLOATING | ✅ | `DESKTOP_LYRICS_MOCK.html`（逐字着色 + 字号/字体/锁定，见 A.3 已闭环（有意设计）） |
 | 音频解锁 | `panels/audio-unlock.js` | OVERLAY | ✅ | `AUDIO_UNLOCK_MOCK.html`（z9000 兜底浮层 · 真实手势解锁） |
 | 设计令牌/响应式 | `design/DESIGN_PREVIEW.html` | TOOL | ✅ | 规范自检入口 |
 
