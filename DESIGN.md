@@ -226,7 +226,12 @@ body.ui-visible #titlebar { opacity: 1; transform: none; }
 | stats | 46 | 统计面板 |
 | ab-status | 47 | AB 循环浮窗 |
 | popover | 48 | 弹层 |
-| keymap | 49 | 键位速查（最高） |
+| keymap | 49 | 键位速查（普通内容弹层最高） |
+| ctx-menu | 60/61 | 右键上下文菜单（高于普通弹层） |
+| settings | 70 | 设置窗口 |
+| ai-panel | 90 | AI 助手面板 |
+| root-overlay | 100 | 根级浮层顶 |
+| modal-critical | 9000 | 关键模态（解锁/确认，全局最高） |
 
 ### Backdrop Effects
 统一 `backdrop-filter: blur(22px) saturate(160%)`（OSC）/ `blur(28px) saturate(190%)`（弹层）/ `blur(30px) saturate(180%)`（键位面板）。
@@ -256,11 +261,11 @@ body.ui-visible #titlebar { opacity: 1; transform: none; }
 
 ## 8. Responsive Behavior
 
-- **Breakpoints**：`≤640px`（窄窗）/ `≤420px 高`（横屏小窗）/ 默认桌面。
+- **Breakpoints**：`≤720px`（窄窗）/ `≤560px 高`（横屏小窗）/ 默认桌面。音乐舞台、设置、迷你播放器等均按此断点退化为堆叠/适配。
 - **Touch Targets**：控制按钮 `36×36px`（主按钮 `42×42px`），满足最小触控区。
 - **折叠策略**：
-  - `≤640px`：隐藏 OSC 时间显示；键位面板改单栏；统计面板 `width: calc(100vw - 28px)`。
-  - `≤420px 高`：OSC 上移；隐藏空闲页快捷键提示。
+  - `≤720px`：音乐舞台（黑胶/方封面）退化为上下堆叠；设置侧栏→顶部标签；OSC 收窄、隐藏部分按钮；键位面板改单栏；统计面板 `width: min(560px, calc(100vw - 32px))`；EQ 面板 `min(420px, calc(100vw - 40px))`。
+  - `≤560px 高`：音乐舞台堆叠；OSC 上移。
 - **Font Scaling**：字号随系统；不单独做 rem 缩放，保持 px 精确控制。
 
 ---
@@ -281,10 +286,10 @@ body.ui-visible #titlebar { opacity: 1; transform: none; }
 1. 先锁定暗色基调，再调 accent 渐变，不要反过来。
 2. 任何新浮层必须带 `backdrop-filter` 毛玻璃，否则违和。
 3. 阴影只从 `--shadow-*` 取，不要手写新 rgba。
-4. 动效时长 0.16–0.34s，统一用 `--ease`。
+4. 微交互动效时长 0.16–0.34s，统一用 `--ease`；窗口入场/转场可放宽至 .4–.8s（如 `window-in` .8s、主题切换 .35s、AI 面板滑入 .28s）。
 5. 新增颜色先加 CSS 变量，再使用，保持单点修改。
 6. 大标题字距 -.02em，正文 0。
-7. 弹层 z-index 不得高于 keymap(49)。
+7. 普通内容弹层 z-index 遵循 §6 分级（课件层 ≤49）；特殊模态（解锁/确认）与根浮层可突破，但不得高于 `modal-critical`(9000)。
 8. 改完在 `≤640px` 与 `≤420px 高` 下各验一次折叠。
 9. 涉及播放区视觉必须透明背景，让 mpv 画面透出。
 10. 提交前过一遍 §7 Do's/Don'ts 清单。
