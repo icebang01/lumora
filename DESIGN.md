@@ -363,7 +363,7 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 
 ## 附录 A · 界面清单 / Screen Inventory
 
-### A.1 设计交付件（`design/` 目录，令牌 1:1 还原 `style.css`，零源码改动）
+### A.1 设计交付件（`design/` 目录，令牌以 `style.css` 真源为基准；浮动窗独立调色板见 A.3）
 
 > 中心枢纽：`design/index.html`；规范自检：`design/DESIGN_PREVIEW.html`（令牌总览 + 暗↔亮 + 响应式模拟器）。
 
@@ -377,6 +377,8 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 | 网络串流弹窗 | `NETWORK_STREAM_MOCK.html` | DIALOG | 暗 | 居中玻璃、等宽地址输入（聚焦 accent 光环）、错误态 |
 | 投屏面板 | `CAST_PANEL_MOCK.html` | PANEL | 暗/亮 | 设备列表（DLNA/Chromecast/DIAL 徽章）+ 连接后控制区；DIAL 置顶展示 v2 新协议 |
 | 响应式模拟器 | `DESIGN_PREVIEW.html#responsive` | TOOL | — | 拖拽模拟窗口宽度，观察 OSC 换行（≤900）/ 音乐堆叠（≤720·≤560h） |
+
+> 全量 20 个交付件及状态见 A.2（20/20 mock + DESIGN.md 闭环，零源码改动）。
 
 ### A.2 真实界面 · 交付（mock）状态总览
 
