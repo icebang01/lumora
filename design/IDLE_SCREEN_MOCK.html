@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumora — Idle Landing (DESIGN.md 交付 · 空闲落地页)</title>
+<style>
+  :root{
+    --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-mid:#8b7bff; --accent-pink:#ff7ac6;
+    --ease:cubic-bezier(0.16,1,0.3,1);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+
+  /* ===== idle 落地页：暗色默认令牌 ===== */
+  .idle-screen-mock{
+    --text-1:rgba(255,255,255,.96);
+    --text-2:rgba(255,255,255,.68);
+    --text-3:rgba(255,255,255,.42);
+    --hairline:rgba(255,255,255,.09);
+    position:fixed; inset:0; overflow:hidden;
+    background:
+      radial-gradient(62% 52% at 50% 40%, rgba(124,140,255,.10), transparent 70%),
+      radial-gradient(42% 40% at 18% 64%, rgba(110,231,255,.055), transparent 62%),
+      radial-gradient(42% 40% at 82% 64%, rgba(255,122,198,.055), transparent 62%),
+      #0b0c12;
+    color:var(--text-1);
+    border-radius:24px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), inset 0 0 60px rgba(124,140,255,.04);
+    font-family:var(--font);
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ===== idle 落地页：亮色变体（data-theme="light"，与设置/许可证共用 .light-surface 令牌） ===== */
+  [data-theme="light"] .idle-screen-mock{
+    --text-1:rgba(18,20,28,.95);
+    --text-2:rgba(18,20,28,.64);
+    --text-3:rgba(18,20,28,.50);
+    --hairline:rgba(10,12,20,.10);
+    background:
+      radial-gradient(80% 60% at 50% 40%, rgba(124,140,255,.06), transparent 70%),
+      #f4f5f8;
+    box-shadow: inset 0 0 0 1px rgba(10,12,20,.10), inset 0 0 50px rgba(124,140,255,.03);
+  }
+
+  /* ===== 中央舞台：2:1:2 三栏，仅接缝线区分模块（无缝独立面板） ===== */
+  .idle-stage{
+    position:relative; min-height:100vh; width:100%;
+    display:grid; grid-template-columns:2fr 1fr 2fr; align-items:stretch;
+    background:
+      radial-gradient(62% 52% at 50% 40%, rgba(124,140,255,.09), transparent 70%),
+      radial-gradient(40% 42% at 14% 66%, rgba(110,231,255,.05), transparent 62%),
+      radial-gradient(40% 42% at 86% 66%, rgba(255,122,198,.05), transparent 62%),
+      linear-gradient(180deg,#131521 0%,#0b0d16 100%);
+    animation:window-in .8s var(--ease) both;
+  }
+  [data-theme="light"] .idle-stage{
+    background:
+      radial-gradient(80% 60% at 50% 40%, rgba(124,140,255,.04), transparent 70%),
+      linear-gradient(180deg,#ffffff 0%,#eef0f5 100%);
+  }
+  @keyframes window-in{ from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:none;} }
+
+  /* 接缝线：40% / 60% 处满高 2px 渐变光束 + 外辉光 */
+  .idle-stage::before,.idle-stage::after{
+    content:''; position:absolute; top:0; bottom:0; width:2px; z-index:0; pointer-events:none;
+    background:linear-gradient(to bottom,
+      rgba(124,140,255,.06) 0%, rgba(124,140,255,.50) 20%,
+      rgba(255,122,198,.50) 50%, rgba(110,231,255,.50) 80%, rgba(110,231,255,.06) 100%);
+    box-shadow:0 0 10px rgba(124,140,255,.30), 0 0 26px rgba(255,122,198,.14);
+  }
+  .idle-stage::before{ left:40%; }
+  .idle-stage::after{ left:60%; }
+
+  /* 科技感发光线条（装饰，CSS 渐变网格近似，非逐帧 SVG） */
+  .idle-tech-lines{ position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; opacity:.5; }
+  .idle-tech-lines::before{
+    content:''; position:absolute; inset:-20%;
+    background:
+      repeating-linear-gradient(115deg, transparent 0 78px, rgba(110,231,255,.05) 78px 79px, transparent 79px 160px),
+      repeating-linear-gradient(-115deg, transparent 0 110px, rgba(255,122,198,.045) 110px 111px, transparent 111px 220px);
+    filter:blur(.4px);
+  }
+
+  /* ===== 左右入口：细圆环 + 文字标签 ===== */
+  .idle-side{
+    position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:20px; padding:0 40px; border:none; background:transparent; color:var(--text-1); cursor:pointer;
+    align-self:center; justify-self:center; transition:color .2s var(--ease);
+  }
+  .idle-side-ring{
+    position:relative; width:clamp(128px,15vw,190px); height:clamp(128px,15vw,190px); border-radius:50%;
+    display:grid; place-items:center; border:2px solid rgba(255,255,255,.22);
+    transition:border-color .3s var(--ease), box-shadow .3s var(--ease);
+  }
+  .idle-side-ring::before{
+    content:''; position:absolute; inset:-7px; border-radius:50%;
+    background:conic-gradient(from 0deg, transparent 0deg, rgba(110,231,255,.95) 45deg, rgba(255,122,198,.95) 100deg, transparent 170deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+    animation:idle-ring-spin 3.4s linear infinite; filter:blur(2px); opacity:.55; pointer-events:none; transition:opacity .3s var(--ease);
+  }
+  .idle-side--right .idle-side-ring::before{ animation-direction:reverse; }
+  .idle-side-ring::after{ content:''; position:absolute; inset:7px; border-radius:50%; border:1px solid rgba(255,255,255,.10); }
+  .idle-side-ring svg{ width:48%; height:48%; filter:drop-shadow(0 4px 10px rgba(0,0,0,.25)); }
+  .idle-side-label{ font-size:14px; font-weight:500; line-height:1.35; color:rgba(255,255,255,.60); text-align:center; white-space:nowrap; text-shadow:0 1px 10px rgba(0,0,0,.25); transition:color .2s var(--ease), transform .2s var(--ease); }
+  .idle-side:hover .idle-side-ring{ border-color:rgba(255,255,255,.38); box-shadow:0 0 46px rgba(124,140,255,.18); }
+  .idle-side:hover .idle-side-label{ color:#fff; }
+  .idle-side--left:hover .idle-side-label{ transform:translateX(-3px); }
+  .idle-side--right:hover .idle-side-label{ transform:translateX(3px); }
+  [data-theme="light"] .idle-side{ color:var(--text-2); }
+  [data-theme="light"] .idle-side:hover{ color:var(--text-1); }
+  [data-theme="light"] .idle-side-label{ color:var(--text-3); text-shadow:none; }
+  [data-theme="light"] .idle-side:hover .idle-side-label{ color:var(--text-1); }
+  [data-theme="light"] .idle-side-ring{ background:rgba(10,12,20,.05); border-color:var(--hairline); }
+  [data-theme="light"] .idle-side:hover .idle-side-ring{ background:rgba(10,12,20,.09); }
+  @keyframes idle-ring-spin{ to{ transform:rotate(360deg);} }
+
+  /* ===== 中央品牌卡片（透明、无独立面板） ===== */
+  .idle-card{ position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:44px 30px; }
+  .idle-card-inner{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; width:100%; }
+  .idle-hero{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:4px 0 0; width:100%; }
+  .idle-mark{
+    width:76px; height:76px; border-radius:50%;
+    box-shadow:0 0 0 7px rgba(139,123,255,.12), 0 0 0 14px rgba(139,123,255,.06), 0 14px 44px rgba(124,140,255,.34);
+    animation:mark-in .9s var(--ease) both; transition:transform .3s var(--ease), box-shadow .3s var(--ease);
+  }
+  .idle-mark svg{ width:100%; height:100%; display:block; }
+  .idle-mark:hover{ transform:scale(1.06); box-shadow:0 0 0 9px rgba(139,123,255,.16), 0 0 0 18px rgba(139,123,255,.08), 0 18px 58px rgba(124,140,255,.46); }
+  @keyframes mark-in{ from{opacity:0; transform:scale(.86) translateY(10px);} to{opacity:1; transform:none;} }
+  .idle-title{
+    font-size:clamp(44px,4.6vw,60px); font-weight:700; letter-spacing:.06em;
+    background:linear-gradient(100deg,var(--accent-cyan),var(--accent),var(--accent-pink));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 4px 26px rgba(139,123,255,.30)); text-indent:.06em;
+    animation:fade-up .7s .1s var(--ease) both; margin:0;
+  }
+  .idle-sub{ margin-top:10px; color:var(--text-3); font-size:14px; letter-spacing:.05em; animation:fade-up .7s .18s var(--ease) both; }
+  .idle-sub strong{ font-weight:500; background:linear-gradient(100deg,var(--accent-cyan),var(--accent)); -webkit-background-clip:text; background-clip:text; color:transparent; padding:0 1px; }
+  @keyframes fade-up{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+
+  /* 主操作：竖排胶囊按钮 */
+  .idle-actions{ display:flex; flex-direction:column; align-items:stretch; gap:12px; width:min(240px,100%); margin-top:10px; }
+  .idle-action{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%;
+    padding:11px 22px; font:inherit; font-size:14px; font-weight:500; letter-spacing:.02em; color:var(--text-1);
+    background:rgba(255,255,255,.05); border:1px solid var(--hairline); border-radius:999px; cursor:pointer;
+    transition:background .16s var(--ease), border-color .16s var(--ease), transform .16s var(--ease), box-shadow .16s var(--ease), filter .16s var(--ease);
+  }
+  .idle-action svg{ width:16px; height:16px; display:block; }
+  .idle-action:hover{ background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.16); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.30); }
+  .idle-action:active{ transform:translateY(0); }
+  .idle-action:focus-visible{ outline:2px solid #7c8cff; outline-offset:2px; }
+  .idle-action--primary{ color:#fff; background:linear-gradient(135deg,#6ee7ff,var(--accent-mid) 55%,#ff7ac6); border-color:transparent; box-shadow:0 8px 26px rgba(124,140,255,.30); }
+  .idle-action--primary:hover{ filter:brightness(1.06); box-shadow:0 12px 34px rgba(124,140,255,.44); }
+  [data-theme="light"] .idle-action{ color:var(--text-1); background:rgba(10,12,20,.04); border-color:var(--hairline); }
+  [data-theme="light"] .idle-action:hover{ background:rgba(10,12,20,.07); border-color:rgba(10,12,20,.14); }
+  [data-theme="light"] .idle-action--primary{ color:#fff; } /* 品牌渐变主按钮在亮色下保持品牌 */
+
+  /* 快捷键提示：默认隐藏，按 ? 展开 */
+  .aside-shorts{ flex:0 0 auto; max-height:0; opacity:0; overflow:hidden; transition:opacity .25s var(--ease), max-height .3s var(--ease); }
+  .idle-screen-mock.show-hints .aside-shorts{ max-height:360px; opacity:1; }
+  .aside-divider{ height:1px; background:var(--hairline); margin:2px 0; flex:0 0 auto; }
+  .idle-hints{ display:flex; flex-direction:column; align-items:center; gap:7px; margin:0; padding-top:14px; font-size:11px; color:var(--text-3); }
+  .hint-row{ display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--text-3); }
+  .hint-keys{ display:flex; align-items:center; gap:5px; }
+  kbd{ display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 6px; font-family:var(--font); font-size:11px; color:var(--text-2); background:rgba(255,255,255,.06); border:1px solid var(--hairline); border-radius:6px; }
+  [data-theme="light"] kbd{ background:rgba(10,12,20,.05); border-color:var(--hairline); }
+
+  /* 右上角窗口控制按钮：默认隐藏，悬停区淡入 */
+  .idle-close-zone{ position:absolute; top:0; right:0; width:80px; height:52px; z-index:5; display:flex; justify-content:flex-end; align-items:flex-start; padding:8px 8px 0 0; gap:2px; pointer-events:auto; }
+  .idle-close-btn{ width:36px; height:36px; display:grid; place-items:center; background:transparent; border:none; border-radius:50%; color:var(--text-2); cursor:pointer; opacity:0; transform:scale(.92); transition:opacity .28s var(--ease), transform .28s var(--ease), background .18s var(--ease), color .18s var(--ease), box-shadow .18s var(--ease); }
+  .idle-close-btn svg{ width:14px; height:14px; }
+  .idle-close-zone:hover .idle-close-btn, .idle-close-btn:hover{ opacity:1; transform:scale(1); }
+  .idle-close-btn:hover{ background:rgba(255,255,255,.10); color:var(--text-1); box-shadow:inset 0 0 0 1px rgba(255,255,255,.12), 0 8px 24px rgba(0,0,0,.25); }
+  .idle-close-btn:active{ background:rgba(255,255,255,.16); transform:scale(.96); }
+  [data-theme="light"] .idle-close-btn{ color:var(--text-2); }
+  [data-theme="light"] .idle-close-btn:hover{ color:var(--text-1); background:rgba(0,0,0,.06); box-shadow:inset 0 0 0 1px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.10); }
+
+  /* ===== 响应式：≤860 三栏→单栏堆叠（用户已移除媒体库模块，仅中央舞台） ===== */
+  .idle-screen-mock.narrow .idle-stage{ min-height:auto; grid-template-columns:1fr; gap:28px; padding:100px 24px 48px; }
+  .idle-screen-mock.narrow .idle-side-ring{ width:130px; height:130px; }
+
+  /* ===== 演示控制条（非产品 UI，仅用于切换交付状态） ===== */
+  .demo-bar{ position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:99; display:flex; gap:8px; padding:8px 10px; background:rgba(20,22,32,.78); backdrop-filter:blur(14px) saturate(150%); border:1px solid rgba(255,255,255,.12); border-radius:999px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+  .demo-bar button{ font:inherit; font-size:12px; color:rgba(255,255,255,.82); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:999px; padding:7px 14px; cursor:pointer; transition:background .15s var(--ease), color .15s var(--ease); }
+  .demo-bar button:hover{ background:rgba(255,255,255,.12); color:#fff; }
+  .demo-bar button.on{ background:linear-gradient(135deg,#6ee7ff,var(--accent-mid) 55%,#ff7ac6); color:#fff; border-color:transparent; }
+  .demo-tag{ position:fixed; top:14px; left:16px; z-index:99; font-size:11px; letter-spacing:.04em; color:rgba(255,255,255,.5); background:rgba(20,22,32,.6); border:1px solid rgba(255,255,255,.1); padding:5px 10px; border-radius:8px; }
+  [data-theme="light"] .demo-bar{ background:rgba(255,255,255,.82); border-color:rgba(10,12,20,.12); }
+  [data-theme="light"] .demo-bar button{ color:rgba(18,20,28,.78); background:rgba(10,12,20,.05); border-color:rgba(10,12,20,.12); }
+  [data-theme="light"] .demo-bar button:hover{ background:rgba(10,12,20,.1); color:#12141c; }
+  [data-theme="light"] .demo-tag{ color:rgba(18,20,28,.5); background:rgba(255,255,255,.7); border-color:rgba(10,12,20,.1); }
+</style>
+</head>
+<body>
+
+<div class="demo-tag">Lumora · Idle Landing · DESIGN.md 交付</div>
+
+<div class="idle-screen-mock" id="idle">
+  <!-- 右上角窗口控制按钮（悬停区淡入） -->
+  <div class="idle-close-zone">
+    <button class="idle-close-btn" title="最小化" aria-label="最小化">
+      <svg viewBox="0 0 12 12"><path d="M2.5 6 h7" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+    </button>
+    <button class="idle-close-btn" title="关闭" aria-label="关闭">
+      <svg viewBox="0 0 12 12"><path d="M3 3 L9 9 M9 3 L3 9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <div class="idle-stage">
+    <div class="idle-tech-lines" aria-hidden="true"></div>
+
+    <!-- 左侧：音乐入口 -->
+    <button class="idle-side idle-side--left" type="button" aria-label="音乐播放器">
+      <div class="idle-side-ring">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <defs><linearGradient id="lg-music" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#6ee7ff"/><stop offset="55%" stop-color="#8b7bff"/><stop offset="100%" stop-color="#ff7ac6"/>
+          </linearGradient></defs>
+          <path d="M18 34V18l14-4v14" fill="none" stroke="url(#lg-music)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="34" r="3.6" fill="url(#lg-music)"/><circle cx="30" cy="30" r="3.6" fill="url(#lg-music)"/>
+        </svg>
+      </div>
+      <span class="idle-side-label">点击进入音乐模式</span>
+    </button>
+
+    <!-- 中央：品牌主操作 -->
+    <aside class="idle-card">
+      <div class="idle-card-inner">
+        <section class="idle-hero">
+          <div class="idle-mark">
+            <svg viewBox="0 0 64 64">
+              <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#6ee7ff"/><stop offset="55%" stop-color="#8b7bff"/><stop offset="100%" stop-color="#ff7ac6"/>
+              </linearGradient></defs>
+              <circle cx="32" cy="32" r="32" fill="url(#lg)"/>
+              <path d="M26 23.5 L43 32 L26 40.5 Z" fill="#fff"/>
+            </svg>
+          </div>
+          <h1 class="idle-title">Lumora</h1>
+          <p class="idle-sub">拖入文件，或<strong>双击</strong>打开</p>
+          <div class="idle-actions">
+            <button class="idle-action idle-action--primary" type="button" aria-label="打开文件">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h6l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+              <span>打开文件</span>
+            </button>
+            <button class="idle-action" type="button" aria-label="打开网络串流">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 14-7.3M21 12a9 9 0 0 1-14 7.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 4.7V9h-4.3M7 19.3V15h4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>网络串流</span>
+            </button>
+            <button class="idle-action" type="button" aria-label="设置">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <span>设置</span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- 快捷键提示（? 展开） -->
+      <div class="aside-shorts">
+        <div class="aside-divider"></div>
+        <div class="idle-hints">
+          <div class="hint-row"><span class="hint-keys"><kbd>空格</kbd></span><span>播放 / 暂停</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>←</kbd><kbd>→</kbd></span><span>跳转 5 秒</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>,</kbd><kbd>.</kbd></span><span>逐帧</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>I</kbd></span><span>统计面板</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>F</kbd></span><span>全屏</span></div>
+          <div class="hint-row"><span class="hint-keys"><kbd>?</kbd></span><span>切换快捷键</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧：视频入口 -->
+    <button class="idle-side idle-side--right" type="button" aria-label="视频播放器">
+      <div class="idle-side-ring">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <defs><linearGradient id="lg-video" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#6ee7ff"/><stop offset="55%" stop-color="#8b7bff"/><stop offset="100%" stop-color="#ff7ac6"/>
+          </linearGradient></defs>
+          <rect x="9" y="13" width="30" height="22" rx="5" fill="none" stroke="url(#lg-video)" stroke-width="2.6"/>
+          <path d="M20 19l10 6-10 6z" fill="url(#lg-video)"/>
+        </svg>
+      </div>
+      <span class="idle-side-label">点击进入视频模式</span>
+    </button>
+  </div>
+</div>
+
+<div class="demo-bar">
+  <button id="btn-theme">主题 · 暗</button>
+  <button id="btn-narrow">布局 · 桌面</button>
+  <button id="btn-hints">快捷键 ?</button>
+</div>
+
+<script>
+  const idle = document.getElementById('idle');
+  const btnTheme = document.getElementById('btn-theme');
+  const btnNarrow = document.getElementById('btn-narrow');
+  const btnHints = document.getElementById('btn-hints');
+
+  btnTheme.addEventListener('click', () => {
+    const light = idle.closest('[data-theme="light"]') || document.body.getAttribute('data-theme') === 'light';
+    if (light) { document.body.removeAttribute('data-theme'); btnTheme.textContent = '主题 · 暗'; btnTheme.classList.remove('on'); }
+    else { document.body.setAttribute('data-theme','light'); btnTheme.textContent = '主题 · 亮'; btnTheme.classList.add('on'); }
+  });
+  btnNarrow.addEventListener('click', () => {
+    const on = idle.classList.toggle('narrow');
+    btnNarrow.textContent = on ? '布局 · 窄窗≤860' : '布局 · 桌面';
+    btnNarrow.classList.toggle('on', on);
+  });
+  btnHints.addEventListener('click', () => {
+    const on = idle.classList.toggle('show-hints');
+    btnHints.textContent = on ? '快捷键 · 开' : '快捷键 ?';
+    btnHints.classList.toggle('on', on);
+  });
+</script>
+</body>
+</html>
