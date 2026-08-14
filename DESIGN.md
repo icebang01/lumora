@@ -45,7 +45,7 @@
 | Hairline | `rgba(10,12,20,.10)` | `--hairline` |
 | Text 1 | `rgba(18,20,28,.95)` | `--text-1` |
 | Text 2 | `rgba(18,20,28,.64)` | `--text-2` |
-| Text 3 | `rgba(18,20,28,.42)` | `--text-3` |
+| Text 3 | `rgba(18,20,28,.50)` | `--text-3` | 弱化/占位（≥3:1） |
 | Base BG | `#f4f5f8` | `--base-bg` |
 
 ### Semantic Colors
