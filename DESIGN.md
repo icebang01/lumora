@@ -397,11 +397,11 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 | 统计面板 | `ui/stats.js` | PANEL | ✅ | `STATS_MOCK.html`（仿 mpv stats.lua 分区 + 帧时间图） |
 | 字幕样式 | `panels/subtitle-style.js` | PANEL | ✅ | `SUBTITLE_STYLE_MOCK.html`（设置面板字幕外观 + 实时预览） |
 | 字幕 | `panels/subtitles.js` | OVERLAY | ❌ | 双轨字幕渲染层 |
-| 歌词搜索 | `panels/lyrics-search.js` | DIALOG | ❌ | 歌词源检索弹窗 |
+| 歌词搜索 | `panels/lyrics-search.js` | DIALOG | ✅ | `LYRICS_SEARCH_MOCK.html`（LRCLIB 候选 + 同步/纯文本 + 自适应主题） |
 | 键位编辑器 | `ui/keybind-editor.js` | DIALOG | ❌ | 快捷键重绑定（`7e6f092` 修复转义） |
 | AI 面板 | `ui/ai-panel.js` | PANEL | ❌ | AI 辅助面板 |
-| 右键菜单 | `panels/context-menu.js` | OVERLAY | ❌ | 上下文菜单（`796e12b` 令牌化） |
-| 弹幕 | `panels/danmaku.js` `core/danmaku-renderer.js` | OVERLAY | ❌ | 弹幕渲染（含本地/弹弹play/B站） |
+| 右键菜单 | `panels/context-menu.js` | OVERLAY | ✅ | `CONTEXT_MENU_MOCK.html`（分层 + 子菜单 + 选中态） |
+| 弹幕 | `panels/danmaku.js` `core/danmaku-renderer.js` | OVERLAY | ✅ | `DANMAKU_MOCK.html`（搜索/匹配面板 + 实时弹幕层） |
 | 许可证 | `panels/licenses.js` | DIALOG | ❌ | 第三方许可证（`24b2202` 令牌化） |
 | 画中画 | `pip.html` `pip-preload.js` | FLOATING | ❌ | 独立浮动视频窗（见 A.3 漂移） |
 | 桌面歌词 | `desktop-lyrics.html` | FLOATING | ❌ | 独立浮动歌词窗（见 A.3 漂移） |

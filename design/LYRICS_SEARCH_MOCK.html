@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · 搜索歌词弹窗 Mock</title>
+<style>
+  :root {
+    --accent:#7c8cff; --accent-pink:#ff7ac6; --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
+    --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --ease:cubic-bezier(.16,1,.3,1);
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  body.light { --hairline:rgba(10,12,20,.08); --hairline-strong:rgba(10,12,20,.14); --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { font-family:var(--font); color:var(--text-1); overflow:hidden;
+    background:radial-gradient(1100px 700px at 20% -10%, #1b2030 0%, transparent 55%), radial-gradient(900px 600px at 110% 120%, #221a30 0%, transparent 55%), #0a0b10; }
+  body.light { background:radial-gradient(1100px 700px at 20% -10%, #e8ecff 0%, transparent 55%), radial-gradient(900px 600px at 110% 120%, #ffe9f6 0%, transparent 55%), #eef0f6; }
+
+  .topbar { position:fixed; top:0; left:0; right:0; height:54px; z-index:90; display:flex; align-items:center; gap:14px; padding:0 18px; background:rgba(10,11,16,.6); backdrop-filter:blur(18px) saturate(160%); border-bottom:1px solid var(--hairline); }
+  .topbar .brand { font-size:16px; font-weight:700; background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar .meta { font-size:11.5px; color:var(--text-3); }
+  .topbar .spacer { flex:1; }
+  .seg { display:inline-flex; padding:3px; gap:2px; background:rgba(255,255,255,.06); border:1px solid var(--hairline); border-radius:10px; }
+  .seg button { border:0; background:transparent; color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; padding:5px 11px; border-radius:7px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease); }
+  .seg button:hover { color:var(--text-1); }
+  .seg button.on { background:var(--accent); color:#fff; box-shadow:0 2px 10px var(--accent-glow); }
+
+  .stage { position:absolute; inset:54px 0 0 0; display:flex; align-items:center; justify-content:center; }
+
+  /* ===== 搜索歌词弹窗（镜像 style.css:4475-4715 + lyrics-search.js） ===== */
+  .lyric-search-overlay { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    background:rgba(8,10,20,.55); backdrop-filter:blur(4px); }
+  body.light .lyric-search-overlay { background:rgba(8,10,20,.32); }
+  .lyric-search-card {
+    --lsq-bg:rgba(28,30,46,.92); --lsq-border:rgba(124,140,255,.35); --lsq-text:#fff; --lsq-text-sec:rgba(255,255,255,.55); --lsq-text-ter:rgba(255,255,255,.4);
+    --lsq-input-bg:rgba(255,255,255,.06); --lsq-input-border:rgba(255,255,255,.14); --lsq-input-focus-bg:rgba(255,255,255,.1);
+    --lsq-item-bg:rgba(255,255,255,.04); --lsq-item-border:rgba(255,255,255,.08); --lsq-item-hover-bg:rgba(255,255,255,.08); --lsq-item-hover-border:rgba(124,140,255,.3);
+    --lsq-preview-bg:rgba(0,0,0,.28); --lsq-preview-text:rgba(255,255,255,.7); --lsq-divider:rgba(255,255,255,.08); --lsq-btn-bg:rgba(255,255,255,.06); --lsq-btn-border:rgba(255,255,255,.16); --lsq-btn-text:rgba(255,255,255,.85); --lsq-btn-hover-bg:rgba(255,255,255,.14); --lsq-close-bg:rgba(255,255,255,.08); --lsq-close-text:rgba(255,255,255,.8); --lsq-close-hover-bg:rgba(255,255,255,.18);
+    width:min(560px,92vw); max-height:86vh; display:flex; flex-direction:column; background:var(--lsq-bg); border:1px solid var(--lsq-border); border-radius:18px;
+    box-shadow:0 24px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04) inset; backdrop-filter:blur(22px) saturate(160%); overflow:hidden;
+  }
+  .lyric-search-card.style-glass {
+    --lsq-bg:rgba(255,255,255,.86); --lsq-border:rgba(124,140,255,.28); --lsq-text:#1a1b25; --lsq-text-sec:rgba(26,27,37,.58); --lsq-text-ter:rgba(26,27,37,.42);
+    --lsq-input-bg:rgba(0,0,0,.04); --lsq-input-border:rgba(0,0,0,.12); --lsq-input-focus-bg:rgba(0,0,0,.07); --lsq-item-bg:rgba(0,0,0,.03); --lsq-item-border:rgba(0,0,0,.08); --lsq-item-hover-bg:rgba(0,0,0,.06); --lsq-item-hover-border:rgba(124,140,255,.25); --lsq-preview-bg:rgba(0,0,0,.06); --lsq-preview-text:rgba(26,27,37,.72); --lsq-divider:rgba(0,0,0,.08); --lsq-btn-bg:rgba(0,0,0,.04); --lsq-btn-border:rgba(0,0,0,.12); --lsq-btn-text:rgba(26,27,37,.82); --lsq-btn-hover-bg:rgba(0,0,0,.09); --lsq-close-bg:rgba(0,0,0,.06); --lsq-close-text:rgba(26,27,37,.7); --lsq-close-hover-bg:rgba(0,0,0,.12);
+    box-shadow:0 24px 70px rgba(0,0,0,.22),0 0 0 1px rgba(255,255,255,.5) inset;
+  }
+  .lyric-search-head { display:flex; align-items:center; justify-content:space-between; padding:16px 18px 12px; border-bottom:1px solid var(--lsq-divider); cursor:grab; user-select:none; }
+  .lyric-search-title { font-size:16px; font-weight:700; color:var(--lsq-text); letter-spacing:.3px; }
+  .lyric-search-close { width:30px; height:30px; border:none; border-radius:8px; background:var(--lsq-close-bg); color:var(--lsq-close-text); font-size:20px; line-height:1; cursor:pointer; transition:background .15s ease; }
+  .lyric-search-close:hover { background:var(--lsq-close-hover-bg); }
+  .lyric-search-form { display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; padding:16px 18px 4px; }
+  .lsq-field { display:flex; flex-direction:column; gap:5px; }
+  .lsq-label { font-size:11px; font-weight:600; color:var(--lsq-text-sec); letter-spacing:.4px; }
+  .lsq-input { height:36px; padding:0 12px; font-size:13px; color:var(--lsq-text); background:var(--lsq-input-bg); border:1px solid var(--lsq-input-border); border-radius:9px; outline:none; transition:border-color .15s ease,box-shadow .15s ease,background .15s ease; }
+  .lsq-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); background:var(--lsq-input-focus-bg); }
+  .lyric-search-btn { grid-column:1 / -1; height:40px; margin-top:4px; font-size:14px; font-weight:700; color:#fff; background:linear-gradient(95deg, var(--accent), var(--accent-pink)); border:none; border-radius:10px; cursor:pointer; transition:filter .15s ease,transform .1s ease; }
+  .lyric-search-btn:hover { filter:brightness(1.08); } .lyric-search-btn:active { transform:scale(.98); }
+  .lyric-search-status { padding:10px 18px 4px; font-size:12.5px; color:var(--lsq-text-sec); min-height:18px; }
+  .lyric-search-status.lsq-ok { color:#2db36f; }
+  .lyric-search-card.style-glass .lyric-search-status.lsq-ok { color:#1a9c5a; }
+  .lyric-search-results { flex:1; overflow-y:auto; padding:6px 14px 12px; display:flex; flex-direction:column; gap:8px; }
+  .lsq-item { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--lsq-item-bg); border:1px solid var(--lsq-item-border); border-radius:11px; transition:background .15s ease,border-color .15s ease; }
+  .lsq-item:hover { background:var(--lsq-item-hover-bg); border-color:var(--lsq-item-hover-border); }
+  .lsq-item-main { flex:1; min-width:0; }
+  .lsq-item-title { font-size:13.5px; font-weight:600; color:var(--lsq-text); display:flex; align-items:center; gap:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lsq-item-meta { margin-top:3px; font-size:11.5px; color:var(--lsq-text-sec); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lsq-item-meta .lsq-dur { color:var(--lsq-text); margin-left:6px; }
+  .lsq-tag { flex:none; font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; }
+  .lsq-tag-sync { color:#b6f5cf; background:rgba(60,200,120,.22); }
+  .lyric-search-card.style-glass .lsq-tag-sync { color:#1a7a40; background:rgba(60,200,120,.18); }
+  .lsq-tag-plain { color:#ffd79a; background:rgba(220,160,60,.2); }
+  .lyric-search-card.style-glass .lsq-tag-plain { color:#8a5e15; background:rgba(220,160,60,.16); }
+  .lsq-preview { margin:8px 0 0; max-height:180px; overflow:auto; padding:10px; font-size:11px; line-height:1.55; color:var(--lsq-preview-text); background:var(--lsq-preview-bg); border-radius:8px; white-space:pre-wrap; word-break:break-word; }
+  .lsq-item-actions { display:flex; gap:6px; flex:none; }
+  .lsq-btn { height:30px; padding:0 12px; font-size:12px; font-weight:600; border-radius:8px; cursor:pointer; border:1px solid var(--lsq-btn-border); background:var(--lsq-btn-bg); color:var(--lsq-btn-text); transition:background .15s ease,border-color .15s ease; }
+  .lsq-btn:hover { background:var(--lsq-btn-hover-bg); }
+  .lsq-use-btn { color:#fff; background:linear-gradient(95deg, var(--accent), var(--accent-bright)); border:none; }
+  .lsq-use-btn:hover { filter:brightness(1.1); background:linear-gradient(95deg, var(--accent), var(--accent-bright)); }
+  .lyric-search-foot { margin:0; padding:10px 18px 16px; font-size:11px; color:var(--lsq-text-ter); }
+</style>
+</head>
+<body class="dark">
+  <div class="topbar">
+    <span class="brand">Lumora · 搜索歌词</span>
+    <span class="meta">panels/lyrics-search.js · LRCLIB 候选 · 同步/纯文本 · 自适应主题</span>
+    <span class="spacer"></span>
+    <div class="seg" id="themeSeg">
+      <button data-v="dark" class="on">暗（默认）</button>
+      <button data-v="glass">浅（黑胶·玻璃）</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="lyric-search-overlay">
+      <div class="lyric-search-card" id="lsqCard">
+        <div class="lyric-search-head">
+          <div class="lyric-search-title">搜索歌词</div>
+          <button class="lyric-search-close" type="button" aria-label="关闭">×</button>
+        </div>
+        <div class="lyric-search-form">
+          <label class="lsq-field"><span class="lsq-label">歌名</span><input class="lsq-input" id="lsq-title" type="text" value="葬送的芙莉莲" placeholder="修改歌名后更准确"></label>
+          <label class="lsq-field"><span class="lsq-label">歌手</span><input class="lsq-input" id="lsq-artist" type="text" value="yuki" placeholder="修改歌手"></label>
+          <button class="lyric-search-btn" id="lsq-search" type="button">搜索</button>
+        </div>
+        <div class="lyric-search-status lsq-ok" id="lsq-status">找到 3 条结果</div>
+        <div class="lyric-search-results" id="lsq-results">
+          <div class="lsq-item lsq-has-sync">
+            <div class="lsq-item-main">
+              <div class="lsq-item-title">葬送的芙莉莲 <span class="lsq-tag lsq-tag-sync">已同步</span></div>
+              <div class="lsq-item-meta">yuki · Frieren OP <span class="lsq-dur">4:12</span></div>
+              <pre class="lsq-preview" hidden>[00:12.40] 在旅途的尽头
+[00:18.05] 我们终将重逢
+[00:24.70] 即使时光流逝
+[00:31.10] 记忆仍未褪色</pre>
+            </div>
+            <div class="lsq-item-actions">
+              <button class="lsq-btn lsq-preview-btn" type="button">预览</button>
+              <button class="lsq-btn lsq-use-btn" type="button">使用</button>
+            </div>
+          </div>
+          <div class="lsq-item lsq-has-sync">
+            <div class="lsq-item-main">
+              <div class="lsq-item-title">Silent Serenade <span class="lsq-tag lsq-tag-sync">已同步</span></div>
+              <div class="lsq-item-meta">Aimer · 星之歌集 <span class="lsq-dur">3:58</span></div>
+              <pre class="lsq-preview" hidden>[00:09.00] In the quiet of the night
+[00:15.20] a melody appears
+[00:21.55] soft as falling snow</pre>
+            </div>
+            <div class="lsq-item-actions">
+              <button class="lsq-btn lsq-preview-btn" type="button">预览</button>
+              <button class="lsq-btn lsq-use-btn" type="button">使用</button>
+            </div>
+          </div>
+          <div class="lsq-item lsq-no-sync">
+            <div class="lsq-item-main">
+              <div class="lsq-item-title">无名纯音乐 <span class="lsq-tag lsq-tag-plain">纯文本</span></div>
+              <div class="lsq-item-meta">未知艺人 · 未知专辑 <span class="lsq-dur">2:30</span></div>
+              <pre class="lsq-preview" hidden>纯文本歌词，无时间轴，将作为整段显示。</pre>
+            </div>
+            <div class="lsq-item-actions">
+              <button class="lsq-btn lsq-preview-btn" type="button">预览</button>
+              <button class="lsq-btn lsq-use-btn" type="button">使用</button>
+            </div>
+          </div>
+        </div>
+        <div class="lyric-search-foot">提示：自动下载失败通常是歌名/歌手对不上，修改关键字后再搜即可。</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  document.querySelectorAll('.lsq-preview-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const pre=btn.closest('.lsq-item').querySelector('.lsq-preview');
+      const willShow=pre.hasAttribute('hidden');
+      pre.toggleAttribute('hidden',!willShow);
+      btn.textContent=willShow?'收起':'预览';
+    });
+  });
+  document.querySelectorAll('.lsq-use-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{ document.getElementById('lsq-status').textContent='已保存并应用歌词'; document.getElementById('lsq-status').className='lyric-search-status lsq-ok'; });
+  });
+  document.getElementById('lsq-search').addEventListener('click',()=>{
+    const s=document.getElementById('lsq-status'); s.textContent='搜索中…'; s.className='lyric-search-status';
+    setTimeout(()=>{ s.textContent='找到 3 条结果'; s.className='lyric-search-status lsq-ok'; },400);
+  });
+  document.getElementById('themeSeg').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#themeSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.body.classList.toggle('light', b.dataset.v==='glass');
+    document.body.classList.toggle('dark', b.dataset.v==='dark');
+    document.getElementById('lsqCard').classList.toggle('style-glass', b.dataset.v==='glass');
+  });
+</script>
+</body>
+</html>

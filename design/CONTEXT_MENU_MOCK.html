@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · 右键上下文菜单 Mock</title>
+<style>
+  :root {
+    --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-mid:#8b7bff; --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
+    --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --surface-2:rgba(32,35,46,.94); --fill-track:rgba(255,255,255,.14);
+    --ease:cubic-bezier(.16,1,.3,1); --radius-s:8px; --radius-m:12px;
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  body.light {
+    --hairline:rgba(10,12,20,.08); --hairline-strong:rgba(10,12,20,.14);
+    --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+    --surface-2:rgba(248,249,252,.96); --fill-track:rgba(10,12,20,.12);
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { font-family:var(--font); color:var(--text-1); overflow:hidden;
+    background:
+      radial-gradient(1100px 700px at 20% -10%, #1b2030 0%, transparent 55%),
+      radial-gradient(900px 600px at 110% 120%, #221a30 0%, transparent 55%), #0a0b10;
+  }
+  body.light { background:radial-gradient(1100px 700px at 20% -10%, #e8ecff 0%, transparent 55%), radial-gradient(900px 600px at 110% 120%, #ffe9f6 0%, transparent 55%), #eef0f6; }
+
+  .topbar { position:fixed; top:0; left:0; right:0; height:54px; z-index:90; display:flex; align-items:center; gap:14px; padding:0 18px; background:rgba(10,11,16,.6); backdrop-filter:blur(18px) saturate(160%); border-bottom:1px solid var(--hairline); }
+  .topbar .brand { font-size:16px; font-weight:700; background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar .meta { font-size:11.5px; color:var(--text-3); }
+  .topbar .spacer { flex:1; }
+  .seg { display:inline-flex; padding:3px; gap:2px; background:rgba(255,255,255,.06); border:1px solid var(--hairline); border-radius:10px; }
+  .seg button { border:0; background:transparent; color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; padding:5px 11px; border-radius:7px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease); }
+  .seg button:hover { color:var(--text-1); }
+  .seg button.on { background:var(--accent); color:#fff; box-shadow:0 2px 10px var(--accent-glow); }
+
+  .scene { position:absolute; inset:54px 0 0 0; display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(800px 500px at 50% 40%, rgba(124,140,255,.10), transparent 60%),
+      conic-gradient(from 200deg at 50% 50%, #14202e, #251a30, #101a26, #14202e);
+  }
+  .scene .frame-label { color:rgba(255,255,255,.5); font-size:13px; }
+
+  /* ===== 右键菜单（镜像 style.css:1970-2124 + context-menu.js） ===== */
+  .ctx-menu { min-width:200px; max-width:340px; padding:6px; background:var(--surface-2); backdrop-filter:blur(24px) saturate(180%); border:1px solid var(--hairline-strong); border-radius:var(--radius-m); box-shadow:0 16px 46px rgba(0,0,0,.6); z-index:60; }
+  body.light .ctx-menu { box-shadow:0 16px 46px rgba(10,12,20,.22); }
+  .pop-section-title { padding:8px 10px 5px; font-size:10.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); }
+  .pop-item { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:var(--radius-s); font-size:12.5px; color:var(--text-2); cursor:pointer; transition:background .13s var(--ease),color .13s var(--ease); position:relative; }
+  .pop-item:hover { background:rgba(255,255,255,.09); color:var(--text-1); }
+  body.light .pop-item:hover { background:rgba(10,12,20,.07); }
+  .pop-item.selected { color:var(--accent-bright); background:rgba(124,140,255,.12); }
+  .pop-check { width:14px; flex:none; opacity:0; color:var(--accent-bright); font-size:12px; }
+  .pop-item.selected .pop-check { opacity:1; }
+  .pop-label { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pop-meta { font-size:10.5px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  .pop-divider { height:1px; margin:5px 8px; background:var(--hairline); }
+  .pop-item.ctx-has-sub .ctx-caret { margin-left:auto; padding-left:12px; color:var(--text-3); display:inline-flex; }
+  .pop-item.disabled { opacity:.38; pointer-events:none; }
+  .ctx-submenu { position:absolute; min-width:200px; max-width:340px; padding:6px; background:var(--surface-2); backdrop-filter:blur(28px) saturate(190%); border:1px solid var(--hairline-strong); border-radius:var(--radius-m); box-shadow:0 18px 52px rgba(0,0,0,.68),0 0 0 1px rgba(0,0,0,.35); z-index:61; }
+  body.light .ctx-submenu { box-shadow:0 18px 52px rgba(10,12,20,.25); }
+
+  .footnote { position:fixed; left:18px; bottom:14px; right:18px; z-index:90; font-size:11px; color:var(--text-3); line-height:1.6; }
+</style>
+</head>
+<body class="dark">
+  <div class="topbar">
+    <span class="brand">Lumora · 右键菜单</span>
+    <span class="meta">panels/context-menu.js · 视频模式 · 分层 + 子菜单 + 选中态</span>
+    <span class="spacer"></span>
+    <div class="seg" id="themeSeg">
+      <button data-v="dark" class="on">暗</button>
+      <button data-v="light">亮</button>
+    </div>
+  </div>
+
+  <div class="scene"><span class="frame-label">视频画面（右键点击唤起上下文菜单；子菜单悬停展开，边界自动翻转）</span></div>
+
+  <div id="menu-root" style="position:absolute; left:180px; top:140px; z-index:60;"></div>
+
+  <div class="footnote">
+    1:1 还原右键上下文菜单：播放控制（播放/暂停·全屏）→ 视频专属（画中画·截图）→ 设置（播放速度·循环）→ 轨道/画面/弹幕 → 面板导航 → 打开/来源 → 系统。<br>
+    子菜单（播放速度）已展开演示嵌套样式与「1.00× 正常」选中态；✓ 表示当前选中项；音乐模式下画面/截图/弹幕等视频专属项自动隐藏。亮色为提案（覆盖层默认暗色）。
+  </div>
+
+<script>
+  // 菜单数据（镜像 context-menu.js buildContextMenuContent，视频模式）
+  const MENU = [
+    {label:'播放/暂停', meta:'播放中'},
+    {label:'全屏', meta:'F'},
+    {label:'画中画', meta:'T'},
+    {label:'截图', submenu:[
+      {label:'截取视频帧'},{label:'截取视频帧（含字幕）'},{label:'连拍截图'},
+    ]},
+    {divider:true},
+    {label:'播放速度', meta:'1.00×', submenu:[
+      {label:'0.25×'},{label:'0.5×'},{label:'0.75×'},{label:'1×',selected:true,meta:'正常'},{label:'1.25×'},{label:'1.5×'},{label:'1.75×'},{label:'2×'},{label:'3×'},{label:'4×'},
+    ]},
+    {label:'循环模式', meta:'关闭循环', submenu:[
+      {label:'关闭循环',selected:true},{label:'列表循环'},{label:'单曲循环'},{label:'随机播放'},
+    ]},
+    {divider:true},
+    {label:'媒体轨道', submenu:[
+      {section:'视频轨'},{label:'Main@01',meta:'3840×2160 24fps',selected:true},{label:'Main@02',meta:'1920×1080 24fps'},
+      {section:'音轨'},{label:'Japanese',meta:'eac3 6ch',selected:true},{label:'English',meta:'aac 2ch'},
+      {section:'字幕'},{label:'关闭字幕'},{label:'简体中文',selected:true,meta:'图形'},{label:'English',meta:'图形'},
+      {section:'第二字幕轨'},{label:'关闭第二字幕',selected:true},
+      {section:'同步'},{slider:{label:'字幕延迟',value:0,min:-10,max:10,step:0.1,fmt:v=>`${v>=0?'+':''}${v.toFixed(2)}s`}},
+      {section:'操作'},{label:'重新载入字幕文件'},
+    ]},
+    {label:'画面设置', submenu:[
+      {section:'缩放算法'},{label:'双线性（最快）'},{label:'双三次'},{label:'Spline36',selected:true},{label:'EWA Lanczos（最佳）'},
+      {divider:true},{section:'色调映射 (HDR)'},{label:'BT.2390（标准）',selected:true},{label:'Hable（电影感）'},{label:'Mobius（保色）'},{label:'Reinhard'},{label:'直接裁剪'},
+    ]},
+    {label:'弹幕'},
+    {divider:true},
+    {label:'播放列表', meta:'F8'},
+    {label:'返回主界面'},
+    {divider:true},
+    {label:'打开文件…', meta:'O'},
+    {label:'打开网络串流…', meta:'Ctrl+U'},
+    {label:'投屏到设备…'},
+    {divider:true},
+    {label:'设置', meta:'F2'},
+    {label:'键位速查'},
+  ];
+
+  function renderSubmenu(items){
+    return items.map(it=>{
+      if(it.divider) return '<div class="pop-divider"></div>';
+      if(it.section) return `<div class="pop-section-title">${it.section}</div>`;
+      if(it.slider){
+        return `<div class="pop-slider-row"><div class="pop-slider-head"><span>${it.slider.label}</span><b>${it.slider.fmt(it.slider.value)}</b></div>`+
+          `<input type="range" class="pop-slider" min="${it.slider.min}" max="${it.slider.max}" step="${it.slider.step}" value="${it.slider.value}"></div>`;
+      }
+      const sel = it.selected?' selected':'';
+      return `<div class="pop-item${sel}"><span class="pop-check">✓</span><span class="pop-label">${it.label}</span>${it.meta?`<span class="pop-meta">${it.meta}</span>`:''}</div>`;
+    }).join('');
+  }
+
+  function renderMenu(items){
+    return items.map(it=>{
+      if(it.divider) return '<div class="pop-divider"></div>';
+      const sub = it.submenu?' ctx-has-sub':'';
+      const sel = it.selected?' selected':'';
+      const dis = it.disabled?' disabled':'';
+      const caret = it.submenu?'<span class="ctx-caret"><svg viewBox="0 0 12 12"><path d="M4.5 2.5 L8 6 L4.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>':'';
+      const meta = it.meta?`<span class="pop-meta">${it.meta}</span>`:'';
+      return `<div class="pop-item${sub}${sel}${dis}"><span class="pop-check">✓</span><span class="pop-label">${it.label}</span>${meta}${caret}</div>`;
+    }).join('');
+  }
+
+  function build(){
+    const root = document.getElementById('menu-root');
+    root.innerHTML = `<div class="ctx-menu" id="context-menu">${renderMenu(MENU)}</div>`;
+    // 展开「播放速度」子菜单演示嵌套
+    const items = root.querySelectorAll('#context-menu > .pop-item');
+    MENU.forEach((m,i)=>{
+      if(m.submenu){
+        const el = items[i];
+        const fly = document.createElement('div');
+        fly.className='ctx-submenu';
+        fly.innerHTML = renderSubmenu(m.submenu);
+        document.body.appendChild(fly);
+        const r = el.getBoundingClientRect(), fr = fly.getBoundingClientRect();
+        let left = r.right; if(left+fr.width > innerWidth-4) left = r.left - fr.width;
+        fly.style.left = left+'px';
+        fly.style.top = (r.top-6)+'px';
+        el.addEventListener('mouseenter',()=>{ fly.style.display='block'; });
+        el.addEventListener('mouseleave',()=>{ fly.style.display='none'; });
+        // 初始：展开第一个子菜单（播放速度）
+        if(m.label==='播放速度'){ fly.style.display='block'; }
+      }
+    });
+  }
+
+  document.getElementById('themeSeg').addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#themeSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.body.classList.toggle('light', b.dataset.v==='light');
+    document.body.classList.toggle('dark', b.dataset.v==='dark');
+    build(); // 重建以重定位子菜单（亮/暗无布局差异，但稳妥）
+  });
+
+  build();
+</script>
+</body>
+</html>
