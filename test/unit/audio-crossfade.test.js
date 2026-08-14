@@ -59,11 +59,17 @@ before(async () => {
   const pid = process.pid;
   const eqMjs = path.join(os.tmpdir(), `eq-${pid}.mjs`);
   const audioMjs = path.join(os.tmpdir(), `audio-${pid}.mjs`);
-  fs.copyFileSync(path.join(__dirname, '../../src/renderer/core/eq.js'), eqMjs);
+  const clampMjs = path.join(os.tmpdir(), `clamp-${pid}.mjs`);
+  // eq.js / audio.js 经 '../../shared/clamp.js' 引入共享限幅工具；复制到临时副本并改写导入，
+  // 否则临时 .mjs 会去 <tmpdir>/../../shared/clamp.js（即 AppData/shared）找文件而失败。
+  fs.copyFileSync(path.join(__dirname, '../../src/shared/clamp.js'), clampMjs);
+  let eqSrc = fs.readFileSync(path.join(__dirname, '../../src/renderer/core/eq.js'), 'utf8');
+  eqSrc = eqSrc.replace("./eq.js", `./eq-${pid}.mjs`).replace("../../shared/clamp.js", `./clamp-${pid}.mjs`);
+  fs.writeFileSync(eqMjs, eqSrc);
   let src = fs.readFileSync(path.join(__dirname, '../../src/renderer/core/audio.js'), 'utf8');
-  src = src.replace("./eq.js", `./eq-${pid}.mjs`);
+  src = src.replace("./eq.js", `./eq-${pid}.mjs`).replace("../../shared/clamp.js", `./clamp-${pid}.mjs`);
   fs.writeFileSync(audioMjs, src);
-  tmpFiles.push(eqMjs, audioMjs);
+  tmpFiles.push(eqMjs, audioMjs, clampMjs);
   // 注意：临时文件延后到 after 再删——Windows 上 import 后仍可能持有文件句柄，
   // 在 before 内立即删除会让后续测试访问模块资源失败（表现为 ready 异常）。
   ({ AudioOutput } = await import(pathToFileURL(audioMjs).href));

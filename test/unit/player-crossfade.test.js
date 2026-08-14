@@ -74,10 +74,18 @@ before(async () => {
   const map = {};
   for (const b of bases) map[b] = path.join(os.tmpdir(), `cf-${b}-${pid}.mjs`);
 
+  // core 模块经 '../../shared/clamp.js' 引入共享限幅工具；复制到临时副本并改写导入，
+  // 否则临时 .mjs 会去 <tmpdir>/../../shared/clamp.js（即 AppData/shared）找文件而失败。
+  const clampMjs = path.join(os.tmpdir(), `cf-shared-clamp-${pid}.mjs`);
+  fs.copyFileSync(path.join(__dirname, '../../src/shared/clamp.js'), clampMjs);
+  tmpFiles.push(clampMjs);
+
   const rewrite = (src) => {
     // 改写 core/ 内部相对导入 ./X.js → 临时 cf-X-<pid>.mjs
     src = src.replace(/from\s+'\.\/([a-zA-Z0-9_-]+)\.js'/g, (m, base) =>
       (map[base] ? `from './cf-${base}-${pid}.mjs'` : m));
+    // 改写共享模块导入 '../../shared/clamp.js' → 临时副本
+    src = src.replace("../../shared/clamp.js", `./cf-shared-clamp-${pid}.mjs`);
     // 用内联 stub 替换 VideoRenderer（构造函数仅置字段，无需 WebGL）
     src = src.replace(
       "import { VideoRenderer } from '../gl/renderer.js';",
