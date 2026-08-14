@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumora · OSC 控制条 OSC_MOCK</title>
+<style>
+:root{
+  /* —— 与 src/renderer/style.css 完全一致的设计令牌（暗色默认）—— */
+  --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-mid:#8b7bff;
+  --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
+  --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+  --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --radius-s:8px; --radius-l:16px;
+  --control-bg:rgba(255,255,255,.06); --control-bg-strong:rgba(255,255,255,.12);
+  --surface-2:rgba(20,22,32,.92);
+  --scroll-thumb:rgba(255,255,255,.18);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei UI","Hiragino Sans GB",system-ui,sans-serif;
+  --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+
+  /* OSC 胶囊本体令牌（style.css:1664 #osc-inner） */
+  --osc-bg:rgba(14,14,20,.78);
+  --osc-border:var(--hairline);
+  --scene-bg:#07080c;
+  --scene-glow:rgba(124,140,255,.12);
+}
+body.light{
+  --hairline:rgba(10,12,20,.10); --hairline-strong:rgba(10,12,20,.16);
+  --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+  --control-bg:rgba(10,12,20,.05); --control-bg-strong:rgba(10,12,20,.08);
+  --surface-2:rgba(245,246,252,.96);
+  --scroll-thumb:rgba(10,12,20,.16);
+  /* 浅色主题化提案：亮玻璃 OSC（真实源码恒暗，此为设计提案） */
+  --osc-bg:rgba(250,251,255,.92);
+  --osc-border:rgba(10,12,20,.14);
+  --scene-bg:#e7e9f1;
+  --scene-glow:rgba(124,140,255,.18);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--font);font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased;color:var(--text-1);
+  background:var(--scene-bg);transition:background .3s var(--ease),color .3s var(--ease);overflow:hidden}
+
+/* —— 顶部说明 + 演示控制条 —— */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:14px;
+  padding:14px 20px;background:linear-gradient(180deg,rgba(0,0,0,.35),transparent);backdrop-filter:blur(6px)}
+body.light .topbar{background:linear-gradient(180deg,rgba(255,255,255,.5),transparent)}
+.topbar .title{font-weight:700;font-size:14px;letter-spacing:.01em}
+.topbar .title b{background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+.topbar .meta{font-size:11px;color:var(--text-3)}
+.topbar .spacer{flex:1 1 auto}
+.ctrl{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;
+  background:var(--control-bg);border:1px solid var(--hairline);font-size:12px}
+.ctrl .lbl{color:var(--text-3)}
+.seg{display:inline-flex;border-radius:9px;overflow:hidden;border:1px solid var(--hairline)}
+.seg button{border:0;background:transparent;color:var(--text-2);font-family:var(--font);font-size:12px;
+  padding:6px 12px;cursor:pointer;transition:background .14s var(--ease),color .14s var(--ease)}
+.seg button.on{background:rgba(124,140,255,.22);color:var(--text-1)}
+.seg button:not(.on):hover{background:var(--control-bg-strong)}
+
+/* —— 应用场景：OSC 后面的视频舞台（氛围用） —— */
+.scene{position:fixed;inset:0;
+  background:
+    radial-gradient(70% 60% at 50% 38%,var(--scene-glow),transparent 70%),
+    radial-gradient(45% 40% at 12% 88%,rgba(110,231,255,.07),transparent 60%),
+    radial-gradient(45% 40% at 88% 88%,rgba(255,122,198,.07),transparent 60%);
+  display:flex;align-items:center;justify-content:center}
+.scene .stage{position:relative;width:min(70vw,820px);aspect-ratio:16/9;border-radius:18px;overflow:hidden;
+  background:linear-gradient(135deg,#11203a,#2a1740 55%,#3a1330);
+  box-shadow:0 30px 80px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.04)}
+.scene .stage::after{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 80% at 50% 120%,rgba(124,140,255,.25),transparent 60%)}
+.scene .stage .film-title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.scene .stage .film-title .t{font-size:26px;font-weight:800;letter-spacing:.02em;color:rgba(255,255,255,.92);text-shadow:0 2px 18px rgba(0,0,0,.5)}
+.scene .stage .film-title .s{font-size:12px;color:rgba(255,255,255,.6)}
+.scene .watermark{position:fixed;right:18px;bottom:18px;font-size:11px;color:var(--text-3);opacity:.7}
+
+/* —— 顶部标题栏（style.css #titlebar 同语言） —— */
+#titlebar{position:fixed;top:0;left:0;right:0;z-index:55;display:flex;align-items:center;gap:10px;
+  padding:12px 18px;background:linear-gradient(180deg,rgba(0,0,0,.42),transparent);backdrop-filter:blur(8px)}
+body.light #titlebar{background:linear-gradient(180deg,rgba(255,255,255,.55),transparent)}
+#titlebar .tb-btn{width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:9px;
+  background:var(--control-bg);color:var(--text-1);cursor:pointer;transition:background .14s var(--ease)}
+#titlebar .tb-btn:hover{background:var(--control-bg-strong)}
+#titlebar .tb-btn svg{width:19px;height:19px;fill:currentColor}
+#titlebar .tb-spacer{flex:1 1 auto}
+#titlebar .tb-title{font-size:13px;font-weight:600;color:var(--text-1);max-width:46vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ============ #osc 控制条（1:1 还原 style.css:1664 + 1823 + 1844 + 1905） ============ */
+#osc{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:center;
+  padding:0 20px 22px;pointer-events:none}
+#osc-inner{width:min(960px,100%);pointer-events:auto;display:flex;flex-direction:column;
+  padding:12px 16px 10px;
+  background:var(--osc-bg);
+  border:.5px solid var(--osc-border);border-radius:18px;
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 18px 50px -10px rgba(0,0,0,.65),0 4px 16px -4px rgba(0,0,0,.45);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%)}
+
+/* —— 进度条 —— */
+#seekbar-zone{position:relative;padding:6px 4px 10px;cursor:pointer}
+#seekbar{position:relative;height:4px;background:rgba(255,255,255,.17);border-radius:4px;transition:height .18s var(--ease)}
+#seekbar-zone:hover #seekbar{height:7px}
+#seek-buffered,#seek-progress{position:absolute;inset:0 auto 0 0;border-radius:4px;pointer-events:none}
+#seek-buffered{background:rgba(255,255,255,.30);width:0;box-shadow:0 0 8px rgba(255,255,255,.12)}
+#seek-progress{width:0;background:linear-gradient(90deg,var(--accent-cyan),var(--accent));box-shadow:0 0 12px var(--accent-glow)}
+#seekbar-zone:hover #seek-progress{box-shadow:0 0 16px var(--accent-glow)}
+#seek-handle{position:absolute;top:50%;left:0;width:13px;height:13px;margin-left:-6.5px;background:#fff;
+  border-radius:50%;transform:translateY(-50%) scale(0);transition:transform .2s var(--ease),box-shadow .2s var(--ease);
+  box-shadow:0 2px 8px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.14);pointer-events:none}
+#seekbar-zone:hover #seek-handle{transform:translateY(-50%) scale(1);
+  box-shadow:0 2px 10px rgba(0,0,0,.6),0 0 0 2px var(--accent),0 0 10px var(--accent-glow)}
+
+/* 进度条悬停预览（精灵图缩略图，style.css:1760 #seek-preview） */
+#seek-preview{position:absolute;bottom:54px;left:41%;transform:translateX(-50%);width:214px;padding:6px;
+  background:var(--surface-2);border:1px solid var(--hairline);border-radius:12px;
+  box-shadow:0 14px 36px rgba(0,0,0,.62);backdrop-filter:blur(18px) saturate(150%);overflow:hidden}
+#seek-preview-img{width:200px;height:113px;border-radius:7px;background:
+  linear-gradient(135deg,#16314f,#3a1c4d 55%,#4a1733);position:relative;overflow:hidden}
+#seek-preview-img::after{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 80% at 50% 120%,rgba(124,140,255,.3),transparent 60%)}
+#seek-preview-time{margin-top:6px;text-align:center;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text-1)}
+#seek-tooltip{position:absolute;bottom:26px;left:41%;transform:translateX(-50%);padding:5px 9px;
+  background:var(--surface-2);border:1px solid var(--hairline);border-radius:6px;font-size:11.5px;
+  font-variant-numeric:tabular-nums;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.6)}
+
+/* —— 控制行 —— */
+#osc-controls{display:flex;align-items:center;gap:6px;margin-top:2px}
+.ctl-group{display:flex;align-items:center;gap:2px}
+.ctl-spacer{flex:1}
+.ctl-sep{display:inline-block;width:1px;height:22px;margin:0 4px;background:var(--hairline-strong);border-radius:1px;flex-shrink:0}
+.ctl-btn{position:relative;width:36px;height:36px;display:grid;place-items:center;background:none;border:none;
+  border-radius:9px;color:var(--text-1);cursor:pointer;
+  transition:background .16s var(--ease),transform .22s var(--ease),color .16s var(--ease)}
+.ctl-btn svg{width:19px;height:19px;fill:currentColor}
+.ctl-btn:hover{background:rgba(255,255,255,.12);transform:translateY(-1px) scale(1.06)}
+.ctl-btn:active{transform:translateY(0) scale(.94);transition-duration:.08s}
+.ctl-primary{width:42px;height:42px}
+.ctl-primary svg{width:23px;height:23px}
+.ctl-primary:hover{background:rgba(124,140,255,.22);color:var(--accent-bright);
+  box-shadow:0 0 0 1px rgba(124,140,255,.25),0 4px 18px rgba(124,140,255,.22)}
+.ctl-btn.hidden{display:none}
+.ctl-text{width:auto;min-width:54px;padding:0 10px;font-size:12px;font-weight:600;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.ctl-btn.active{color:var(--accent-bright)}
+.ctl-btn.active::after{content:'';position:absolute;bottom:3px;left:50%;width:3px;height:3px;margin-left:-1.5px;
+  background:var(--accent-bright);border-radius:50%}
+.ctl-time{display:flex;align-items:center;padding:0 8px;font-size:12.5px;font-variant-numeric:tabular-nums;
+  color:var(--text-2);gap:5px}
+#time-current{color:var(--text-1);font-weight:500}
+.time-sep{color:var(--text-3)}
+#time-remain{color:var(--text-3);margin-left:4px;font-size:11.5px}
+#time-remain:empty{display:none}
+
+/* —— 音量（style.css:1905 .ctl-volume，默认展开态以展示） —— */
+.ctl-volume{display:flex;align-items:center}
+#volume-track{position:relative;width:76px;height:4px;margin:0 6px 0 2px;background:rgba(255,255,255,.18);
+  border-radius:4px;cursor:pointer}
+#volume-fill{position:absolute;inset:0 auto 0 0;width:78%;border-radius:4px;
+  background:linear-gradient(90deg,var(--accent-cyan),var(--accent));box-shadow:0 0 8px var(--accent-glow)}
+#volume-handle{position:absolute;top:50%;left:78%;width:11px;height:11px;margin-left:-5.5px;background:#fff;
+  border-radius:50%;transform:translateY(-50%);box-shadow:0 1px 5px rgba(0,0,0,.5)}
+
+.footnote{position:fixed;left:0;right:0;bottom:0;z-index:60;text-align:center;padding:8px;
+  font-size:11px;color:var(--text-3);background:linear-gradient(0deg,rgba(0,0,0,.3),transparent);
+  pointer-events:none}
+body.light .footnote{background:linear-gradient(0deg,rgba(255,255,255,.5),transparent)}
+.footnote b{color:var(--accent-cyan);font-weight:600}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="title">Lumora · <b>OSC 控制条</b></div>
+  <div class="meta">OSC_MOCK · 1:1 还原 style.css:1664/1823/1844/1905 · 浮出式控制层</div>
+  <div class="spacer"></div>
+  <div class="ctrl"><span class="lbl">主题</span>
+    <div class="seg" id="theme-seg">
+      <button data-t="dark" class="on">深色</button>
+      <button data-t="light">浅色</button>
+    </div>
+  </div>
+  <div class="ctrl"><span class="lbl">状态</span>
+    <div class="seg" id="state-seg">
+      <button data-s="playing" class="on">播放中</button>
+      <button data-s="paused">已暂停</button>
+    </div>
+  </div>
+</div>
+
+<!-- 顶部标题栏（展示同语言控件） -->
+<div id="titlebar">
+  <button class="tb-btn" title="返回主界面"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7z"/></svg></button>
+  <div class="tb-title">星际穿越 · Interstellar (2014) 2160p Remux.mkv</div>
+  <div class="tb-spacer"></div>
+  <button class="tb-btn" title="投屏"><svg viewBox="0 0 24 24"><path d="M3 5h18v12H3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8" stroke="currentColor" stroke-width="2"/></svg></button>
+</div>
+
+<!-- 应用场景：OSC 后面的视频舞台（氛围用） -->
+<div class="scene">
+  <div class="stage">
+    <div class="film-title">
+      <div class="t">INTERSTELLAR</div>
+      <div class="s">2160p · HDR10 · TrueHD Atmos</div>
+    </div>
+  </div>
+  <div class="watermark">Lumora Player</div>
+</div>
+
+<!-- ============ OSC 控制条（与真实结构一致） ============ -->
+<div id="osc">
+  <div id="osc-inner">
+    <!-- 进度条 -->
+    <div id="seekbar-zone">
+      <div id="seekbar">
+        <div id="seek-buffered" style="width:63%"></div>
+        <div id="seek-progress" style="width:41%"></div>
+        <div id="seek-handle" style="left:41%"></div>
+      </div>
+      <div id="seek-preview">
+        <div id="seek-preview-img"></div>
+        <div id="seek-preview-time">1:12:03</div>
+      </div>
+      <div id="seek-tooltip">1:12:03</div>
+    </div>
+
+    <!-- 控制行 -->
+    <div id="osc-controls">
+      <div class="ctl-group">
+        <button class="ctl-btn ctl-primary" id="btn-play" title="播放/暂停 (空格)">
+          <svg id="icon-play" class="hidden" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="icon-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+        <button class="ctl-btn" data-cmd="stop" title="停止 (s)"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+        <button class="ctl-btn" data-cmd="playlist-prev" title="上一个 (<)"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3 6l9 6V6z"/></svg></button>
+        <button class="ctl-btn" data-cmd="playlist-next" title="下一个 (>)"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 6l9 6-9 6z"/></svg></button>
+      </div>
+
+      <span class="ctl-sep"></span>
+
+      <div class="ctl-group ctl-time">
+        <span id="time-current">1:12:03</span>
+        <span class="time-sep">/</span>
+        <span id="time-total">2:49:04</span>
+        <span id="time-remain">−1:37:01</span>
+      </div>
+
+      <div class="ctl-spacer"></div>
+
+      <div class="ctl-group">
+        <button class="ctl-btn" id="btn-video-track" title="视频轨"><svg viewBox="0 0 24 24"><path d="M3 5h13v14H3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 9l5-3v12l-5-3z" fill="currentColor"/></svg></button>
+        <button class="ctl-btn" id="btn-audio-track" title="音轨"><svg viewBox="0 0 24 24"><path d="M9 18V5l10-2v13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="18" r="3" fill="currentColor"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg></button>
+        <button class="ctl-btn active" id="btn-subtitle" title="字幕轨 (v)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10h4M7 14h7M14 10h3" stroke="currentColor" stroke-width="2"/></svg></button>
+      </div>
+
+      <span class="ctl-sep"></span>
+
+      <div class="ctl-group">
+        <button class="ctl-btn active" id="btn-danmaku" title="弹幕"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 9h10M7 12h6" stroke="currentColor" stroke-width="2"/></svg></button>
+      </div>
+
+      <span class="ctl-sep"></span>
+
+      <div class="ctl-group">
+        <button class="ctl-btn ctl-text" id="btn-speed" title="播放速度">1.00×</button>
+        <div class="ctl-volume">
+          <button class="ctl-btn" id="btn-mute" title="静音 (m)"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+          <div id="volume-track"><div id="volume-fill"></div><div id="volume-handle"></div></div>
+        </div>
+        <button class="ctl-btn" id="btn-pip" title="画中画 (T)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor"/></svg></button>
+        <button class="ctl-btn" id="btn-settings" title="渲染设置"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.4-1.3l-1.8-3.1a1 1 0 0 0-1.4-.4l-2 1.2a7.6 7.6 0 0 0-1.5-.9L12.8 0h-1.6l-.5 3a7.6 7.6 0 0 0-1.5.9l-2-1.2a1 1 0 0 0-1.4.4L3 6.7a1 1 0 0 0 .2 1.3l1.8 1.4q-.1.6-.1 1.3t.1 1.3l-1.8 1.4a1 1 0 0 0-.2 1.3l1.8 3.1a1 1 0 0 0 1.4.4l2-1.2q.7.6 1.5.9l.5 3h1.6l.5-3q.8-.3 1.5-.9l2 1.2a1 1 0 0 0 1.4-.4l1.8-3.1a1 1 0 0 0-.2-1.3l-1.8-1.4q.1-.6.1-1.3t-.1-1.3l1.8-1.4a1 1 0 0 0 .2-1.3z"/></svg></button>
+        <button class="ctl-btn" id="btn-playlist" title="播放列表 (F8)"><svg viewBox="0 0 24 24"><path d="M4 6h12M4 12h12M4 18h8" stroke="currentColor" stroke-width="2" fill="none"/><path d="M18 14v6l4-3z" fill="currentColor"/></svg></button>
+        <button class="ctl-btn" id="btn-home" title="返回主界面"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg></button>
+        <button class="ctl-btn" id="btn-fs" title="全屏 (f)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footnote">核心 OSC 控制条此前无 mock（最常用界面）；真实窗口恒为暗色玻璃，<b>浅色为设计提案</b>。音量轨默认隐藏、悬停展开，此处为展示展开态。</div>
+
+<script>
+/* —— 演示控制：主题 + 播放/暂停状态 —— */
+document.getElementById('theme-seg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  document.body.classList.toggle('light', b.dataset.t==='light');
+  document.querySelectorAll('#theme-seg button').forEach(x=>x.classList.toggle('on',x===b));
+});
+document.getElementById('state-seg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  const paused = b.dataset.s==='paused';
+  document.getElementById('icon-play').classList.toggle('hidden', !paused);
+  document.getElementById('icon-pause').classList.toggle('hidden', paused);
+  document.querySelectorAll('#state-seg button').forEach(x=>x.classList.toggle('on',x===b));
+});
+
+/* —— 进度条点击：设置进度（演示用，真实为拖拽 seek）—— */
+const zone=document.getElementById('seekbar-zone');
+const bar=document.getElementById('seekbar');
+const DUR=2*3600+49*60+4;
+function setProgress(ratio){
+  ratio=Math.max(0,Math.min(1,ratio));
+  document.getElementById('seek-progress').style.width=(ratio*100)+'%';
+  document.getElementById('seek-handle').style.left=(ratio*100)+'%';
+  const t=ratio*DUR, h=Math.floor(t/3600),m=Math.floor(t%3600/60),x=Math.floor(t%60);
+  const ts=(h?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(x).padStart(2,'0');
+  document.getElementById('time-current').textContent=ts;
+  document.getElementById('time-remain').textContent='−'+ts;
+  const prev=document.getElementById('seek-preview');
+  prev.style.left=(ratio*100)+'%';
+  document.getElementById('seek-preview-time').textContent=ts;
+  document.getElementById('seek-tooltip').textContent=ts;
+}
+zone.addEventListener('click',e=>{
+  const r=bar.getBoundingClientRect();
+  setProgress((e.clientX-r.left)/Math.max(r.width,1));
+});
+
+/* —— 音量轨点击：设置音量（演示用）—— */
+const vt=document.getElementById('volume-track');
+vt.addEventListener('click',e=>{
+  const r=vt.getBoundingClientRect();
+  const v=Math.max(0,Math.min(1,(e.clientX-r.left)/Math.max(r.width,1)));
+  document.getElementById('volume-fill').style.width=(v*100)+'%';
+  document.getElementById('volume-handle').style.left=(v*100)+'%';
+});
+</script>
+</body>
+</html>
