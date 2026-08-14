@@ -6455,3 +6455,17 @@ body.audio-mode.eq-open .eq-window {
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* ==========================================================================
+   黑胶模式窄窗/矮窗：与通用规则(style.css:4791)一致退化为上下堆叠。
+   通用 .ms-content/.ms-art/.ms-right 媒体查询特异性(0,1,0) 低于黑胶专属
+   (#music-stage.style-vinyl ... =1,2,0)，导致 ≤720/≤560 时黑胶仍保持横排、
+   唱机与歌词互相挤压。此处用同等特异性(置于基础规则之后)显式覆盖，
+   数值全部复用通用规则，纯响应式一致性修复，不动唱机/唱臂视觉设计。
+   ========================================================================== */
+@media (max-width: 720px), (max-height: 560px) {
+  #music-stage.style-vinyl .ms-content { flex-direction: column; gap: 18px; }
+  #music-stage.style-vinyl .ms-art { width: min(240px, 56vw); height: min(240px, 56vw); }
+  #music-stage.style-vinyl .ms-right { width: 94vw; max-height: min(46vh, 340px); }
+  #music-stage.style-vinyl .ms-lyrics-wrap { max-height: min(30vh, 220px); }
+}
