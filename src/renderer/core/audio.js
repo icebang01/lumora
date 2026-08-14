@@ -400,7 +400,10 @@ export class AudioOutput {
 
     this.ctx = ctx;
     this.analyser = analyser;
-    this.ready = true;
+    // 仅当 AudioContext 真正 running 才算就绪。suspended/error（无声卡、远程桌面
+    // 未重定向音频）时保持 false —— 否则 clock 会误判音频时钟可用，走进 suspended
+    // 下 mediaTime 固定值分支导致时钟卡死、视频帧不消费、画面冻结。
+    this.ready = ctx.state === 'running';
 
     // ── 首曲无声根因修复 ──
     // 新建的 AudioContext 默认处于 suspended 态：即便已用 autoplay-policy=
@@ -419,10 +422,12 @@ export class AudioOutput {
     ctx.onstatechange = () => {
       console.log('[lumen][audio] AudioContext state -> ' + ctx.state);
       if (ctx.state === 'running') {
+        this.ready = true;  // AudioContext 真正 running：音频时钟可用
         // 解除卡住状态；若用户仍有播放意图，自动恢复播放（浮层点击后无需再点播放）
         this._setBlocked(false);
         if (this._wantPlay) this.play().catch(() => {});
       } else if (ctx.state === 'suspended') {
+        this.ready = false;  // 被策略重新卡住：音频时钟不可用，回归系统时钟（不冻结视频）
         // 播放意图仍在（未暂停）却被打回 suspended：视为被策略重新卡住
         if (this._wantPlay) this._setBlocked(true);
       }

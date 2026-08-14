@@ -60,7 +60,12 @@ export class MasterClock {
   now() {
     let t;
 
-    if (this.source === 'audio') {
+    // 只有"音频时钟源真正就位"（AudioContext 已 running）才走音频时钟。
+    // 否则即便 source==='audio'（hasAudio 为真但设备不可用 / suspended / 创建失败），
+    // 也应退化系统时钟——否则 mediaTime 返回 suspended 下的固定值，时钟卡死，
+    // 视频帧不被消费 → 队列满 → 主进程停发 → 画面冻结（MF 在无声卡环境首帧后冻住的根因）。
+    const useAudioClock = this.source === 'audio' && this.audio && this.audio.ready;
+    if (useAudioClock) {
       const a = this.audio.mediaTime;
       if (a !== null && Number.isFinite(a)) {
         // 音频时钟刚从"未就绪/缓冲断流"恢复（hasBase 由 false 变 true，
