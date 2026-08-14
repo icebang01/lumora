@@ -4,6 +4,7 @@
  * 主进程逻辑在 src/main/cast/* + ipc-cast.js；本模块只负责 UI 与调用 window.lumen.cast*。
  * 用法：setupCast({ player, osd });  toggleCastPanel() 由 app.js 暴露给右键菜单/命令总线。
  */
+import { clamp } from '../../shared/clamp.js';
 import { fmtTime } from '../core/player.js';
 import { escapeHtml as esc } from '../../shared/escape-html.js';
 import { baseName } from '../../shared/path-base.js';
@@ -128,8 +129,8 @@ function makeCastDraggable() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const minVisible = 48;
-    x = Math.max(minVisible - win.offsetWidth, Math.min(x, vw - minVisible));
-    y = Math.max(0, Math.min(y, vh - minVisible));
+    x = clamp(x, minVisible - win.offsetWidth, vw - minVisible);
+    y = clamp(y, 0, vh - minVisible);
 
     win.style.left = `${x}px`;
     win.style.top = `${y}px`;
@@ -172,8 +173,8 @@ function onCastResize() {
   const minVisible = 48;
   let x = win.offsetLeft;
   let y = win.offsetTop;
-  x = Math.max(minVisible - win.offsetWidth, Math.min(x, vw - minVisible));
-  y = Math.max(0, Math.min(y, vh - minVisible));
+  x = clamp(x, minVisible - win.offsetWidth, vw - minVisible);
+  y = clamp(y, 0, vh - minVisible);
   win.style.left = `${x}px`;
   win.style.top = `${y}px`;
 }

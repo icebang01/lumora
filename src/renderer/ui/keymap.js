@@ -5,6 +5,7 @@
  * input.conf 之后这里立刻跟着变。一份会说谎的帮助文档比没有更糟。
  */
 
+import { clamp } from '../../shared/clamp.js';
 import { groupOf, describeBind, keyDisplay } from './keys.js';
 import { escapeHtml as esc } from '../../shared/escape-html.js';
 
@@ -85,8 +86,8 @@ export class KeymapPanel {
     const minVisible = 48;
     let x = parseInt(this.win.style.left || 0, 10);
     let y = parseInt(this.win.style.top || 0, 10);
-    x = Math.max(minVisible - this.win.offsetWidth, Math.min(x, vw - minVisible));
-    y = Math.max(0, Math.min(y, vh - minVisible));
+    x = clamp(x, minVisible - this.win.offsetWidth, vw - minVisible);
+    y = clamp(y, 0, vh - minVisible);
     this.win.style.left = `${x}px`;
     this.win.style.top = `${y}px`;
   }
@@ -116,8 +117,8 @@ export class KeymapPanel {
       const minVisible = 48;
       let x = this.dragState.initLeft + dx;
       let y = this.dragState.initTop + dy;
-      x = Math.max(minVisible - this.win.offsetWidth, Math.min(x, vw - minVisible));
-      y = Math.max(0, Math.min(y, vh - minVisible));
+      x = clamp(x, minVisible - this.win.offsetWidth, vw - minVisible);
+      y = clamp(y, 0, vh - minVisible);
       this.win.style.left = `${x}px`;
       this.win.style.top = `${y}px`;
       this.win.style.transform = 'none';

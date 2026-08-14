@@ -7,6 +7,7 @@
  * 注意：execute 由 context-menu.js 导出（右键菜单与输入共用同一条命令执行路径），
  * 拆出时发现此前漏了 export —— 本次一并修复。
  */
+import { clamp } from '../shared/clamp.js';
 import { keyCandidates, wheelCandidates, mouseCandidates } from './ui/keys.js';
 import { fmtTime } from './core/player.js';
 import { isCtxMenuOpen, closeContextMenu, openContextMenu, execute } from './panels/context-menu.js';
@@ -255,7 +256,7 @@ export function bindInput() {
    */
   let dragGesture = null;
 
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+
 
   const gestureOverlayEl = () => {
     let el = document.getElementById('gesture-overlay');

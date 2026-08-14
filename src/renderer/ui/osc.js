@@ -11,6 +11,7 @@
  *   2. 鼠标静止后控制条与光标一起消失，播放时界面必须彻底让位给画面。
  */
 
+import { clamp } from '../../shared/clamp.js';
 import { fmtTime, trackLabel } from '../core/player.js';
 import { keyCandidates } from './keys.js';
 
@@ -181,7 +182,7 @@ export class Osc {
 
     const ratioAt = (clientX) => {
       const r = this.el.bar.getBoundingClientRect();
-      return Math.max(0, Math.min((clientX - r.left) / Math.max(r.width, 1), 1));
+      return clamp((clientX - r.left) / Math.max(r.width, 1), 0, 1);
     };
 
     zone.addEventListener('pointerenter', () => { this._hoveringSeekbar = true; });
@@ -258,7 +259,7 @@ export class Osc {
     this.el.tooltipTime.textContent = fmtTime(t, d >= 3600);
 
     const zoneRect = this.el.zone.getBoundingClientRect();
-    const x = Math.max(46, Math.min(clientX - zoneRect.left, zoneRect.width - 46));
+    const x = clamp(clientX - zoneRect.left, 46, zoneRect.width - 46);
     this.el.tooltip.style.left = `${x}px`;
   }
 
@@ -285,7 +286,7 @@ export class Osc {
     this._sheetReqPending = true;
 
     const token = ++this._sheetToken;
-    const count = Math.max(12, Math.min(60, Math.round(duration / 45)));
+    const count = clamp(Math.round(duration / 45), 12, 60);
     if (window.lumen && window.lumen.getSeekSheet) {
       window.lumen.getSeekSheet({ path, duration, count }).then((r) => {
         this._sheetReqPending = false;
@@ -320,7 +321,7 @@ export class Osc {
     /* 用实际渲染宽度的一半做边界约束（含 padding/border），
        避免预览框贴到进度条左右边缘时溢出窗口。 */
     const halfW = el.offsetWidth / 2 || this._PREVIEW_W / 2;
-    const x = Math.max(halfW, Math.min(clientX - zoneRect.left, zoneRect.width - halfW));
+    const x = clamp(clientX - zoneRect.left, halfW, zoneRect.width - halfW);
     el.style.left = `${x}px`;
 
     /* 垂直夹紧：窗口极矮时预览框（bottom:54px 向上浮）可能顶出上沿，
@@ -360,7 +361,7 @@ export class Osc {
     el.classList.remove('loading');
 
     const { cols, rows, count, cellW, cellH, dataUrl } = sheet;
-    const idx = Math.max(0, Math.min(Math.floor(ratio * count), count - 1));
+    const idx = clamp(Math.floor(ratio * count), 0, count - 1);
     const col = idx % cols;
     const row = Math.floor(idx / cols);
 
@@ -385,7 +386,7 @@ export class Osc {
     const p = this.player;
     const d = p.props.duration;
     const t = p.props['time-pos'];
-    const pct = d > 0 ? Math.max(0, Math.min(t / d, 1)) : 0;
+    const pct = d > 0 ? clamp(t / d, 0, 1) : 0;
 
     this.el.progress.style.width = `${pct * 100}%`;
     this.el.handle.style.left = `${pct * 100}%`;
@@ -434,7 +435,7 @@ export class Osc {
     const track = this.el.volTrack;
     const ratioAt = (clientX) => {
       const r = track.getBoundingClientRect();
-      return Math.max(0, Math.min((clientX - r.left) / Math.max(r.width, 1), 1));
+      return clamp((clientX - r.left) / Math.max(r.width, 1), 0, 1);
     };
 
     track.addEventListener('pointerdown', (e) => {
@@ -554,7 +555,7 @@ export class Osc {
     const a = anchor.getBoundingClientRect();
     const r = el.getBoundingClientRect();
     let left = a.left + a.width / 2 - r.width / 2;
-    left = Math.max(10, Math.min(left, window.innerWidth - r.width - 10));
+    left = clamp(left, 10, window.innerWidth - r.width - 10);
     el.style.left = `${Math.round(left)}px`;
     el.style.top = `${Math.round(Math.max(10, a.top - r.height - 10))}px`;
   }

@@ -1,3 +1,4 @@
+import { clamp } from '../../shared/clamp.js';
 /**
  * 弹幕渲染层（Canvas2D，时间驱动）。
  *
@@ -80,9 +81,9 @@ export class DanmakuRenderer {
     if (!this.enabled) this.clearScreen();
   }
 
-  setOpacity(v) { this.opacity = Math.max(0, Math.min(1, v)); }
+  setOpacity(v) { this.opacity = clamp(v, 0, 1); }
   setFontSize(px) { this.fontSize = Math.max(12, px | 0); this._updateFont(); this._layoutArea(); }
-  setArea(r) { this.areaRatio = Math.max(0.25, Math.min(1, r)); this._layoutArea(); }
+  setArea(r) { this.areaRatio = clamp(r, 0.25, 1); this._layoutArea(); }
   setSpeedScale(s) { this.speedScale = Math.max(0.2, s); }
   setDensity(n) { this.density = Math.max(10, n | 0); }
 

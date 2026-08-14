@@ -8,6 +8,7 @@
  * 会更新 UI、用 IPC 调就不更新"这类经典 bug。
  */
 
+import { clamp } from '../../shared/clamp.js';
 import { AudioOutput } from './audio.js';
 import { MasterClock } from './clock.js';
 import { FrameQueue } from './framequeue.js';
@@ -182,7 +183,7 @@ export class Player extends PlaybackEngine {
       }
 
       case 'volume': {
-        const v = Math.max(0, Math.min(Number(value) || 0, 150));
+        const v = clamp(Number(value) || 0, 0, 150);
         this.props.volume = v;
         this.audio.setVolume(v, this.props.mute);
         break;
@@ -194,7 +195,7 @@ export class Player extends PlaybackEngine {
         break;
 
       case 'speed': {
-        const v = Math.max(0.05, Math.min(Number(value) || 1, 16));
+        const v = clamp(Number(value) || 1, 0.05, 16);
         if (Math.abs(v - this.props.speed) < 1e-6) return;
         this.props.speed = v;
         this.audio.setSpeed(v);
@@ -241,7 +242,7 @@ export class Player extends PlaybackEngine {
         break;
 
       case 'target-peak': {
-        const v = Math.max(1, Math.min(Number(value) || 203, 10000));
+        const v = clamp(Number(value) || 203, 1, 10000);
         this.props['target-peak'] = v;
         this.renderer.setOption('targetPeak', v);
         this.needsRedraw = true;
@@ -249,7 +250,7 @@ export class Player extends PlaybackEngine {
       }
 
       case 'brightness': case 'contrast': case 'saturation': case 'gamma': {
-        const v = Math.max(-100, Math.min(Number(value) || 0, 100));
+        const v = clamp(Number(value) || 0, -100, 100);
         this.props[name] = v;
         this.renderer.setOption(name, v);
         this.needsRedraw = true;
@@ -265,7 +266,7 @@ export class Player extends PlaybackEngine {
       }
 
       case 'video-zoom': {
-        const v = Math.max(0.1, Math.min(Number(value) || 1, 10));
+        const v = clamp(Number(value) || 1, 0.1, 10);
         this.props['video-zoom'] = v;
         this.renderer.setOption('zoom', v);
         this.needsRedraw = true;
@@ -273,7 +274,7 @@ export class Player extends PlaybackEngine {
       }
 
       case 'video-pan-x': case 'video-pan-y': {
-        const v = Math.max(-2, Math.min(Number(value) || 0, 2));
+        const v = clamp(Number(value) || 0, -2, 2);
         this.props[name] = v;
         this.renderer.setOption(name === 'video-pan-x' ? 'panX' : 'panY', v);
         this.needsRedraw = true;
@@ -785,7 +786,7 @@ export class Player extends PlaybackEngine {
   async seek(target) {
     if (!this.info) return;
     const d = this.props.duration;
-    const t = Math.max(0, d > 0 ? Math.min(target, d - 0.05) : target);
+    const t = clamp(target, 0, d > 0 ? d - 0.05 : target);
 
     this.seeking = true;
     this.props['time-pos'] = t;
@@ -1195,7 +1196,7 @@ export class Player extends PlaybackEngine {
     if (dir < 0 && cur >= 0 && this.props['time-pos'] - this.info.chapters[cur].start > 3) {
       next = cur;
     }
-    next = Math.max(0, Math.min(next, this.info.chapters.length - 1));
+    next = clamp(next, 0, this.info.chapters.length - 1);
     const ch = this.info.chapters[next];
     this.seek(ch.start);
     this.dispatchEvent(new CustomEvent('osd', {

@@ -6,6 +6,7 @@
  * 用法:setupPlaylistPanel({ player, osd, playlist, getPlaylistIndex, setPlaylistIndex,
  *   playlistGoto, playlistRemove, persistPlaylist });(boot 时注入)
  */
+import { clamp } from '../../shared/clamp.js';
 import { isLiked, toggleLiked, onLikeChange } from '../core/likes.js';
 import { collectDroppedPaths, endExternalDrag, naturalCompare } from '../input.js';
 import { baseName } from '../../shared/path-base.js';
@@ -528,7 +529,7 @@ export function reorderPlaylist(from, to, after) {
   const moved = playlist.splice(from, 1)[0];
   let target = to + (after ? 1 : 0);
   if (from < target) target -= 1;            // 抽出后后续索引前移
-  target = Math.max(0, Math.min(target, playlist.length));
+  target = clamp(target, 0, playlist.length);
   playlist.splice(target, 0, moved);
   setPlaylistIndex(currentPath ? playlist.indexOf(currentPath) : Math.min(getPlaylistIndex(), playlist.length - 1));
   if (getPlaylistIndex() < 0) setPlaylistIndex(0);

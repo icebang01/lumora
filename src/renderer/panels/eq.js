@@ -13,6 +13,7 @@ import {
 } from '../core/eq.js';
 import { closePlaylistPanel } from './playlist.js';
 import { toggleSettings } from './settings.js';
+import { clamp } from '../../shared/clamp.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -202,8 +203,8 @@ function _makeEqDraggable() {
     const vh = window.innerHeight;
     const rect = win.getBoundingClientRect();
     const minVisible = 48;
-    x = Math.max(minVisible - rect.width, Math.min(x, vw - minVisible));
-    y = Math.max(0, Math.min(y, vh - minVisible));
+    x = clamp(x, minVisible - rect.width, vw - minVisible);
+    y = clamp(y, 0, vh - minVisible);
     win.style.left = `${x}px`;
     win.style.top = `${y}px`;
   });

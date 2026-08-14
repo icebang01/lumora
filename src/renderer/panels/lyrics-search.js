@@ -11,6 +11,7 @@
  *   - onApply(lines, lrcMeta, info)：用户选中候选并保存成功后回调，由调用方渲染歌词。
  */
 
+import { clamp } from '../../shared/clamp.js';
 import { escapeHtml as esc } from '../../shared/escape-html.js';
 
 let overlayEl = null;
@@ -119,8 +120,8 @@ function startDragCard(e) {
     const pad = 20;
     const maxX = window.innerWidth - pad;
     const maxY = window.innerHeight - pad;
-    nx = Math.max(pad - rect.width, Math.min(nx, maxX));
-    ny = Math.max(pad - rect.height, Math.min(ny, maxY));
+    nx = clamp(nx, pad - rect.width, maxX);
+    ny = clamp(ny, pad - rect.height, maxY);
     cardEl.style.left = `${nx}px`;
     cardEl.style.top = `${ny}px`;
   }

@@ -1,3 +1,4 @@
+import { clamp } from '../../shared/clamp.js';
 /**
  * 字幕覆盖层样式应用（渲染端 / ffmpeg 引擎专用）。
  *
@@ -40,8 +41,8 @@ export function applySubtitleStyle(props = {}, primaryEl, secondaryEl) {
   const shadowSize = Number(props['sub-shadow-size'] || 0);
   const bgOn = !!props['sub-bg'];
   const bgColor = props['sub-bg-color'] || '#000000';
-  const bgOpacity = Math.max(0, Math.min(100, Number(props['sub-bg-opacity'] != null ? props['sub-bg-opacity'] : 50))) / 100;
-  const pos = Math.max(5, Math.min(95, Number(props['sub-pos'] != null ? props['sub-pos'] : 88)));
+  const bgOpacity = clamp(Number(props['sub-bg-opacity'] != null ? props['sub-bg-opacity'] : 50), 0, 100) / 100;
+  const pos = clamp(Number(props['sub-pos'] != null ? props['sub-pos'] : 88), 5, 95);
 
   // sub-pos：0=顶部，100=底部；覆盖层用 bottom 百分比表达（pos=88 → 距底 12%）
   const primaryBottom = 100 - pos;

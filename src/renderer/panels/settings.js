@@ -4,6 +4,7 @@
  * visible 状态模块内自持,对外暴露 isSettingsVisible()/isSetSelectOpen()。
  * 用法:setupSettingsPanel(ctx);(boot 时注入;动态值用 getter)
  */
+import { clamp } from '../../shared/clamp.js';
 import { fmtTime } from '../core/player.js';
 import { KeybindEditor } from '../ui/keybind-editor.js';
 import { toggleLicenses, isLicensesVisible } from './licenses.js';
@@ -168,7 +169,7 @@ export function openSetSelect(el, list) {
   fly.classList.add('open');
   const flyW = fly.offsetWidth || r.width;
   let left = r.left + r.width / 2 - flyW / 2;
-  left = Math.max(8, Math.min(left, window.innerWidth - flyW - 8));
+  left = clamp(left, 8, window.innerWidth - flyW - 8);
   let top = r.bottom + 6;
   if (top + fh > window.innerHeight - 8) top = Math.max(8, r.top - 6 - fh);
   fly.style.left = left + 'px';
@@ -339,8 +340,8 @@ function makeSettingsDraggable() {
     const vw = window.innerWidth, vh = window.innerHeight;
     let x = settingsDragState.initLeft + dx;
     let y = settingsDragState.initTop + dy;
-    x = Math.max(8, Math.min(x, vw - w.offsetWidth - 8));
-    y = Math.max(8, Math.min(y, vh - w.offsetHeight - 8));
+    x = clamp(x, 8, vw - w.offsetWidth - 8);
+    y = clamp(y, 8, vh - w.offsetHeight - 8);
     w.style.left = `${x}px`;
     w.style.top = `${y}px`;
     w.style.transform = 'none';
@@ -385,8 +386,8 @@ function centerSettingsWindow() {
   // 居中但钳位到视口内（上下左右至少留 8px 边距）
   let left = Math.round((vw - ww) / 2);
   let top = Math.round((vh - wh) / 2);
-  left = Math.max(8, Math.min(left, vw - ww - 8));
-  top = Math.max(8, Math.min(top, vh - wh - 8));
+  left = clamp(left, 8, vw - ww - 8);
+  top = clamp(top, 8, vh - wh - 8);
   win.style.left = `${left}px`;
   win.style.top = `${top}px`;
   win.style.transform = 'none';
@@ -399,8 +400,8 @@ function onSettingsResize() {
   if (!settingsUserMoved) { centerSettingsWindow(); return; }
   const vw = window.innerWidth, vh = window.innerHeight;
   let x = win.offsetLeft, y = win.offsetTop;
-  x = Math.max(8, Math.min(x, vw - win.offsetWidth - 8));
-  y = Math.max(8, Math.min(y, vh - win.offsetHeight - 8));
+  x = clamp(x, 8, vw - win.offsetWidth - 8);
+  y = clamp(y, 8, vh - win.offsetHeight - 8);
   win.style.left = `${x}px`;
   win.style.top = `${y}px`;
 }

@@ -1,3 +1,4 @@
+import { clamp } from '../../shared/clamp.js';
 /**
  * 音频均衡器(EQ)共享状态。
  *
@@ -37,7 +38,7 @@ const _listeners = new Set();
 
 function _clampBand(v) {
   const n = Number(v) || 0;
-  return Math.max(EQ_MIN, Math.min(EQ_MAX, n));
+  return clamp(n, EQ_MIN, EQ_MAX);
 }
 
 function _load() {

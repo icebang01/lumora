@@ -1,3 +1,4 @@
+import { clamp } from '../../shared/clamp.js';
 /**
  * 音频输出 Worklet —— 同时是整个播放器的主时钟源。
  *
@@ -39,8 +40,8 @@ function wsolaSynthesize(p, output, frames, ch) {
   // （每帧消费 Ha、产出 HS），音高则由下方波形相似搜索保住，与 Ha 无关。
   // W-HS 是分析窗口重叠量，须 > 0 供搜索找相位；故 Ha 上限钳到 W-1，
   // 对应 speed 上限 (W-1)/HS ≈ 4（W=512, HS=128），超出则钳制、不丢段。
-  const effSpeed = Math.min(Math.max(p.speed, 0.05), 4);
-  const Ha = Math.max(1, Math.min(Math.round(HS * effSpeed), W - 1));
+  const effSpeed = clamp(p.speed, 0.05, 4);
+  const Ha = clamp(Math.round(HS * effSpeed), 1, W - 1);
 
   // 波形相似搜索：直接在分析位置附近以绝对偏移 δ∈[-SEARCH,SEARCH] 搜索。
   // 信号的周期性会把相位对齐折叠进这个窗口，故 δ 始终有界、不会逐帧累积漂移
@@ -200,7 +201,7 @@ class LumenAudioProcessor extends AudioWorkletProcessor {
       case 'speed':
         // 倍速：仅更新 speed。MF 原始 48k PCM 的"时间伸缩"由 WSOLA 完成，
         // 不重启解码、不变采样率。重置相位搜索以适配新的分析 hop。
-        this.speed = Math.min(Math.max(msg.speed || 1, 0.05), 16);
+        this.speed = clamp(msg.speed || 1, 0.05, 16);
         this.wsolaDelta = null;
         break;
       case 'flush':
@@ -218,7 +219,7 @@ class LumenAudioProcessor extends AudioWorkletProcessor {
         this.wsolaDelta = null;  // 重置相位搜索
         break;
       case 'volume':
-        this.gainTarget = msg.muted ? 0 : Math.max(0, Math.min(msg.volume, 2));
+        this.gainTarget = msg.muted ? 0 : clamp(msg.volume, 0, 2);
         this.muted = !!msg.muted;
         break;
       case 'epoch':

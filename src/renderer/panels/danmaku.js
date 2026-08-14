@@ -4,6 +4,7 @@
  * visible 状态模块内自持,对外暴露 isDanmakuVisible()。
  * 用法:setupDanmakuPanel({ player, osd, getDanmakuRenderer, closeOthers });(boot 时注入)
  */
+import { clamp } from '../../shared/clamp.js';
 import { escapeHtml } from '../../shared/escape-html.js';
 
 const $ = (id) => document.getElementById(id);
@@ -97,8 +98,8 @@ function makeDanmakuDraggable() {
     let x = danmakuDragState.initLeft + dx;
     let y = danmakuDragState.initTop + dy;
     // 保证窗口不会被完全拖出视口
-    x = Math.max(8, Math.min(x, vw - w.offsetWidth - 8));
-    y = Math.max(8, Math.min(y, vh - w.offsetHeight - 8));
+    x = clamp(x, 8, vw - w.offsetWidth - 8);
+    y = clamp(y, 8, vh - w.offsetHeight - 8);
     w.style.left = `${x}px`;
     w.style.top = `${y}px`;
     w.style.transform = 'none';
@@ -127,8 +128,8 @@ function onDanmakuResize() {
   if (!danmakuUserMoved) { centerDanmakuWindow(); return; }
   const vw = window.innerWidth, vh = window.innerHeight;
   let x = win.offsetLeft, y = win.offsetTop;
-  x = Math.max(8, Math.min(x, vw - win.offsetWidth - 8));
-  y = Math.max(8, Math.min(y, vh - win.offsetHeight - 8));
+  x = clamp(x, 8, vw - win.offsetWidth - 8);
+  y = clamp(y, 8, vh - win.offsetHeight - 8);
   win.style.left = `${x}px`;
   win.style.top = `${y}px`;
 }
@@ -162,7 +163,7 @@ export function restoreDanmakuDisplay() {
     const saved = Number(cfg[cfgKey]);
     if (Number.isFinite(saved)) {
       const min = Number(el.min), max = Number(el.max);
-      el.value = Math.max(min, Math.min(max, saved));
+      el.value = clamp(saved, min, max);
     }
     const v = Number(el.value);
     apply(v);

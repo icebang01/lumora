@@ -10,6 +10,7 @@
  * 命令，五个入口自动全都支持。
  */
 
+import { clamp } from '../shared/clamp.js';
 import { escapeHtml as esc } from '../shared/escape-html.js';
 import { baseName } from '../shared/path-base.js';
 import { isAudioPath } from '../shared/audio-path.js';
@@ -787,8 +788,8 @@ function makeNetworkStreamDraggable() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const minVisible = 48;
-    x = Math.max(minVisible - win.offsetWidth, Math.min(x, vw - minVisible));
-    y = Math.max(0, Math.min(y, vh - minVisible));
+    x = clamp(x, minVisible - win.offsetWidth, vw - minVisible);
+    y = clamp(y, 0, vh - minVisible);
 
     win.style.left = `${x}px`;
     win.style.top = `${y}px`;
@@ -818,8 +819,8 @@ function onNetworkStreamResize() {
   const minVisible = 48;
   let x = win.offsetLeft;
   let y = win.offsetTop;
-  x = Math.max(minVisible - win.offsetWidth, Math.min(x, vw - minVisible));
-  y = Math.max(0, Math.min(y, vh - minVisible));
+  x = clamp(x, minVisible - win.offsetWidth, vw - minVisible);
+  y = clamp(y, 0, vh - minVisible);
   win.style.left = `${x}px`;
   win.style.top = `${y}px`;
 }
@@ -1132,8 +1133,8 @@ async function takeScreenshotSequence() {
     return;
   }
   const cfg = (bootstrapData && bootstrapData.config && bootstrapData.config.values) || {};
-  const count = Math.max(2, Math.min(30, parseInt(cfg['screenshot-sequence-count'], 10) || 5));
-  const interval = Math.max(0.1, Math.min(5, (parseInt(cfg['screenshot-sequence-interval'], 10) || 500) / 1000));
+  const count = clamp(parseInt(cfg['screenshot-sequence-count'], 10) || 5, 2, 30);
+  const interval = clamp((parseInt(cfg['screenshot-sequence-interval'], 10) || 500) / 1000, 0.1, 5);
   const subtitles = cfg['screenshot-subtitles'] ? 'subtitles' : 'video';
   const duration = player.props.duration || Infinity;
   const start = player.props['time-pos'] || 0;

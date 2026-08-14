@@ -15,6 +15,7 @@
  * 事件：监听 document 'lumen:playstate'（osc.js 在 pause 变化时派发）与 'lumen:idle-enter'。
  */
 
+import { clamp } from '../../shared/clamp.js';
 import { fmtTime } from '../core/player.js';
 import { isLiked, toggleLiked, onLikeChange } from '../core/likes.js';
 import { toggleEqPanel, closeEqPanel } from '../panels/eq.js';
@@ -598,7 +599,7 @@ function _bindMusicControls() {
   // 进度条：拖拽本地预览、松手才真正 seek（避免拖动中反复重启解码管线）。
   const ratioAt = (clientX) => {
     const r = mSeek.getBoundingClientRect();
-    return Math.max(0, Math.min((clientX - r.left) / Math.max(r.width, 1), 1));
+    return clamp((clientX - r.left) / Math.max(r.width, 1), 0, 1);
   };
 
   mSeek.addEventListener('pointerdown', (e) => {
@@ -660,7 +661,7 @@ function _bindMusicControls() {
   // 音量条
   const volRatioAt = (clientY) => {
     const r = mVol.getBoundingClientRect();
-    return Math.max(0, Math.min((r.bottom - clientY) / Math.max(r.height, 1), 1));
+    return clamp((r.bottom - clientY) / Math.max(r.height, 1), 0, 1);
   };
   let draggingVol = false;
   mVol.addEventListener('pointerdown', (e) => {
@@ -773,7 +774,7 @@ function _paintProgress() {
   if (!player) return;
   const d = player.props.duration;
   const t = player.props['time-pos'];
-  const pct = d > 0 ? Math.max(0, Math.min((t || 0) / d, 1)) : 0;
+  const pct = d > 0 ? clamp((t || 0) / d, 0, 1) : 0;
   if (mSeekProgress) mSeekProgress.style.setProperty('--mc-progress', String(pct));
   if (mSeekHandle) mSeekHandle.style.left = `${pct * 100}%`;
   if (mTimeCur) mTimeCur.textContent = fmtTime(t || 0, d >= 3600);
@@ -1060,7 +1061,7 @@ function _simulateSpectrumTarget() {
       + 0.28 * Math.sin(p)
       + 0.18 * Math.sin(p * 1.7 + 1.3)
       + 0.12 * Math.sin(p * 3.1 + 2.1);
-    out[i] = Math.max(0.08, Math.min(0.85, v));
+    out[i] = clamp(v, 0.08, 0.85);
   }
   return out;
 }
@@ -1287,7 +1288,7 @@ function _estimateCharTimes(text, start, end) {
   const n = chars.length;
   if (!n) return [];
   const rawSpan = Math.max(0.05, end - start);
-  const sungSpan = Math.min(rawSpan, Math.max(0.8, n * 0.30));
+  const sungSpan = clamp(n * 0.30, 0.8, rawSpan);
   const out = new Array(n);
   for (let i = 0; i < n; i++) out[i] = start + ((i + 0.5) / n) * sungSpan;
   return out;
@@ -1431,12 +1432,12 @@ function _syncCredits(time) {
     return;
   }
   const firstTime = _lyricLines.length ? (_lyricLines[0].time + _lyricOffset) : 0;
-  const windowSec = Math.min(Math.max(firstTime > 0 ? firstTime : 6, 3), 10);
+  const windowSec = clamp(firstTime > 0 ? firstTime : 6, 3, 10);
   const step = windowSec / count;
   _lyricCreditsRows.forEach(({ el: row }, i) => {
     const start = i * step;
     const end = start + step;
-    const prog = Math.max(0, Math.min((time - start) / (end - start), 1));
+    const prog = clamp((time - start) / (end - start), 0, 1);
     row.style.setProperty('--prog', String(prog));
     row.classList.toggle('lit', prog > 0);
   });
@@ -1968,7 +1969,7 @@ function _applyLineState(ln, state, time) {
     prog = _charTimesToProg(lt, ct);
   } else {
     const span = Math.min(Math.max(0.05, ln.end - ln.time), Math.max(0.8, (ln.chars ? ln.chars.length : 1) * 0.30));
-    prog = Math.max(0, Math.min(1, (lt - ln.time) / span));
+    prog = clamp((lt - ln.time) / span, 0, 1);
   }
   // 逐字点亮：唱到哪个字，哪个字亮（普通 LRC 无真实逐字时间时按估算 charTimes 推进）；
   // 最后亮起的字 = 当前正在唱的字（.cur 强调，制造「跟唱」焦点）
@@ -2018,7 +2019,7 @@ function _startLyricRAF() {
       prog = _charTimesToProg(lt, ct);
     } else {
       const span = Math.min(Math.max(0.05, ln.end - ln.time), Math.max(0.8, (ln.chars ? ln.chars.length : 1) * 0.30));
-      prog = Math.max(0, Math.min(1, (lt - ln.time) / span));
+      prog = clamp((lt - ln.time) / span, 0, 1);
     }
     // 逐字点亮（与 _applyLineState 同步，rAF 插值期间持续推进）+ 当前字焦点
     let curIdx = -1, litCount = 0;
@@ -2239,7 +2240,7 @@ function _updatePositionState() {
   try {
     navigator.mediaSession.setPositionState({
       duration: d,
-      position: Math.max(0, Math.min(t, d)),
+      position: clamp(t, 0, d),
       playbackRate: player.props.speed || 1,
     });
   } catch { /* ignore */ }

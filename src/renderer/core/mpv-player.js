@@ -8,6 +8,7 @@
  * 用基类兼容桩替代，保证 stats 面板不会 NPE。
  */
 
+import { clamp } from '../../shared/clamp.js';
 import { fmtTime, trackLabel } from './player.js';
 import { PlaybackEngine } from './engine.js';
 
@@ -103,7 +104,7 @@ export class MpvPlayer extends PlaybackEngine {
         break;
       }
       case 'volume': {
-        const v = Math.max(0, Math.min(Number(value) || 0, 150));
+        const v = clamp(Number(value) || 0, 0, 150);
         this.props.volume = v;
         this._mpvSet('volume', v);
         break;
@@ -113,7 +114,7 @@ export class MpvPlayer extends PlaybackEngine {
         this._mpvSet('mute', !!value);
         break;
       case 'speed': {
-        const v = Math.max(0.05, Math.min(Number(value) || 1, 16));
+        const v = clamp(Number(value) || 1, 0.05, 16);
         if (Math.abs(v - this.props.speed) < 1e-6) return;
         this.props.speed = v;
         this._mpvSet('speed', v);
@@ -144,14 +145,14 @@ export class MpvPlayer extends PlaybackEngine {
         this.needsRedraw = true;
         break;
       case 'target-peak': {
-        const v = Math.max(1, Math.min(Number(value) || 203, 10000));
+        const v = clamp(Number(value) || 203, 1, 10000);
         this.props['target-peak'] = v;
         this._mpvSet('target-peak', v);
         this.needsRedraw = true;
         break;
       }
       case 'brightness': case 'contrast': case 'saturation': case 'gamma': {
-        const v = Math.max(-100, Math.min(Number(value) || 0, 100));
+        const v = clamp(Number(value) || 0, -100, 100);
         this.props[name] = v;
         this._mpvSet(name, v);
         this.needsRedraw = true;
@@ -165,14 +166,14 @@ export class MpvPlayer extends PlaybackEngine {
         break;
       }
       case 'video-zoom': {
-        const v = Math.max(0.1, Math.min(Number(value) || 1, 10));
+        const v = clamp(Number(value) || 1, 0.1, 10);
         this.props['video-zoom'] = v;
         this._mpvSet('video-zoom', v);
         this.needsRedraw = true;
         break;
       }
       case 'video-pan-x': case 'video-pan-y': {
-        const v = Math.max(-2, Math.min(Number(value) || 0, 2));
+        const v = clamp(Number(value) || 0, -2, 2);
         this.props[name] = v;
         this._mpvSet(name, v);
         this.needsRedraw = true;
@@ -213,7 +214,7 @@ export class MpvPlayer extends PlaybackEngine {
       }
       /* ---- 字幕外观（两个引擎共用同一套 sub-* 配置键）---- */
       case 'sub-font-size': {
-        const v = Math.max(1, Math.min(Number(value) || 55, 200));
+        const v = clamp(Number(value) || 55, 1, 200);
         this.props['sub-font-size'] = v;
         window.lumen.mpvSetProperty('sub-font-size', v, this.source);
         break;
@@ -231,7 +232,7 @@ export class MpvPlayer extends PlaybackEngine {
         break;
       }
       case 'sub-outline-size': {
-        const v = Math.max(0, Math.min(Number(value) || 0, 16));
+        const v = clamp(Number(value) || 0, 0, 16);
         this.props['sub-outline-size'] = v;
         window.lumen.mpvSetProperty('sub-outline-size', v, this.source);
         break;
@@ -244,7 +245,7 @@ export class MpvPlayer extends PlaybackEngine {
       }
       case 'sub-shadow-size': {
         // Lumen 的 sub-shadow-size(px) → mpv 的 sub-shadow-offset(px)
-        const v = Math.max(0, Math.min(Number(value) || 0, 16));
+        const v = clamp(Number(value) || 0, 0, 16);
         this.props['sub-shadow-size'] = v;
         window.lumen.mpvSetProperty('sub-shadow-offset', v, this.source);
         break;
@@ -260,14 +261,14 @@ export class MpvPlayer extends PlaybackEngine {
         break;
       }
       case 'sub-bg-opacity': {
-        const v = Math.max(0, Math.min(Number(value) != null ? Number(value) : 50, 100));
+        const v = clamp(Number(value) != null ? Number(value) : 50, 0, 100);
         this.props['sub-bg-opacity'] = v;
         this._applyMpvSubBack();
         break;
       }
       case 'sub-pos': {
         // 0=顶 100=底，与 mpv sub-pos 语义一致
-        const v = Math.max(5, Math.min(Number(value) != null ? Number(value) : 88, 95));
+        const v = clamp(Number(value) != null ? Number(value) : 88, 5, 95);
         this.props['sub-pos'] = v;
         window.lumen.mpvSetProperty('sub-pos', v, this.source);
         break;
@@ -324,7 +325,7 @@ export class MpvPlayer extends PlaybackEngine {
     }
     const c = this.props['sub-bg-color'] || '#000000';
     const hex = (typeof c === 'string' && c.length === 7) ? c : '#000000';
-    const op = Math.max(0, Math.min(100, Number(this.props['sub-bg-opacity'] != null ? this.props['sub-bg-opacity'] : 50))) / 100;
+    const op = clamp(Number(this.props['sub-bg-opacity'] != null ? this.props['sub-bg-opacity'] : 50), 0, 100) / 100;
     const a = Math.round(op * 255).toString(16).padStart(2, '0');
     window.lumen.mpvSetProperty('sub-back-color', hex + a, this.source);
   }
@@ -700,7 +701,7 @@ export class MpvPlayer extends PlaybackEngine {
   async seek(target) {
     if (!this.info) return;
     const d = this.props.duration;
-    const t = Math.max(0, d > 0 ? Math.min(target, d - 0.05) : target);
+    const t = clamp(target, 0, d > 0 ? d - 0.05 : target);
 
     this.props['time-pos'] = t;
     this._notify('time-pos', t);
@@ -746,7 +747,7 @@ export class MpvPlayer extends PlaybackEngine {
     if (dir < 0 && cur >= 0 && this.props['time-pos'] - this.info.chapters[cur].start > 3) {
       next = cur;
     }
-    next = Math.max(0, Math.min(next, this.info.chapters.length - 1));
+    next = clamp(next, 0, this.info.chapters.length - 1);
     const ch = this.info.chapters[next];
     this.seek(ch.start);
     this.dispatchEvent(new CustomEvent('osd', {

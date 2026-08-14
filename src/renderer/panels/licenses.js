@@ -1,3 +1,4 @@
+import { clamp } from '../../shared/clamp.js';
 /**
  * 许可证面板(自包含模块)。
  * 从 app.js 拆出(2026-08):setupLicensesPanel/toggleLicenses/构建与拖拽。
@@ -56,8 +57,8 @@ function makeLicensesDraggable() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const minVisible = 48;
-    x = Math.max(minVisible - win.offsetWidth, Math.min(x, vw - minVisible));
-    y = Math.max(0, Math.min(y, vh - minVisible));
+    x = clamp(x, minVisible - win.offsetWidth, vw - minVisible);
+    y = clamp(y, 0, vh - minVisible);
 
     win.style.left = `${x}px`;
     win.style.top = `${y}px`;
@@ -100,8 +101,8 @@ function onLicensesResize() {
   const minVisible = 48;
   let x = win.offsetLeft;
   let y = win.offsetTop;
-  x = Math.max(minVisible - win.offsetWidth, Math.min(x, vw - minVisible));
-  y = Math.max(0, Math.min(y, vh - minVisible));
+  x = clamp(x, minVisible - win.offsetWidth, vw - minVisible);
+  y = clamp(y, 0, vh - minVisible);
   win.style.left = `${x}px`;
   win.style.top = `${y}px`;
 }
