@@ -2061,7 +2061,7 @@ body.playlist-open #side-rail {
 /* 右键上下文菜单 */
 .ctx-menu { min-width: 200px; max-width: 340px; max-height: min(62vh, calc(100vh - 8px)); overflow-x: hidden; overflow-y: auto; z-index: 60; }
 .ctx-menu::-webkit-scrollbar { width: 8px; }
-.ctx-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+.ctx-menu::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 .pop-item.ctx-has-sub { position: relative; }
 .pop-item.disabled { opacity: .38; pointer-events: none; }
 
@@ -2092,7 +2092,7 @@ body.playlist-open #side-rail {
 .ctx-submenu.hidden { display: none; }
 .ctx-submenu::-webkit-scrollbar { width: 8px; }
 .ctx-submenu::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.14); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box;
+  background: var(--scroll-thumb); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box;
 }
 
 /* 滑块型条目（画质调节） */
@@ -2106,7 +2106,7 @@ body.playlist-open #side-rail {
 .pop-slider {
   -webkit-appearance: none;
   width: 100%; height: 4px;
-  background: rgba(255,255,255,.16);
+  background: var(--fill-track);
   border-radius: 4px;
   outline: none;
   cursor: pointer;
@@ -2531,7 +2531,7 @@ body.playlist-open #side-rail {
   max-height: 100vh;
   display: flex; flex-direction: column;
   background: rgba(20,22,32,.82);
-  border-left: 1px solid rgba(255,255,255,.10);
+  border-left: 1px solid var(--hairline);
   border-radius: 0;
   backdrop-filter: blur(28px) saturate(170%);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
@@ -2547,16 +2547,16 @@ body.playlist-open #side-rail {
 .playlist-header {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid var(--hairline);
 }
 .playlist-title { font-size: 14px; font-weight: 600; color: #f4f5fb; }
-.playlist-count { font-size: 12px; color: #8b90a6; }
+.playlist-count { font-size: 12px; color: var(--text-3); }
 .playlist-close {
   margin-left: auto;
   width: 26px; height: 26px;
   display: grid; place-items: center;
   border: 0; border-radius: 8px;
-  background: rgba(255,255,255,.06); color: #c7cad8;
+  background: var(--control-bg); color: var(--text-2);
   cursor: pointer; font-size: 13px;
   transition: background .14s var(--ease), color .14s var(--ease);
 }
@@ -2565,10 +2565,10 @@ body.playlist-open #side-rail {
 .playlist-like-filter {
   border: 0; border-radius: 999px;
   padding: 4px 10px; font-size: 12px; font-weight: 600;
-  background: rgba(255, 255, 255, .06); color: #8b90a6;
+  background: var(--control-bg); color: var(--text-3);
   cursor: pointer; transition: background .14s var(--ease), color .14s var(--ease);
 }
-.playlist-like-filter:hover { background: rgba(255, 255, 255, .12); color: #c7cad8; }
+.playlist-like-filter:hover { background: var(--control-bg-strong); color: var(--text-2); }
 .playlist-like-filter.active { background: rgba(255, 93, 143, .18); color: #ff7aa6; }
 /* 「添加音乐」按钮 */
 .playlist-add-music {
@@ -2637,7 +2637,7 @@ body.playlist-open #side-rail {
 /* 有滚动条时右侧留出自定义滚动条位置，避免遮挡删除/收藏按钮 */
 .playlist-list.has-vscrollbar { padding-right: 22px; }
 .playlist-list.has-vscrollbar .playlist-item { padding-right: 56px; }
-.playlist-empty { padding: 28px 16px; text-align: center; color: #8b90a6; font-size: 12px; }
+.playlist-empty { padding: 28px 16px; text-align: center; color: var(--text-3); font-size: 12px; }
 .playlist-item {
   position: relative;
   display: flex; align-items: center; gap: 12px;
@@ -2645,10 +2645,10 @@ body.playlist-open #side-rail {
   padding-right: 42px;
   border-radius: 10px;
   cursor: default;
-  color: #c7cad8;
+  color: var(--text-2);
   transition: background .14s var(--ease), color .14s var(--ease);
 }
-.playlist-item:hover { background: rgba(255,255,255,.06); }
+.playlist-item:hover { background: var(--control-bg); }
 .playlist-item.active {
   background: linear-gradient(90deg, rgba(124,140,255,.22), rgba(124,140,255,.06));
   color: #f4f5fb;
