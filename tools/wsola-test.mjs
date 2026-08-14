@@ -7,9 +7,14 @@ import { readFileSync } from 'node:fs';
 
 // —— 零漂移抽取生产代码中的 wsolaSynthesize（audio-worklet.js 顶层函数）——
 const src = readFileSync(new URL('../src/renderer/core/audio-worklet.js', import.meta.url), 'utf8');
-const m = src.match(/function wsolaSynthesize\(p, output, frames, ch\)\s*\{[\s\S]*?\n\}/);
-if (!m) { console.error('FAIL: 未在 audio-worklet.js 找到 wsolaSynthesize'); process.exit(1); }
-const wsolaSynthesize = eval('(' + m[0] + ')');
+// clamp 经本会话 clamp 合并后已提升为 worklet 顶级内联函数（blob 加载禁止 import，
+// 故不能走 src/shared/clamp.js）。抽取 wsolaSynthesize 时必须连带 clamp 一并带入
+// 作用域，否则 eval 后调用会 ReferenceError: clamp is not defined。
+const mClamp = src.match(/function clamp\(value, min, max\)\s*\{[\s\S]*?\n\}/);
+const mWsola = src.match(/function wsolaSynthesize\(p, output, frames, ch\)\s*\{[\s\S]*?\n\}/);
+if (!mClamp) { console.error('FAIL: 未在 audio-worklet.js 找到 clamp'); process.exit(1); }
+if (!mWsola) { console.error('FAIL: 未在 audio-worklet.js 找到 wsolaSynthesize'); process.exit(1); }
+const wsolaSynthesize = eval('(function(){' + mClamp[0] + '\n' + mWsola[0] + '\n return wsolaSynthesize; })()');
 
 const SR = 48000;
 const W = 512, HS = 128, SEARCH = 128;
