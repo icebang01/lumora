@@ -219,7 +219,15 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   // buffer 被禁止)——改为:解码线程把帧写入原生侧环形槽位,TSFN 回调只发
   // {frameId} 小信号,JS 侧收到后用 readFrame(frameId) 普通 N-API 调用拉取
   // (普通调用创建 3MB Buffer 已验证安全:100 次全 OK)。槽位轮换,JS 须立即拉取。
-  struct FrameSlot { uint8_t* data = nullptr; size_t size = 0; std::atomic<int64_t> id{0}; };
+  // consumed=true 表示槽空闲(初始/已被 readFrame 消费),解码线程可写入;
+  // consumed=false 表示槽内仍有未读帧,解码线程必须等待,否则覆盖会丢失该帧
+  // (覆盖后 readFrame 校验失败返回 null → 渲染端 upload(null) 抛错 → 视频冻结)。
+  struct FrameSlot {
+    uint8_t* data = nullptr;
+    size_t size = 0;
+    std::atomic<int64_t> id{0};
+    std::atomic<bool> consumed{true};
+  };
   static constexpr int FRAME_SLOTS = 8;
   FrameSlot _frameSlots[FRAME_SLOTS] = {};
   std::atomic<int> _frameSlotIdx{0};
@@ -233,6 +241,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     // 校验:槽位 id 与请求一致(不一致=已被下一轮覆盖/半写,拒绝返回 null)
     if (!s.data || s.size == 0 || s.id.load() != id) return env.Null();
     Napi::Buffer<uint8_t> b = Napi::Buffer<uint8_t>::Copy(env, s.data, s.size);
+    s.consumed.store(true);  // 标记已消费,解码线程可复用该槽(否则会被背压闸门挡住)
     return b;
   }
   Napi::Value GetPool(const Napi::CallbackInfo& info) {
@@ -257,6 +266,14 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     _hwaccel = "auto"; _speed = 1.0; _decodeError = false;
     _hwDetected = false; _hwAccelActual = "pending";
     _videoFrameIndex = 0; _audioFrameCount = 0;
+    // 复位帧槽序列号与消费标志:StopInternal 只 free 槽数据,不复位 consumed/id。
+    // 若不复位,复播/seek/切歌时旧遗留的 consumed=false 会让背压闸门(WorkerLoop)
+    // 误判"槽未消费"而永久跳过视频解码 → 重启后无画面死锁。
+    _frameIdSeq = 0;
+    for (int i = 0; i < FRAME_SLOTS; i++) {
+      _frameSlots[i].id.store(0);
+      _frameSlots[i].consumed.store(true);
+    }
 
     if (info.Length() > 1 && info[1].IsObject()) {
       Napi::Object o = info[1].As<Napi::Object>();
@@ -577,7 +594,15 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     while (_running.load()) {
       bool did = false;
       if (_hasVideo && !_audioOnly && !_videoThrottled.load() && !_videoDone.load()) {
-        if (ReadStream(_videoStreamIndex, true)) did = true;
+        // 背压闸门:下一个将写入的环形槽若仍未被主线程 readFrame 消费(consumed=false),
+        // 说明主线程消费跟不上解码速度,停止继续解码视频,防止环形槽被覆盖丢失帧
+        // (覆盖后 readFrame 校验失败返回 null → 渲染端 upload(null) 抛错 → 视频冻结)。
+        // 音频解码不受影响,照常推进,不阻断时间轴。
+        int64_t nextId = _frameIdSeq.load() + 1;
+        int nextSlot = static_cast<int>((nextId - 1) % FRAME_SLOTS);
+        if (_frameSlots[nextSlot].consumed.load()) {
+          if (ReadStream(_videoStreamIndex, true)) did = true;
+        }
       }
       if (_hasAudio && !_audioThrottled.load() && !_audioDone.load()) {
         if (ReadStream(_audioStreamIndex, false)) did = true;
@@ -821,6 +846,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     if (fs.data) {
       memcpy(fs.data, out, total);
       fs.id.store(id);  // 写完再标记 id(readFrame 校验防半写)
+      fs.consumed.store(false);  // 槽内有未读帧,解码线程下次写此槽前须等主线程消费
       FrameEvent* ev = new FrameEvent{};
       ev->type = EV_VIDEO;
       ev->pts = pts;
