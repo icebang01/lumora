@@ -179,6 +179,27 @@ section{margin:40px 0}
   display:grid;place-items:center;font-family:var(--font-mono);font-size:11px;color:var(--text-2)}
 .code{font-family:var(--font-mono);font-size:11px;color:var(--text-3);word-break:break-all}
 footer{margin-top:60px;color:var(--text-3);font-size:11px;text-align:center}
+/* 8. Responsive simulator */
+.sim-ctrl{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+.sim-ctrl input[type=range]{flex:1;min-width:160px;accent-color:var(--accent)}
+.sim-label{font-family:var(--font-mono);font-size:11px;color:var(--accent-cyan)}
+.sim-track{position:relative;height:300px;margin-top:14px;border-radius:var(--radius-l);overflow:hidden;
+  background:linear-gradient(180deg,#131521,#0b0d16);border:1px solid var(--hairline);display:flex;justify-content:center}
+.sim-inner{width:1024px;height:300px;transform-origin:top left;position:relative;flex:none}
+.sim-ms{position:absolute;left:24px;top:24px;display:flex;gap:16px;align-items:center}
+.sim-ms.stack{flex-direction:column;align-items:flex-start}
+.sim-cover{width:90px;height:90px;border-radius:12px;background:var(--brand-gradient);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.sim-ms.stack .sim-cover{width:70px;height:70px}
+.sim-info b{font-size:15px;font-weight:600;display:block}
+.sim-info span{color:var(--text-2);font-size:12px}
+.sim-bar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:10px;padding:12px 16px;
+  background:var(--surface-1);border-top:1px solid var(--hairline);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%)}
+.sim-bar.wrap{flex-wrap:wrap;justify-content:center;row-gap:6px}
+.sim-ic{width:30px;height:30px;border-radius:50%;background:var(--control-bg);display:grid;place-items:center;font-size:13px;color:var(--text-1)}
+.sim-time{font-family:var(--font-mono);font-size:11px;color:var(--text-3)}
+.sim-bar.hide-time .sim-time{display:none}
+.sim-track-bar{flex:1;min-width:80px;height:5px;border-radius:999px;background:var(--fill-track);position:relative;overflow:hidden}
+.sim-track-bar::before{content:"";position:absolute;inset:0 65% 0 0;background:var(--brand-gradient)}
 </style>
 </head>
 <body>
@@ -330,6 +351,31 @@ footer{margin-top:60px;color:var(--text-3);font-size:11px;text-align:center}
     </div>
   </section>
 
+  <!-- 8. RESPONSIVE -->
+  <section>
+    <div class="sec-title">8 · Responsive Behavior</div>
+    <div class="sec-note">拖动滑块模拟窗口宽度，观察 OSC 控制条换行（≤900）与音乐舞台双栏→堆叠（≤720 / ≤560h）。断点：900 / 860 / 720+560h / 640 / 480 / 420h。</div>
+    <div class="sim-ctrl">
+      <span style="color:var(--text-2)">窗口宽度</span>
+      <input type="range" id="vp" min="280" max="1024" value="1024">
+      <span class="sim-label" id="vp-label">Desktop · &gt;900px</span>
+    </div>
+    <div class="sim-track">
+      <div class="sim-inner" id="simInner">
+        <div class="sim-ms" id="simMs">
+          <div class="sim-cover"></div>
+          <div class="sim-info"><b>夜空中最亮的星</b><span>逃跑计划 · 世界</span></div>
+        </div>
+        <div class="sim-bar" id="simBar">
+          <div class="sim-ic">⏮</div><div class="sim-ic">▶</div><div class="sim-ic">⏭</div>
+          <div class="sim-time">01:23 / 04:10</div>
+          <div class="sim-track-bar"></div>
+          <div class="sim-ic">🔊</div><div class="sim-ic">⚙</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer>Lumora Design System · 由 DESIGN.md 驱动生成 · 暗色优先，亮色仅独立窗口</footer>
 </div>
 
@@ -352,6 +398,27 @@ document.getElementById('toggle').addEventListener('click',e=>{
   b.classList.add('on');
   document.body.classList.toggle('light-surface', b.dataset.t==='light');
 });
+/* responsive viewport simulator */
+(function(){
+  const vp=document.getElementById('vp'),inner=document.getElementById('simInner'),
+    bar=document.getElementById('simBar'),ms=document.getElementById('simMs'),lab=document.getElementById('vp-label');
+  function upd(){
+    const w=+vp.value;
+    inner.style.transform='scale('+(w/1024)+')';
+    const wrap=w<=900, stack=w<=720, hideTime=w<=480;
+    bar.classList.toggle('wrap',wrap);
+    bar.classList.toggle('hide-time',hideTime);
+    ms.classList.toggle('stack',stack);
+    let label;
+    if(w>900) label='Desktop · >900px';
+    else if(w>720) label='Tablet · ≤900px（OSC 换行居中）';
+    else if(w>640) label='Music-stack · ≤720px（双栏→堆叠）';
+    else if(w>480) label='Narrow · ≤640px（侧栏转顶/面板占满）';
+    else label='Mobile · ≤480px（隐藏时间读数/列表占满）';
+    lab.textContent=label;
+  }
+  vp.addEventListener('input',upd); upd();
+})();
 </script>
 </body>
 </html>
