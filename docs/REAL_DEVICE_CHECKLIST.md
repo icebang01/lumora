@@ -9,7 +9,7 @@
 > 关联状态：设计交付 **20/20 mock + DESIGN.md A.2 全闭环**；设计令牌两处真 bug 已修并推送
 > （`--dl-accent` 回退对齐品牌 `#7c8cff` `855f8d3` / `--accent-2` 未定义→`--accent-pink` `3374dae`）；A.3 已知漂移全部闭环；
 > Crossfade 渲染端单测 14/14 绿（harness 已修，`4e35b35`）；`3a547be` 修复了渲染端 `crossfade-committed` 后音乐舞台不刷新的 bug（见 §4）。
-> **443 推送待补推**：`fa784c6` 之后又落 `8d0358a`/`01dbd78`/`bfaafe8`/`3a547be` 共 4 个提交，随 443 自动补推 automation 在 443 恢复窗口送出。
+> **443 推送已完成**：远端 main = `798af8b` = 本地 HEAD，含 `8d0358a`/`01dbd78`/`bfaafe8`/`3a547be`/`96ace95`/`798af8b` 共 6 个提交，全量同步。
 > 下列项均为 sandbox-impossible，需本机目测。
 
 ---
@@ -79,10 +79,10 @@
 | 设计交付（20/20 mock + DESIGN.md + A.3 闭环） | ✅ 完成 | — |
 | 设计令牌修复（--dl-accent / --accent-2） | ✅ 已修并推送（`855f8d3`/`3374dae`） | 源码层，无需真机 |
 | Crossfade 渲染端单测 | ✅ 14/14 绿（`4e35b35` 修 harness） | 主进程调度见 §4 |
-| 443 推送 | ⏳ 待补推（积压 `8d0358a`+`01dbd78`+`bfaafe8`+`3a547be`） | 随自动补推 automation |
+| 443 推送 | ✅ 已完成（远端=`798af8b`=本地 HEAD，6 个提交全量同步） | — |
 | §1 黑胶 ≤480 目测 | ⏳ 待本机 | 无 GPU/设备 |
 | §2 MF 视频连续性 | ⏳ 待本机 | 无 GPU |
 | §3 DIAL 真机 | ⏳ 待本机 | 无投屏设备 |
 | §4 Crossfade（主进程调度 + 渲染端舞台刷新 3a547be） | ⏳ 待本机 | 无真实音频 |
-| 源码层修复集（3a547be：Crossfade 舞台刷新 + --eq-panel-w 补定义 + has-video 死类清理） | ⏳ 已修待推 | 443 推送 |
+| 源码层修复集（3a547be：Crossfade 舞台刷新 + --eq-panel-w 补定义 + has-video 死类清理） | ✅ 已修并推送（`798af8b`） | 源码层，无需真机 |
 | §5 通用冒烟 | ⏳ 待本机 | — |
