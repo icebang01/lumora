@@ -22,6 +22,8 @@
 | Accent Bright | `#9aa5ff` | `--accent-bright` | hover/激活文字、选中项 |
 | Accent Cyan | `#6ee7ff` | `--accent-cyan` | 渐变起点、音量/进度高光 |
 | Accent Pink | `#ff7ac6` | `--accent-pink` | 渐变终点、品牌点缀 |
+| Accent Mid | `#8b7bff` | `--accent-mid` | 渐变中段紫（青→紫→粉）、选中描边 |
+| Like Color | `#ff5d8f` | `--like-color` | 收藏/红心色（区别于品牌 Accent Pink） |
 | Accent Glow | `rgba(124,140,255,.45)` | `--accent-glow` | 进度条/激活态外发光 |
 | Surface 0 | `rgba(14,15,20,.72)` | `--surface-0` | 标题栏底渐变层 |
 | Surface 1 | `rgba(22,24,32,.86)` | `--surface-1` | OSD 消息底 |

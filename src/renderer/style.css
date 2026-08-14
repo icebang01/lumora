@@ -15,6 +15,8 @@
   --accent-bright: #9aa5ff;
   --accent-cyan:   #6ee7ff;
   --accent-pink:   #ff7ac6;
+  --accent-mid:    #8b7bff;  /* 品牌渐变中段紫（青→紫→粉），与 --accent 区分 */
+  --like-color:    #ff5d8f;  /* 收藏/红心色，区别于品牌 --accent-pink */
   --accent-glow:   rgba(124, 140, 255, 0.45);
 
   /* 中性色阶 */
@@ -715,7 +717,7 @@ body.keymap-open #idle-screen .idle-close-zone {
   content: "";
   position: absolute; left: 0; top: 14px; bottom: 14px;
   width: 3px; border-radius: 3px;
-  background: linear-gradient(180deg, #6ee7ff, #8b7bff 55%, #ff7ac6);
+  background: linear-gradient(180deg, #6ee7ff, var(--accent-mid, #8b7bff) 55%, #ff7ac6);
   opacity: .9; pointer-events: none;
 }
 #resume-card.hidden { display: none; }
@@ -725,13 +727,13 @@ body.keymap-open #idle-screen .idle-close-zone {
   border-radius: 12px;
   display: grid; place-items: center;
   color: #0b0c12;
-  background: linear-gradient(135deg, #6ee7ff, #8b7bff 55%, #ff7ac6);
+  background: linear-gradient(135deg, #6ee7ff, var(--accent-mid, #8b7bff) 55%, #ff7ac6);
   box-shadow: 0 6px 18px rgba(139, 123, 255, .4);
 }
 #resume-card .resume-text { flex: 1 1 auto; min-width: 0; }
 #resume-card .resume-label {
   font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
-  color: #8b7bff; font-weight: 700;
+  color: var(--accent-mid, #8b7bff); font-weight: 700;
 }
 #resume-card .resume-title {
   font-size: 15px; font-weight: 600; color: #f4f5fb;
@@ -744,7 +746,7 @@ body.keymap-open #idle-screen .idle-close-zone {
   border: 0; border-radius: 10px;
   font-size: 13px; font-weight: 600; color: #0b0c12;
   cursor: pointer;
-  background: linear-gradient(135deg, #6ee7ff, #8b7bff 55%, #ff7ac6);
+  background: linear-gradient(135deg, #6ee7ff, var(--accent-mid, #8b7bff) 55%, #ff7ac6);
   box-shadow: 0 6px 16px rgba(139, 123, 255, .35);
   transition: transform .15s var(--ease), filter .15s var(--ease);
 }
@@ -775,7 +777,7 @@ body.keymap-open #idle-screen .idle-close-zone {
 }
 .library-title {
   font-size: 18px; letter-spacing: .04em;
-  color: #8b7bff; font-weight: 700;
+  color: var(--accent-mid, #8b7bff); font-weight: 700;
 }
 .library-tabs { display: flex; gap: 4px; }
 .lib-tab {
@@ -790,7 +792,7 @@ body.keymap-open #idle-screen .idle-close-zone {
 .lib-tab:hover { color: #f4f5fb; background: rgba(255,255,255,.08); }
 .lib-tab.active {
   color: #0b0c12; border-color: transparent;
-  background: linear-gradient(135deg, #6ee7ff, #8b7bff 55%, #ff7ac6);
+  background: linear-gradient(135deg, #6ee7ff, var(--accent-mid, #8b7bff) 55%, #ff7ac6);
   box-shadow: 0 4px 14px rgba(139,123,255,.35);
 }
 .lib-search {
@@ -881,7 +883,7 @@ body.keymap-open #idle-screen .idle-close-zone {
   padding: 0; border: 2px dashed rgba(124,140,255,.38);
   border-radius: 12px;
   background: rgba(124,140,255,.06);
-  color: #8b7bff;
+  color: var(--accent-mid, #8b7bff);
   font: inherit; cursor: pointer;
   -webkit-app-region: no-drag;
   transition: transform .16s var(--ease), box-shadow .16s var(--ease), border-color .16s var(--ease), background .16s var(--ease);
@@ -1300,12 +1302,12 @@ body.keymap-open #idle-screen .idle-close-zone {
 .idle-action:focus-visible { outline: 2px solid #7c8cff; outline-offset: 2px; }
 .idle-action--primary {
   color: #fff;
-  background: linear-gradient(135deg, #6ee7ff, #8b7bff 55%, #ff7ac6);
+  background: linear-gradient(135deg, #6ee7ff, var(--accent-mid, #8b7bff) 55%, #ff7ac6);
   border-color: transparent;
   box-shadow: 0 8px 26px rgba(124, 140, 255, .30);
 }
 .idle-action--primary:hover {
-  background: linear-gradient(135deg, #6ee7ff, #8b7bff 55%, #ff7ac6);
+  background: linear-gradient(135deg, #6ee7ff, var(--accent-mid, #8b7bff) 55%, #ff7ac6);
   filter: brightness(1.06);
   box-shadow: 0 12px 34px rgba(124, 140, 255, .44);
 }
@@ -2641,7 +2643,7 @@ body.playlist-open #side-rail {
 .playlist-item.active {
   background: linear-gradient(90deg, rgba(124,140,255,.22), rgba(124,140,255,.06));
   color: #f4f5fb;
-  box-shadow: inset 2px 0 0 #8b7bff;
+  box-shadow: inset 2px 0 0 var(--accent-mid, #8b7bff);
 }
 .pl-nowplaying-tag {
   flex: 0 0 auto;
@@ -2657,7 +2659,7 @@ body.playlist-open #side-rail {
   flex: 0 0 auto; width: 22px; text-align: center;
   font-size: 11px; color: #6f7488; font-variant-numeric: tabular-nums;
 }
-.playlist-item.active .pl-index { color: #8b7bff; }
+.playlist-item.active .pl-index { color: var(--accent-mid, #8b7bff); }
 .pl-title {
   flex: 1 1 auto; min-width: 0;
   font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -2689,7 +2691,7 @@ body.playlist-open #side-rail {
   transition: opacity .14s var(--ease), color .14s var(--ease), transform .12s var(--ease);
 }
 .playlist-item:hover .pl-like { opacity: 1; pointer-events: auto; }
-.pl-like.liked { color: #ff5d8f; opacity: 1; pointer-events: auto; }
+.pl-like.liked { color: var(--like-color, #ff5d8f); opacity: 1; pointer-events: auto; }
 .pl-like:hover { color: #ff7aa6; transform: scale(1.12); }
 .playlist-item.liked:not(.active) { background: rgba(255, 93, 143, .05); }
 
@@ -2735,7 +2737,7 @@ body.audio-mode.music-style-vinyl .playlist-item.active,
 body.audio-mode.music-style-glass .playlist-item.active {
   background: linear-gradient(90deg, rgba(124, 140, 255, .20), rgba(124, 140, 255, .05));
   color: #1a1b25;
-  box-shadow: inset 2px 0 0 #8b7bff;
+  box-shadow: inset 2px 0 0 var(--accent-mid, #8b7bff);
 }
 body.audio-mode.music-style-vinyl .pl-index,
 body.audio-mode.music-style-glass .pl-index { color: rgba(26, 27, 37, .45); }
@@ -3467,7 +3469,7 @@ body.playlist-open #idle-screen {
   color: #fff;
 }
 .dmi-dandanplay { background: #f59e0b; }
-.dmi-proxy { background: #8b7bff; }
+.dmi-proxy { background: var(--accent-mid, #8b7bff); }
 .dmi-bilibili { background: #00a1d6; }
 .dmi-name {
   font-size: 13px;
@@ -3747,7 +3749,7 @@ body.playlist-open #idle-screen {
   transition: background .14s var(--ease);
 }
 .cast-device:hover { background: rgba(255,255,255,.06); }
-.cast-device.connected { box-shadow: inset 2px 0 0 #8b7bff; background: rgba(124,140,255,.10); }
+.cast-device.connected { box-shadow: inset 2px 0 0 var(--accent-mid, #8b7bff); background: rgba(124,140,255,.10); }
 .cast-device-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cast-device-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .cast-device-name { font-size: 13px; color: #f4f5fb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -5421,7 +5423,7 @@ body.music-style-vinyl #music-controls #m-seek-progress { background: var(--styl
 body.music-style-vinyl #music-controls #m-seek-handle { background: var(--style-accent); }
 body.music-style-vinyl #music-controls .mc-btn--quality { background: rgba(0, 0, 0, .07); color: rgba(0, 0, 0, .72); }
 body.music-style-vinyl #music-controls .mc-btn--quality:hover { background: rgba(0, 0, 0, .11); color: #101820; }
-body.music-style-vinyl #music-controls .mc-btn.liked { color: #ff5d8f; }
+body.music-style-vinyl #music-controls .mc-btn.liked { color: var(--like-color, #ff5d8f); }
 body.music-style-vinyl #music-controls .mc-btn--text { color: rgba(15, 25, 35, .75); }
 
 /* 底部控制条：浅色主题（与参考图一致）—— 去掉白底，让彩胶完整延伸至底部；
@@ -5460,7 +5462,7 @@ body.music-style-vinyl #music-controls .mc-btn--text { color: rgba(15, 25, 35, .
   box-shadow: 0 8px 28px rgba(0,0,0,.2), 0 0 18px rgba(0,0,0,.08);
 }
 #music-controls.mc-theme-light .mc-btn--primary:hover { filter: brightness(1.06); color: #fff; }
-#music-controls.mc-theme-light .mc-btn.liked { color: #ff5d8f; }
+#music-controls.mc-theme-light .mc-btn.liked { color: var(--like-color, #ff5d8f); }
 #music-controls.mc-theme-light .mc-btn.active { color: var(--accent, #7c8cff); }
 #music-controls.mc-theme-light .mc-volume {
   background: rgba(255, 255, 255, .96);
@@ -5755,8 +5757,8 @@ body.audio-mode.music-style-glass .ms-content { padding-bottom: 164px; }
 .mc-btn--primary:hover { filter: brightness(1.1); color: #fff; }
 
 /* 收藏红心 */
-.mc-btn.liked { color: #ff5d8f; }
-.mc-btn.liked svg { fill: #ff5d8f; filter: drop-shadow(0 2px 6px rgba(255, 93, 143, .5)); }
+.mc-btn.liked { color: var(--like-color, #ff5d8f); }
+.mc-btn.liked svg { fill: var(--like-color, #ff5d8f); filter: drop-shadow(0 2px 6px rgba(255, 93, 143, .5)); }
 .mc-btn.liked.pop { animation: like-pop .42s cubic-bezier(.2, .9, .3, 1.4); }
 @keyframes like-pop {
   0% { transform: scale(1); }
