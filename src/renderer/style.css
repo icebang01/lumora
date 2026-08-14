@@ -6417,3 +6417,41 @@ body.audio-mode.eq-open .eq-window {
   outline: 2px solid var(--accent, #7c8cff);
   outline-offset: 2px;
 }
+
+/* ==========================================================================
+   UX 收尾：滚动条与禁用态一致性（纯 CSS 安全增强，非布局改动）
+   ========================================================================== */
+
+/* 全局默认滚动条（暗色主题兜底，用 --scroll-thumb 变量）。
+   已单独美化的容器（.settings-content/.set-select-fly/.popover/.ctx-menu
+   /#stats-panel/#keymap-body/#licenses-body/.playlist-list/.cast-scroller
+   等）因选择器更具体而优先，不受影响；#idle-screen/.playlist-list 的
+   display:none 亦更具体，仍隐藏。亮色主题(.light-surface)经变量自适应。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb, rgba(255,255,255,.18)) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb, rgba(255,255,255,.18));
+  border-radius: 8px;
+}
+
+/* 通用按钮禁用态反馈（覆盖此前未统一 :disabled 样式的控件）。
+   已有的 .ai-model-fetch-btn/.verify-btn/.cast-connect-btn/.lyric-search-btn
+   的 :disabled 规则特异性更高，不受影响。 */
+.ctl-btn:disabled,
+.ghost-btn:disabled,
+.mc-btn:disabled,
+.mc-speed-opt:disabled,
+.eq-preset:disabled,
+.settings-nav-item:disabled,
+.playlist-item:disabled,
+.idle-action:disabled,
+.poster:disabled,
+.poster-add:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
