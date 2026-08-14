@@ -6201,8 +6201,8 @@ body.audio-mode.music-style-glass .ms-content { padding-bottom: 164px; }
   width: min(var(--eq-panel-w, 420px), calc(100vw - 40px));
   max-height: 100vh;
   display: flex; flex-direction: column;
-  background: rgba(20, 22, 32, .86);
-  border-left: 1px solid rgba(255, 255, 255, .10);
+  background: var(--surface-1);
+  border-left: 1px solid var(--hairline);
   backdrop-filter: blur(28px) saturate(170%);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
   box-shadow: -8px 0 40px rgba(0, 0, 0, .45);
@@ -6225,9 +6225,9 @@ body.audio-mode.eq-open .eq-window {
   transform: translateY(-50%);
   width: min(360px, 85vw);
   max-height: min(72vh, 540px);
-  border: 1px solid rgba(255, 255, 255, .12);
+  border: 1px solid var(--hairline);
   border-radius: 20px;
-  background: rgba(20, 22, 32, .6);
+  background: var(--surface-0);
   box-shadow: 0 24px 70px rgba(0, 0, 0, .55);
   animation: eq-slide-pop .25s cubic-bezier(.16, 1, .3, 1) both;
 }
@@ -6238,31 +6238,31 @@ body.audio-mode.eq-open .eq-window {
 .eq-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 16px; }
 .eq-top {
   display: flex; align-items: center; gap: 10px;
-  padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, .08);
+  padding-bottom: 14px; border-bottom: 1px solid var(--hairline);
 }
-.eq-enable-wrap { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cdd0df; white-space: nowrap; }
+.eq-enable-wrap { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); white-space: nowrap; }
 .eq-preset {
   flex: 1 1 auto; min-width: 0;
   height: 32px; padding: 0 10px;
-  border: 1px solid rgba(255, 255, 255, .12); border-radius: 9px;
-  background: rgba(255, 255, 255, .05); color: #e6e8f2;
+  border: 1px solid var(--hairline); border-radius: 9px;
+  background: var(--control-bg); color: var(--text-1);
   font-size: 13px; cursor: pointer;
   -webkit-appearance: none; appearance: none;
   color-scheme: dark;
 }
 .eq-preset option {
-  background: rgba(20, 22, 32, .95);
-  color: #e6e8f2;
+  background: var(--surface-1);
+  color: var(--text-1);
 }
 .eq-preset:focus-visible { outline: 2px solid var(--accent, #7c8cff); outline-offset: 1px; }
 .eq-flat-btn {
   border: 0; border-radius: 9px; padding: 7px 12px;
-  background: rgba(255, 255, 255, .06); color: #cdd0df;
+  background: var(--control-bg); color: var(--text-2);
   font-size: 12px; font-weight: 600; cursor: pointer;
   transition: background .14s var(--ease), color .14s var(--ease);
   white-space: nowrap;
 }
-.eq-flat-btn:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+.eq-flat-btn:hover { background: var(--hover-bg); color: var(--text-1); }
 /* 10 段滑块：横向排列，竖向往复 */
 .eq-sliders {
   display: flex; align-items: stretch; justify-content: space-between;
@@ -6282,7 +6282,7 @@ body.audio-mode.eq-open .eq-window {
 }
 .eq-slider::-webkit-slider-runnable-track {
   width: 6px; border-radius: 3px;
-  background: linear-gradient(to top, var(--accent, #7c8cff) 0%, rgba(255, 255, 255, .14) 0%);
+  background: linear-gradient(to top, var(--accent, #7c8cff) 0%, var(--fill-track) 0%);
 }
 .eq-slider::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
@@ -6292,7 +6292,7 @@ body.audio-mode.eq-open .eq-window {
   margin-left: -6px;
 }
 .eq-slider::-moz-range-track {
-  width: 6px; border-radius: 3px; background: rgba(255, 255, 255, .14);
+  width: 6px; border-radius: 3px; background: var(--fill-track);
 }
 .eq-slider::-moz-range-progress {
   width: 6px; border-radius: 3px; background: var(--accent, #7c8cff);
@@ -6303,15 +6303,15 @@ body.audio-mode.eq-open .eq-window {
   box-shadow: 0 2px 8px rgba(0, 0, 0, .4);
 }
 .eq-slider:focus-visible { outline: none; }
-.eq-slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(124, 140, 255, .4); }
+.eq-slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--accent-glow); }
 .eq-gain {
   font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
-  color: #d3d6e4; min-height: 14px;
+  color: var(--text-1); min-height: 14px;
 }
 .eq-band .eq-slider:not([value="0"]) ~ .eq-gain,
 .eq-band .eq-slider[value]:not([value="0"]) ~ .eq-gain { color: var(--accent, #7c8cff); }
-.eq-freq { font-size: 10px; color: #8b90a6; }
-.eq-hint { margin: 0; font-size: 11px; line-height: 1.5; color: #8b90a6; }
+.eq-freq { font-size: 10px; color: var(--text-3); }
+.eq-hint { margin: 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
 
 /* 窄窗适配：压缩三区间距、隐藏曲目艺人、缩小按钮 */
 @media (max-width: 720px) {
