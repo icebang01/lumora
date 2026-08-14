@@ -2119,7 +2119,7 @@ body.playlist-open #side-rail {
   position: fixed;
   top: calc(var(--titlebar-h) + 14px);
   right: 16px;
-  width: 560px;
+  width: min(560px, calc(100vw - 32px));
   max-height: calc(100vh - var(--titlebar-h) - 120px);
   overflow-y: auto;
   padding: 0;
@@ -6184,7 +6184,10 @@ body.audio-mode.music-style-glass .ms-content { padding-bottom: 164px; }
 }
 .eq-window {
   position: relative;
-  width: var(--eq-panel-w, 420px);
+  /* 窄窗保护：默认 420px，但不超过视口宽度（100vw-40px），
+     避免视频模式下 EQ 面板在 <460px 窗口横向溢出。
+     audio-mode.eq-open 变体仍用 min(360px,85vw) 覆盖本值。 */
+  width: min(var(--eq-panel-w, 420px), calc(100vw - 40px));
   max-height: 100vh;
   display: flex; flex-direction: column;
   background: rgba(20, 22, 32, .86);
