@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · 均衡器 EQ 面板 Mock</title>
+<style>
+  /* ===== 设计令牌（镜像 src/renderer/style.css :root） ===== */
+  :root {
+    --accent:#7c8cff;
+    --accent-cyan:#6ee7ff;
+    --accent-pink:#ff7ac6;
+    --accent-mid:#8b7bff;
+    --accent-bright:#9aa5ff;
+    --accent-glow:rgba(124,140,255,.45);
+    --hairline:rgba(255,255,255,.09);
+    --hairline-strong:rgba(255,255,255,.16);
+    --text-1:rgba(255,255,255,.96);
+    --text-2:rgba(255,255,255,.68);
+    --text-3:rgba(255,255,255,.42);
+    --surface-0:rgba(14,15,20,.72);
+    --surface-1:rgba(22,24,32,.86);
+    --surface-2:rgba(32,35,46,.94);
+    --control-bg:rgba(255,255,255,.06);
+    --control-bg-strong:rgba(255,255,255,.12);
+    --hover-bg:rgba(255,255,255,.12);
+    --fill-track:rgba(255,255,255,.14);
+    --ease:cubic-bezier(.16,1,.3,1);
+    --radius-s:8px; --radius-m:12px; --radius-l:16px;
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
+  }
+  body.light {
+    --hairline:rgba(10,12,20,.08);
+    --hairline-strong:rgba(10,12,20,.14);
+    --text-1:rgba(18,20,28,.95);
+    --text-2:rgba(18,20,28,.64);
+    --text-3:rgba(18,20,28,.50);
+    --surface-0:rgba(255,255,255,.72);
+    --surface-1:rgba(255,255,255,.86);
+    --surface-2:rgba(248,249,252,.96);
+    --control-bg:rgba(10,12,20,.05);
+    --control-bg-strong:rgba(10,12,20,.08);
+    --hover-bg:rgba(10,12,20,.07);
+    --fill-track:rgba(10,12,20,.12);
+  }
+
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    font-family:var(--font);
+    background:
+      radial-gradient(1200px 700px at 18% -10%, #1b2030 0%, transparent 55%),
+      radial-gradient(1000px 600px at 110% 120%, #221a30 0%, transparent 55%),
+      #0a0b10;
+    color:var(--text-1);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  body.light {
+    background:
+      radial-gradient(1200px 700px at 18% -10%, #e8ecff 0%, transparent 55%),
+      radial-gradient(1000px 600px at 110% 120%, #ffe9f6 0%, transparent 55%),
+      #eef0f6;
+  }
+
+  /* ===== 顶栏（mock 通用外壳） ===== */
+  .topbar {
+    position:fixed; top:0; left:0; right:0; height:54px; z-index:60;
+    display:flex; align-items:center; gap:14px; padding:0 18px;
+    background:rgba(10,11,16,.6);
+    backdrop-filter:blur(18px) saturate(160%);
+    border-bottom:1px solid var(--hairline);
+  }
+  .topbar .brand {
+    font-size:16px; font-weight:700; letter-spacing:.2px;
+    background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .topbar .meta { font-size:11.5px; color:var(--text-3); }
+  .topbar .spacer { flex:1; }
+  .seg {
+    display:inline-flex; padding:3px; gap:2px;
+    background:var(--control-bg); border:1px solid var(--hairline);
+    border-radius:10px;
+  }
+  .seg button {
+    border:0; background:transparent; color:var(--text-2);
+    font-family:var(--font); font-size:12px; font-weight:600;
+    padding:5px 11px; border-radius:7px; cursor:pointer;
+    transition:background .14s var(--ease), color .14s var(--ease);
+  }
+  .seg button:hover { color:var(--text-1); }
+  .seg button.on { background:var(--accent); color:#fff; box-shadow:0 2px 10px var(--accent-glow); }
+
+  /* ===== 场景（视频帧背景，让 EQ 右侧抽屉有"压在画面上"的实感） ===== */
+  .scene {
+    position:absolute; inset:54px 0 0 0;
+    display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(800px 500px at 50% 40%, rgba(124,140,255,.10), transparent 60%),
+      conic-gradient(from 200deg at 50% 50%, #14202e, #251a30, #101a26, #14202e);
+  }
+  .scene .frame-label { color:var(--text-3); font-size:13px; }
+
+  /* ===== EQ 面板（镜像 index.html #eq-panel + style.css:6184-6319） ===== */
+  #eq-panel {
+    position:absolute; top:54px; right:0; bottom:0; z-index:49;
+    display:flex; align-items:stretch; justify-content:flex-end;
+  }
+  .eq-backdrop { position:absolute; inset:0; background:transparent; }
+  .eq-window {
+    position:relative;
+    width:min(420px, calc(100vw - 40px));
+    max-height:100vh;
+    display:flex; flex-direction:column;
+    background:var(--surface-1);
+    border-left:1px solid var(--hairline);
+    backdrop-filter:blur(28px) saturate(170%);
+    -webkit-backdrop-filter:blur(28px) saturate(170%);
+    box-shadow:-8px 0 40px rgba(0,0,0,.45);
+    overflow:hidden;
+  }
+  .panel-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; border-bottom:1px solid var(--hairline);
+    font-size:14px; font-weight:600;
+  }
+  .playlist-close {
+    width:26px; height:26px; border-radius:7px; border:0; cursor:pointer;
+    background:var(--control-bg); color:var(--text-2); font-size:13px; line-height:1;
+    transition:background .14s var(--ease), color .14s var(--ease);
+  }
+  .playlist-close:hover { background:#e5484d; color:#fff; }
+  .eq-body { padding:16px 18px 18px; display:flex; flex-direction:column; gap:16px; }
+  .eq-top {
+    display:flex; align-items:center; gap:10px;
+    padding-bottom:14px; border-bottom:1px solid var(--hairline);
+  }
+  .eq-enable-wrap { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-2); white-space:nowrap; }
+  .set-toggle {
+    position:relative; width:40px; height:22px; border-radius:999px; border:0; cursor:pointer;
+    background:var(--hairline-strong); transition:background .2s var(--ease);
+  }
+  .set-toggle::after {
+    content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .2s var(--ease);
+  }
+  .set-toggle.on { background:var(--accent); }
+  .set-toggle.on::after { transform:translateX(18px); }
+  .eq-preset {
+    flex:1 1 auto; min-width:0; height:32px; padding:0 10px;
+    border:1px solid var(--hairline); border-radius:9px;
+    background:var(--control-bg); color:var(--text-1); font-size:13px; cursor:pointer;
+    -webkit-appearance:none; appearance:none; color-scheme:dark;
+  }
+  body.light .eq-preset { color-scheme:light; }
+  .eq-preset:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  .eq-flat-btn {
+    border:0; border-radius:9px; padding:7px 12px;
+    background:var(--control-bg); color:var(--text-2);
+    font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
+    transition:background .14s var(--ease), color .14s var(--ease);
+  }
+  .eq-flat-btn:hover { background:var(--hover-bg); color:var(--text-1); }
+
+  .eq-sliders { display:flex; align-items:stretch; justify-content:space-between; gap:4px; padding:4px 2px; }
+  .eq-band { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
+
+  /* 自绘竖向滑块（与 .eq-slider 视觉一致，可拖动） */
+  .eq-slider {
+    position:relative; width:10px; height:168px; border-radius:5px;
+    background:var(--fill-track); cursor:pointer; touch-action:none;
+  }
+  .eq-slider .fill {
+    position:absolute; left:0; right:0; bottom:0; border-radius:5px;
+    background:linear-gradient(to top, var(--accent), var(--accent-bright));
+  }
+  .eq-slider .thumb {
+    position:absolute; left:50%; width:18px; height:18px; border-radius:50%;
+    background:#f4f5fb; border:2px solid var(--accent); box-shadow:0 2px 8px rgba(0,0,0,.4);
+    transform:translate(-50%,50%);
+  }
+  .eq-slider:focus-visible { outline:none; }
+  .eq-slider:focus-visible .thumb { box-shadow:0 0 0 3px var(--accent-glow); }
+  .eq-gain {
+    font-size:11px; font-weight:700; font-variant-numeric:tabular-nums;
+    color:var(--text-1); min-height:14px;
+  }
+  .eq-band .eq-slider:not(.zero) ~ .eq-gain { color:var(--accent); }
+  .eq-freq { font-size:10px; color:var(--text-3); }
+  .eq-hint { margin:0; font-size:11px; line-height:1.5; color:var(--text-3); }
+
+  .footnote {
+    position:fixed; left:18px; bottom:14px; right:440px; z-index:60;
+    font-size:11px; color:var(--text-3); line-height:1.6;
+  }
+  @media (max-width:520px){ .footnote{ right:14px; bottom:10px; } }
+</style>
+</head>
+<body class="dark">
+  <div class="topbar">
+    <span class="brand">Lumora · 均衡器 EQ</span>
+    <span class="meta">panels/eq.js · 10 段图示 · 跨引擎（WebAudio / mpv af=equalizer）</span>
+    <span class="spacer"></span>
+    <div class="seg" id="themeSeg">
+      <button data-v="dark" class="on">暗</button>
+      <button data-v="light">亮</button>
+    </div>
+  </div>
+
+  <div class="scene">
+    <span class="frame-label">视频画面（EQ 以右侧毛玻璃抽屉压在画面上）</span>
+  </div>
+
+  <div id="eq-panel">
+    <div class="eq-backdrop"></div>
+    <div class="eq-window">
+      <div class="panel-head">
+        <span>均衡器</span>
+        <button class="playlist-close" id="eq-close" title="关闭">✕</button>
+      </div>
+      <div class="eq-body">
+        <div class="eq-top">
+          <label class="eq-enable-wrap">
+            <button class="set-toggle on" id="eq-enable" aria-pressed="true"></button>
+            <span>启用均衡器</span>
+          </label>
+          <select class="eq-preset" id="eq-preset" aria-label="EQ 预设"></select>
+          <button class="eq-flat-btn" id="eq-flat" title="重置为平直">平直</button>
+        </div>
+        <div class="eq-sliders" id="eq-sliders" role="group" aria-label="10 段均衡器"></div>
+        <p class="eq-hint">10 段图示均衡（−12 ~ +12 dB）。选预设一键套用，拖动滑块进入「自定义」。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    1:1 还原真实 EQ 面板：右侧毛玻璃抽屉（blur 28px / 左侧 hairline 描边 / −8px 阴影）、启用开关、预设下拉、平直重置、10 段竖向滑块。<br>
+    切换预设会改变曲线并实时重绘；拖动任意滑块进入「自定义」并以品牌色高亮非零增益。亮色为设置窗口候选方案（覆盖层默认暗色）。
+  </div>
+
+<script>
+  const EQ_FREQS = [31,62,125,250,500,1000,2000,4000,8000,16000];
+  const EQ_MIN = -12, EQ_MAX = 12;
+  const PRESETS = {
+    flat:[0,0,0,0,0,0,0,0,0,0],
+    bass:[6,5,4,2,1,0,0,0,0,0],
+    treble:[0,0,0,0,0,0,1,3,5,6],
+    vocal:[0,0,0,-2,-1,4,5,3,0,0],
+    rock:[4,3,-1,2,1,-1,1,2,3,4],
+    pop:[-1,1,3,4,3,0,-1,-1,0,1],
+    classical:[4,3,2,-1,-1,-1,0,2,3,4],
+    electronic:[5,4,1,0,-2,-2,0,2,4,5],
+    acoustic:[3,2,1,0,1,2,3,2,1,0],
+    loudness:[5,4,3,2,1,0,1,2,3,4],
+  };
+  const PRESET_LABEL = {flat:'平直',bass:'重低音',treble:'高音增强',vocal:'人声',rock:'摇滚',pop:'流行',classical:'古典',electronic:'电子',acoustic:'原声',loudness:'响度',custom:'自定义'};
+  let state = { enabled:true, preset:'vocal', bands:PRESETS.vocal.slice() };
+
+  const $preset = document.getElementById('eq-preset');
+  $preset.innerHTML = Object.keys(PRESETS).map(n=>`<option value="${n}">${PRESET_LABEL[n]}</option>`).join('');
+  $preset.value = 'vocal';
+
+  const $sliders = document.getElementById('eq-sliders');
+  const bandLabel = f => f>=1000 ? `${f/1000}k` : `${f}`;
+
+  function fillPct(v){ return ((v-EQ_MIN)/(EQ_MAX-EQ_MIN))*100; }
+
+  function buildBands(){
+    $sliders.innerHTML = EQ_FREQS.map((f,i)=>`
+      <div class="eq-band">
+        <div class="eq-slider" data-band="${i}" tabindex="0" role="slider"
+             aria-label="${bandLabel(f)} 频段增益 (dB)" aria-valuemin="${EQ_MIN}" aria-valuemax="${EQ_MAX}">
+          <div class="fill"></div><div class="thumb"></div>
+        </div>
+        <span class="eq-gain" data-gain="${i}">0</span>
+        <span class="eq-freq">${bandLabel(f)}</span>
+      </div>`).join('');
+    $sliders.querySelectorAll('.eq-slider').forEach(bindSlider);
+    refresh();
+  }
+
+  function valToY(slider, v){
+    const h = slider.clientHeight;
+    return h - (fillPct(v)/100)*h; // thumb center Y from top
+  }
+  function yToVal(slider, y){
+    const h = slider.clientHeight;
+    const pct = Math.min(1, Math.max(0, (h - y)/h));
+    return Math.round(EQ_MIN + pct*(EQ_MAX-EQ_MIN));
+  }
+
+  function bindSlider(el){
+    const setFromY = (clientY)=>{
+      const r = el.getBoundingClientRect();
+      const v = yToVal(el, clientY - r.top);
+      state.bands[+el.dataset.band] = v;
+      state.preset = 'custom';
+      $preset.value = 'custom';
+      paint(el, v);
+      paintGain(+el.dataset.band, v);
+    };
+    el.addEventListener('pointerdown', e=>{
+      el.setPointerCapture(e.pointerId);
+      setFromY(e.clientY);
+      const move = ev=>setFromY(ev.clientY);
+      const up = ev=>{ el.releasePointerCapture(e.pointerId);
+        el.removeEventListener('pointermove',move); el.removeEventListener('pointerup',up); };
+      el.addEventListener('pointermove',move); el.addEventListener('pointerup',up);
+    });
+    el.addEventListener('keydown', e=>{
+      let v = state.bands[+el.dataset.band];
+      if(e.key==='ArrowUp'||e.key==='ArrowRight') v=Math.min(EQ_MAX,v+1);
+      else if(e.key==='ArrowDown'||e.key==='ArrowLeft') v=Math.max(EQ_MIN,v-1);
+      else return;
+      e.preventDefault();
+      state.bands[+el.dataset.band]=v; state.preset='custom'; $preset.value='custom';
+      paint(el,v); paintGain(+el.dataset.band,v);
+    });
+  }
+
+  function paint(el, v){
+    const h = el.clientHeight;
+    el.querySelector('.fill').style.height = fillPct(v)+'%';
+    el.querySelector('.thumb').style.top = valToY(el,v)+'px';
+    el.classList.toggle('zero', v===0);
+    el.setAttribute('aria-valuenow', v);
+  }
+  function paintGain(i, v){
+    const g = $sliders.querySelector(`[data-gain="${i}"]`);
+    if(g) g.textContent = (v>0?'+':'')+v;
+  }
+
+  function refresh(){
+    $sliders.querySelectorAll('.eq-slider').forEach((el,i)=>{
+      paint(el, state.bands[i]); paintGain(i, state.bands[i]);
+    });
+    document.getElementById('eq-enable').classList.toggle('on', state.enabled);
+    document.getElementById('eq-enable').setAttribute('aria-pressed', state.enabled);
+  }
+
+  $preset.addEventListener('change', ()=>{
+    const p = $preset.value;
+    state.preset = p;
+    state.bands = PRESETS[p].slice();
+    refresh();
+  });
+  document.getElementById('eq-flat').addEventListener('click', ()=>{
+    state.preset='flat'; state.bands=PRESETS.flat.slice(); $preset.value='flat'; refresh();
+  });
+  document.getElementById('eq-enable').addEventListener('click', ()=>{
+    state.enabled=!state.enabled; refresh();
+  });
+  document.getElementById('eq-close').addEventListener('click', ()=>{
+    document.getElementById('eq-panel').style.display='none';
+  });
+
+  // 主题切换
+  document.getElementById('themeSeg').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#themeSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.body.classList.toggle('light', b.dataset.v==='light');
+    document.body.classList.toggle('dark', b.dataset.v==='dark');
+  });
+
+  buildBands();
+  window.addEventListener('resize', ()=>refresh());
+</script>
+</body>
+</html>

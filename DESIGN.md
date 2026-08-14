@@ -385,7 +385,7 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 
 | 真实界面 | 源文件 | 类型 | Mock | 备注 |
 |---|---|---|---|---|
-| OSC 控制条 | `ui/osc.js` | OVERLAY | ❌ | **核心控制层**（播放头/缓冲条/进度辉光/音量渐变/弹幕激活态，见 commit `552e8b1`），最常用却无 mock —— 头号缺口 |
+| OSC 控制条 | `ui/osc.js` | OVERLAY | ✅ | `OSC_MOCK.html`（核心控制层：播放头/缓冲条/进度辉光/音量渐变/弹幕激活态） |
 | 视频画面/WebGL | `player/video-player.js` `gl/renderer.js` | CANVAS | — | 视频本身，非面板，无需 mock |
 | 设置面板 | `panels/settings.js` | PANEL | ✅ | `SETTINGS_MOCK.html` |
 | 音乐舞台 | `ui/music-stage.js` | SCREEN | ✅ | `MUSIC_STAGE_MOCK.html`（含迷你播放器） |
@@ -393,9 +393,9 @@ box-shadow: 0 14px 38px rgba(0,0,0,.42), inset 0 0 0 1px rgba(124,140,255,.12);
 | 播放列表 | `panels/playlist.js` | PANEL | ✅ | `PLAYLIST_MOCK.html` |
 | 网络串流 | `panels/`（dialog） | DIALOG | ✅ | `NETWORK_STREAM_MOCK.html` |
 | 投屏面板 | `panels/cast.js` | PANEL | ✅ | `CAST_PANEL_MOCK.html` |
-| EQ 均衡器 | `panels/eq.js` | PANEL | ❌ | 10 段图示 + 预设，已令牌化（`8d21336`） |
-| 统计面板 | `ui/stats.js` | PANEL | ❌ | 帧/音频/解码实时统计，已令牌化 |
-| 字幕样式 | `panels/subtitle-style.js` | PANEL | ❌ | 用户可配置字幕外观（见 A.3：非 UI 令牌漂移） |
+| EQ 均衡器 | `panels/eq.js` | PANEL | ✅ | `EQ_MOCK.html`（10 段图示 + 预设 + 跨引擎共享状态） |
+| 统计面板 | `ui/stats.js` | PANEL | ✅ | `STATS_MOCK.html`（仿 mpv stats.lua 分区 + 帧时间图） |
+| 字幕样式 | `panels/subtitle-style.js` | PANEL | ✅ | `SUBTITLE_STYLE_MOCK.html`（设置面板字幕外观 + 实时预览） |
 | 字幕 | `panels/subtitles.js` | OVERLAY | ❌ | 双轨字幕渲染层 |
 | 歌词搜索 | `panels/lyrics-search.js` | DIALOG | ❌ | 歌词源检索弹窗 |
 | 键位编辑器 | `ui/keybind-editor.js` | DIALOG | ❌ | 快捷键重绑定（`7e6f092` 修复转义） |

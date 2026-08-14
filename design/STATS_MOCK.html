@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · 媒体信息 / 统计面板 Mock</title>
+<style>
+  /* ===== 设计令牌（镜像 src/renderer/style.css :root） ===== */
+  :root {
+    --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6;
+    --accent-mid:#8b7bff; --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
+    --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --surface-1:rgba(22,24,32,.86); --surface-2:rgba(32,35,46,.94);
+    --control-bg:rgba(255,255,255,.06); --control-bg-strong:rgba(255,255,255,.12);
+    --ease:cubic-bezier(.16,1,.3,1);
+    --radius-m:12px;
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
+    --good:#5ee6a8; --warn:#ffcf6a; --bad:#ff8585;
+  }
+  body.light {
+    --hairline:rgba(10,12,20,.08); --hairline-strong:rgba(10,12,20,.14);
+    --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+    --surface-1:rgba(255,255,255,.92); --surface-2:rgba(248,249,252,.96);
+    --control-bg:rgba(10,12,20,.05); --control-bg-strong:rgba(10,12,20,.08);
+    --good:#1f9d57; --warn:#b4791a; --bad:#d23b3b;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    font-family:var(--font); color:var(--text-1);
+    background:
+      radial-gradient(1100px 700px at 15% -10%, #1b2030 0%, transparent 55%),
+      radial-gradient(900px 600px at 110% 120%, #221a30 0%, transparent 55%),
+      #0a0b10; overflow:hidden;
+  }
+  body.light {
+    background:
+      radial-gradient(1100px 700px at 15% -10%, #e8ecff 0%, transparent 55%),
+      radial-gradient(900px 600px at 110% 120%, #ffe9f6 0%, transparent 55%), #eef0f6;
+  }
+
+  .topbar {
+    position:fixed; top:0; left:0; right:0; height:54px; z-index:60;
+    display:flex; align-items:center; gap:14px; padding:0 18px;
+    background:rgba(10,11,16,.6); backdrop-filter:blur(18px) saturate(160%);
+    border-bottom:1px solid var(--hairline);
+  }
+  .topbar .brand { font-size:16px; font-weight:700; background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar .meta { font-size:11.5px; color:var(--text-3); }
+  .topbar .spacer { flex:1; }
+  .seg { display:inline-flex; padding:3px; gap:2px; background:var(--control-bg); border:1px solid var(--hairline); border-radius:10px; }
+  .seg button { border:0; background:transparent; color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; padding:5px 11px; border-radius:7px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease); }
+  .seg button:hover { color:var(--text-1); }
+  .seg button.on { background:var(--accent); color:#fff; box-shadow:0 2px 10px var(--accent-glow); }
+
+  .scene { position:absolute; inset:54px 0 0 0; display:flex; align-items:center; justify-content:center; }
+  .scene .frame-label { color:var(--text-3); font-size:13px; }
+
+  /* ===== 统计面板（镜像 style.css:2129-2283） ===== */
+  #stats-panel {
+    position:absolute; top:calc(54px + 14px); right:16px;
+    width:min(560px, calc(100vw - 32px));
+    max-height:calc(100vh - 54px - 28px); overflow-y:auto;
+    background:rgba(10,11,16,.86);
+    backdrop-filter:blur(24px) saturate(170%); -webkit-backdrop-filter:blur(24px) saturate(170%);
+    border:1px solid var(--hairline); border-radius:var(--radius-m);
+    font-family:var(--font-mono); font-size:12px; line-height:1.5; z-index:46;
+    color:var(--text-1);
+  }
+  body.light #stats-panel { background:rgba(255,255,255,.92); }
+  .stats-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--hairline); position:sticky; top:0; background:inherit; z-index:1; }
+  .stats-title { font-weight:700; font-size:13px; }
+  .stats-hint { font-size:11px; color:var(--text-3); }
+  .stats-hint kbd { font-family:var(--font-mono); background:var(--control-bg); border:1px solid var(--hairline); border-radius:5px; padding:1px 6px; }
+  .stats-body { padding:10px 16px 16px; }
+  .stat-section { padding:6px 0; border-bottom:1px dashed var(--hairline); }
+  .stat-section:last-child { border-bottom:none; }
+  .stat-line { display:flex; flex-wrap:wrap; gap:4px 18px; }
+  .stat-indent { padding-left:0; }
+  .stat-section-title { margin-bottom:2px; }
+  .stat-section-label { color:var(--accent-bright); font-weight:700; }
+  .stat-subtitle { color:var(--text-3); font-weight:400; font-size:11px; }
+  .stat-field { display:inline-flex; gap:4px; }
+  .stat-label { color:var(--text-3); }
+  .stat-val { color:var(--text-1); font-variant-numeric:tabular-nums; }
+  .stat-val.raw { color:var(--text-2); }
+  .stat-val.good { color:var(--good); }
+  .stat-val.warn { color:var(--warn); }
+  .stat-val.bad  { color:var(--bad); }
+
+  #frametime-graph { display:flex; align-items:flex-end; gap:1px; height:32px; margin-top:4px; background:rgba(255,255,255,.02); border-radius:4px; padding:2px; }
+  .ft-bar { flex:1 1 0; min-width:1px; border-radius:1px; background:linear-gradient(to top,var(--accent-bright),var(--accent)); }
+  .ft-bar.over { background:linear-gradient(to top,#ffadad,#ff5e5e); }
+
+  .footnote { position:fixed; left:18px; bottom:14px; right:580px; z-index:60; font-size:11px; color:var(--text-3); line-height:1.6; font-family:var(--font); }
+  @media (max-width:760px){ .footnote{ right:14px; bottom:10px; } }
+</style>
+</head>
+<body class="dark">
+  <div class="topbar">
+    <span class="brand">Lumora · 媒体信息</span>
+    <span class="meta">ui/stats.js · 仿 mpv stats.lua 密集内联布局</span>
+    <span class="spacer"></span>
+    <div class="seg" id="sceneSeg">
+      <button data-v="video" class="on">视频</button>
+      <button data-v="audio">纯音频</button>
+      <button data-v="stream">流媒体</button>
+    </div>
+    <div class="seg" id="themeSeg">
+      <button data-v="dark" class="on">暗</button>
+      <button data-v="light">亮</button>
+    </div>
+  </div>
+
+  <div class="scene"><span class="frame-label">视频画面（统计面板以右上浮卡压在画面上，按 i 开关）</span></div>
+
+  <div id="stats-panel"></div>
+
+  <div class="footnote">
+    1:1 还原真实统计面板：分区标题以品牌色强调、字段同行缩进、阈值 good/warn/bad 着色（绿/黄/红）。<br>
+    顶部场景切换演示「视频（含音轨）/ 纯音频（无视频分区）/ 流媒体（高码率传输）」三种样本；60 柱帧时间图超阈值标红。亮色为提案（覆盖层默认暗）。
+  </div>
+
+<script>
+  const esc = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const fmtBytes = b => { const u=['B','KB','MB','GB','TB']; let i=0; while(b>=1024&&i<u.length-1){b/=1024;i++;} return `${b.toFixed(i?2:0)} ${u[i]}`; };
+  const fmtSync = s => { const ms=s*1000, abs=Math.abs(ms); const cls=abs<20?'good':abs<60?'warn':'bad'; return [`${ms>=0?'+':''}${ms.toFixed(1)} ms`,'',cls]; };
+  const fmtLevel = (v,u,goodAt,warnAt,d=0,invert=false) => { const n=Number(v)||0; const t=`${n.toFixed(d)}${u}`; let cls; if(invert) cls=n<goodAt?'good':n<warnAt?'warn':'bad'; else cls=n>=goodAt?'good':n>=warnAt?'warn':'bad'; return [t,'',cls]; };
+
+  // 帧时间样本：60 柱，围绕目标帧时间波动，少量超阈值
+  function genFrameTimes(fps, overCount){
+    const target = 1000/fps; const arr=[]; let seed=7;
+    const rnd=()=>{ seed=(seed*9301+49297)%233280; return seed/233280; };
+    for(let i=0;i<60;i++){
+      let t = target*(0.82 + rnd()*0.30);
+      if(i>=60-overCount) t = target*(1.55 + rnd()*0.5); // 卡顿柱
+      arr.push(t);
+    }
+    return arr;
+  }
+
+  const SCENARIOS = {
+    video: {
+      fps:23.976, ft:genFrameTimes(23.976,5),
+      file:{ title:'Big Buck Bunny', filename:'big_buck_bunny_4k.mkv', chapter:'3 / 12', size:152.4*1048576, container:'matroska', totalReceived:48.20 },
+      display:{ renderer:'ANGLE (OpenGL)', gpuApi:'vulkan', avSync:0.0021, dropped:0, clock:'音频' },
+      video:{ codec:'hevc', bitDepth:10, fps:23.976, w:3840,h:2160, sar:1, pixfmt:'yuv420p10le', range:'tv', space:'bt2020nc', prim:'bt2020', transfer:'smpte2084', hdr:{maxCll:1000}, bitrate:15.42e6 },
+      audio:{ codec:'eac3', channels:6, sampleRate:48000, bitrate:0.640e6, buffered:3.0, underruns:0 },
+      pipe:{ scaler:'spline36', tone:'hable', deband:true, hwdec:'dxva2', floatFBO:true, renderMs:1.82 },
+      transport:{ queueLen:42, queueMax:96, presented:128456, bitrate:1.24e6, speed:1.00 },
+      env:{ ffmpeg:'7.1.1', hwaccels:['dxva2','d3d11va','cuda'], electron:'33.0.0', chrome:'130.0.6723.0' },
+    },
+    audio: {
+      fps:0, ft:genFrameTimes(60,2),
+      file:{ title:'Weightless', filename:'weightless.flac', chapter:'—', size:38.2*1048576, container:'matroska', totalReceived:12.04 },
+      display:{ renderer:'WebAudio', gpuApi:'—', avSync:0.0004, dropped:0, clock:'音频' },
+      video:null,
+      audio:{ codec:'flac', channels:2, sampleRate:44100, bitrate:0.970e6, buffered:2.4, underruns:0 },
+      pipe:{ scaler:'—', tone:'—', deband:false, hwdec:'—', floatFBO:false, renderMs:0.31 },
+      transport:{ queueLen:0, queueMax:0, presented:0, bitrate:0.97e6, speed:1.00 },
+      env:{ ffmpeg:'7.1.1', hwaccels:['dxva2','d3d11va'], electron:'33.0.0', chrome:'130.0.6723.0' },
+    },
+    stream: {
+      fps:29.970, ft:genFrameTimes(29.970,8),
+      file:{ title:'Live Concert 1080p', filename:'https://stream.example.com/live.m3u8', chapter:'—', size:0, container:'mpegts', totalReceived:182.66 },
+      display:{ renderer:'ANGLE (OpenGL)', gpuApi:'vulkan', avSync:-0.018, dropped:3, clock:'系统' },
+      video:{ codec:'h264', bitDepth:8, fps:29.970, w:1920,h:1080, sar:1, pixfmt:'yuv420p', range:'tv', space:'bt709', prim:'bt709', transfer:'bt709', hdr:null, bitrate:6.18e6 },
+      audio:{ codec:'aac', channels:2, sampleRate:48000, bitrate:0.192e6, buffered:1.6, underruns:2 },
+      pipe:{ scaler:'bilinear', tone:'—', deband:false, hwdec:'d3d11va', floatFBO:false, renderMs:2.44 },
+      transport:{ queueLen:78, queueMax:120, presented:512930, bitrate:6.42e6, speed:1.00 },
+      env:{ ffmpeg:'7.1.1', hwaccels:['d3d11va','dxva2'], electron:'33.0.0', chrome:'130.0.6723.0' },
+    },
+  };
+
+  function renderField(f){
+    if(!Array.isArray(f)||!f.length) return '';
+    const [label,value='',cls=''] = f;
+    const vc = cls?` ${cls}`:'';
+    if(!label) return `<span class="stat-field"><span class="stat-val raw${vc}">${esc(value)}</span></span>`;
+    return `<span class="stat-field"><span class="stat-label">${esc(label)}：</span><span class="stat-val${vc}">${esc(value)}</span></span>`;
+  }
+  function renderLine(fields){ return `<div class="stat-line">${fields.map(renderField).join('')}</div>`; }
+  function renderSection(sec){
+    const header = sec.header?sec.header.map(renderField).join(''):'';
+    const sub = sec.subtitle?` <span class="stat-subtitle">${esc(sec.subtitle)}</span>`:'';
+    const lines = sec.lines.map(l=>renderLine(l)).join('');
+    return `<div class="stat-section"><div class="stat-line stat-section-title"><span class="stat-section-label">${esc(sec.title)}：</span>${header}${sub}</div>${lines}</div>`;
+  }
+
+  function render(scn){
+    const s = SCENARIOS[scn];
+    const sections = [];
+    // 文件
+    sections.push({ title:'文件', header:[['', s.file.filename]],
+      lines:[
+        [['标题', s.file.title]],
+        [['章节', s.file.chapter],['大小', s.file.size?fmtBytes(s.file.size):'—'],['封装 / 协议', s.file.container]],
+        [['总缓存', `${s.file.totalReceived.toFixed(2)} MiB`]],
+      ]});
+    // 显示
+    const clockText = {audio:'音频',mpv:'mpv',system:'系统'}[s.display.clock]||s.display.clock;
+    sections.push({ title:'显示', header:[['', s.display.renderer],['上下文', s.display.gpuApi]],
+      lines:[
+        [['A-V', ...fmtSync(s.display.avSync)]],
+        [['丢帧', `${s.display.dropped}（解码器） 0（输出）`]],
+        [['主时钟', clockText]],
+      ]});
+    // 帧时间
+    const ft=s.ft; const last=ft[ft.length-1]; const avg=ft.reduce((a,b)=>a+b,0)/ft.length; const peak=Math.max(...ft);
+    sections.push({ title:'帧时间', subtitle:'（末值 / 均值 / 峰值 ms）',
+      lines:[[[`${last.toFixed(3)} / ${avg.toFixed(3)} / ${peak.toFixed(3)}`]]] });
+    // 视频
+    if(s.video){
+      const v=s.video; const aspect=(v.w/v.h).toFixed(2); const sar=v.sar!==1?` SAR ${v.sar.toFixed(2)}:1`:'';
+      const lines=[
+        [['帧率',`${v.fps.toFixed(3)} fps`],['分辨率',`${v.w}×${v.h}${sar}（${aspect}:1）`]],
+        [['格式',v.pixfmt||'—'],['色阶',v.range||'—']],
+        [['色彩矩阵',v.space||'—'],['原色',v.prim||'—'],['传输特性',v.transfer||'—']],
+      ];
+      if(v.hdr&&v.hdr.maxCll) lines.push([['MaxCLL',`${v.hdr.maxCll} nits`]]);
+      lines.push([['码率', v.bitrate?`${(v.bitrate/1e6).toFixed(3)} Mbps`:'—']]);
+      sections.push({ title:'视频', header:[['', `${v.codec} ${v.bitDepth}bit`]], lines });
+    }
+    // 音频
+    const a=s.audio;
+    sections.push({ title:'音频', header:[['', a.codec]],
+      lines:[
+        [['声道', String(a.channels)],['采样率', `${a.sampleRate} Hz`]],
+        [['码率', a.bitrate?`${(a.bitrate/1e6).toFixed(3)} Mbps`:'—'],['缓冲', ...fmtLevel(a.buffered,'s',0.15,0.05,3)]],
+        [['欠载', ...fmtLevel(a.underruns,'',1,5,0,true)]],
+      ]});
+    // 渲染管线
+    const p=s.pipe;
+    sections.push({ title:'渲染管线', header:[],
+      lines:[
+        [['缩放算法', p.scaler],['色调映射', p.tone]],
+        [['去色带', p.deband?'开':'关'],['硬件解码', p.hwdec],['浮点缓冲', p.floatFBO?'是':'否']],
+        [['绘制耗时', `${p.renderMs.toFixed(2)} ms`]],
+      ]});
+    // 传输
+    const t=s.transport;
+    sections.push({ title:'传输', header:[],
+      lines:[
+        [['帧队列', `${t.queueLen} / ${t.queueMax} 帧`],['已呈现', `${t.presented} 帧`]],
+        [['传输速率', `${(t.bitrate/1048576).toFixed(2)} MB/s`],['播放速度', `${t.speed.toFixed(2)}×`]],
+      ]});
+    // 环境
+    const e=s.env;
+    sections.push({ title:'环境', header:[],
+      lines:[
+        [['FFmpeg', e.ffmpeg],['硬件加速', e.hwaccels.slice(0,4).join(' ')||'—']],
+        [['Electron', e.electron],['Chromium', e.chrome]],
+      ]});
+
+    // 帧时间图
+    const target = 1000/Math.max(s.fps||60,1); const scale=target*2;
+    const graph = s.ft.map(tm=>{
+      const h=Math.max(2, Math.min(tm/scale,1)*100); const over=tm>target*1.5?' over':'';
+      return `<div class="ft-bar${over}" style="height:${h}%"></div>`;
+    }).join('');
+
+    document.getElementById('stats-panel').innerHTML =
+      '<div class="stats-header"><span class="stats-title">媒体信息</span><span class="stats-hint">按 <kbd>i</kbd> 关闭</span></div>'+
+      '<div class="stats-body">'+ sections.map(renderSection).join('') +
+      '<div class="stat-section"><div class="stat-line stat-section-title"><span class="stat-section-label">帧时间图</span></div><div id="frametime-graph">'+graph+'</div></div>'+
+      '</div>';
+  }
+
+  document.getElementById('sceneSeg').addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#sceneSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); render(b.dataset.v);
+  });
+  document.getElementById('themeSeg').addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#themeSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.body.classList.toggle('light', b.dataset.v==='light');
+    document.body.classList.toggle('dark', b.dataset.v==='dark');
+  });
+
+  render('video');
+</script>
+</body>
+</html>

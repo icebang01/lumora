@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · 字幕样式设置 Mock</title>
+<style>
+  /* ===== 设计令牌（镜像 src/renderer/style.css :root） ===== */
+  :root {
+    --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6;
+    --accent-mid:#8b7bff; --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
+    --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --surface-0:rgba(14,15,20,.72); --surface-1:rgba(22,24,32,.86); --surface-2:rgba(32,35,46,.94);
+    --control-bg:rgba(255,255,255,.06); --control-bg-strong:rgba(255,255,255,.12);
+    --hover-bg:rgba(255,255,255,.12); --fill-track:rgba(255,255,255,.14);
+    --ease:cubic-bezier(.16,1,.3,1); --radius-s:8px; --radius-m:12px;
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
+  }
+  body.light {
+    --hairline:rgba(10,12,20,.08); --hairline-strong:rgba(10,12,20,.14);
+    --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+    --surface-0:rgba(255,255,255,.72); --surface-1:rgba(255,255,255,.86); --surface-2:rgba(248,249,252,.96);
+    --control-bg:rgba(10,12,20,.05); --control-bg-strong:rgba(10,12,20,.08);
+    --hover-bg:rgba(10,12,20,.07); --fill-track:rgba(10,12,20,.12);
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    font-family:var(--font); color:var(--text-1);
+    background:
+      radial-gradient(1100px 700px at 15% -10%, #1b2030 0%, transparent 55%),
+      radial-gradient(900px 600px at 110% 120%, #221a30 0%, transparent 55%),
+      #0a0b10; overflow:hidden;
+  }
+  body.light {
+    background:
+      radial-gradient(1100px 700px at 15% -10%, #e8ecff 0%, transparent 55%),
+      radial-gradient(900px 600px at 110% 120%, #ffe9f6 0%, transparent 55%), #eef0f6;
+  }
+
+  .topbar {
+    position:fixed; top:0; left:0; right:0; height:54px; z-index:60;
+    display:flex; align-items:center; gap:14px; padding:0 18px;
+    background:rgba(10,11,16,.6); backdrop-filter:blur(18px) saturate(160%);
+    border-bottom:1px solid var(--hairline); z-index:60;
+  }
+  .topbar .brand { font-size:16px; font-weight:700; background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar .meta { font-size:11.5px; color:var(--text-3); }
+  .topbar .spacer { flex:1; }
+  .seg { display:inline-flex; padding:3px; gap:2px; background:var(--control-bg); border:1px solid var(--hairline); border-radius:10px; }
+  .seg button { border:0; background:transparent; color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; padding:5px 11px; border-radius:7px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease); }
+  .seg button:hover { color:var(--text-1); }
+  .seg button.on { background:var(--accent); color:#fff; box-shadow:0 2px 10px var(--accent-glow); }
+
+  /* 布局：左=实时预览，右=设置卡片 */
+  .stage { position:absolute; inset:54px 0 0 0; display:flex; gap:18px; padding:18px; align-items:stretch; }
+  @media (max-width:860px){ .stage{ flex-direction:column; } }
+
+  /* 预览场景：模拟视频帧 */
+  .preview-wrap { flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:10px; }
+  .preview-frame {
+    position:relative; flex:1 1 0; min-height:240px; border-radius:var(--radius-m); overflow:hidden;
+    border:1px solid var(--hairline);
+    background:
+      radial-gradient(700px 420px at 50% 35%, rgba(124,140,255,.14), transparent 60%),
+      linear-gradient(160deg, #16202e 0%, #241a30 60%, #101a26 100%);
+  }
+  .preview-frame .scene-tag { position:absolute; top:12px; left:14px; font-size:11px; color:rgba(255,255,255,.5); }
+  /* 字幕覆盖层（复刻 #subtitle-overlay） */
+  #subtitle-overlay {
+    position:absolute; left:0; right:0; text-align:center;
+    padding:0 24px; pointer-events:none; line-height:1.35;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;
+    transition:bottom .15s var(--ease);
+  }
+  .preview-tip { font-size:11px; color:var(--text-3); line-height:1.6; }
+
+  /* 设置卡片（镜像 style.css:1042-1157） */
+  .set-card {
+    flex:0 0 420px; max-width:100%;
+    background:var(--surface-1); border:1px solid var(--hairline);
+    border-radius:var(--radius-m); backdrop-filter:blur(24px) saturate(170%);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  @media (max-width:860px){ .set-card{ flex:1 1 auto; } }
+  .set-card .panel-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--hairline); font-size:14px; font-weight:600; }
+  .set-card .panel-head .desc { font-size:11px; font-weight:400; color:var(--text-3); }
+  .set-scroll { padding:4px 18px 14px; overflow-y:auto; }
+  .set-section { font-size:12px; font-weight:700; color:var(--accent-bright); padding:14px 2px 6px; }
+  .set-divider { height:1px; background:var(--hairline); margin:10px 0; }
+  .set-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:11px 2px; border-bottom:1px solid var(--hairline); }
+  .set-row:last-child { border-bottom:none; }
+  .set-label { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .set-label .name { font-size:13px; font-weight:500; color:var(--text-1); }
+  .set-label .hint { font-size:11px; color:var(--text-3); }
+  .set-control { flex-shrink:0; display:flex; align-items:center; gap:8px; }
+  .set-slider { -webkit-appearance:none; width:160px; height:4px; background:var(--fill-track); border-radius:4px; outline:none; }
+  .set-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; background:var(--accent); border-radius:50%; box-shadow:0 1px 5px rgba(0,0,0,.3); cursor:pointer; transition:transform .14s var(--ease); }
+  .set-slider::-webkit-slider-thumb:hover { transform:scale(1.18); }
+  .set-value { font-family:var(--font-mono); font-size:12px; color:var(--text-2); min-width:48px; text-align:right; font-variant-numeric:tabular-nums; }
+  .set-toggle { position:relative; width:40px; height:22px; border-radius:999px; border:0; cursor:pointer; background:var(--hairline-strong); transition:background .2s var(--ease); }
+  .set-toggle::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .2s var(--ease); }
+  .set-toggle.on { background:var(--accent); }
+  .set-toggle.on::after { transform:translateX(18px); }
+  .set-color { width:38px; height:26px; padding:0; border:1px solid var(--hairline-strong); border-radius:7px; background:var(--control-bg); cursor:pointer; }
+  .set-select { font-family:var(--font); font-size:12.5px; color:var(--text-1); background:var(--control-bg); border:1px solid var(--hairline-strong); border-radius:8px; padding:6px 10px; min-width:150px; cursor:pointer; }
+  .set-select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+
+  .footnote { position:fixed; left:18px; bottom:12px; z-index:60; font-size:11px; color:var(--text-3); line-height:1.6; }
+</style>
+</head>
+<body class="dark">
+  <div class="topbar">
+    <span class="brand">Lumora · 字幕样式</span>
+    <span class="meta">settings.js 字幕分区 · 复刻 applySubtitleStyle 实时预览</span>
+    <span class="spacer"></span>
+    <div class="seg" id="themeSeg">
+      <button data-v="dark" class="on">暗</button>
+      <button data-v="light">亮</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <!-- 实时预览 -->
+    <div class="preview-wrap">
+      <div class="preview-frame">
+        <span class="scene-tag">视频预览（字幕覆盖层实时渲染）</span>
+        <div id="subtitle-overlay">这是一段中文字幕示例 · Subtitles preview</div>
+      </div>
+      <div class="preview-tip">左侧为字幕覆盖层的真实渲染结果：字号 / 颜色 / 粗体 / 描边 / 阴影 / 底衬 / 垂直位置均按右侧控件即时生效（与播放中渲染同一套 props）。</div>
+    </div>
+
+    <!-- 设置卡片 -->
+    <div class="set-card">
+      <div class="panel-head">
+        <span>字幕</span>
+        <span class="desc">字幕样式与同步（实时生效）</span>
+      </div>
+      <div class="set-scroll">
+        <div class="set-section">字幕外观（实时生效）</div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">字号</span></div>
+          <div class="set-control">
+            <input type="range" class="set-slider" id="sub-font-size" min="10" max="120" step="1" value="42">
+            <span class="set-value" id="sub-font-size-v">42</span>
+          </div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">字幕颜色</span></div>
+          <div class="set-control"><input type="color" class="set-color" id="sub-color" value="#FFFFFF"></div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">粗体</span></div>
+          <div class="set-control"><button class="set-toggle" id="sub-bold"></button></div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">描边粗细</span></div>
+          <div class="set-control">
+            <input type="range" class="set-slider" id="sub-outline-size" min="0" max="8" step="1" value="2">
+            <span class="set-value" id="sub-outline-size-v">2px</span>
+          </div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">描边颜色</span></div>
+          <div class="set-control"><input type="color" class="set-color" id="sub-outline-color" value="#000000"></div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">阴影大小</span></div>
+          <div class="set-control">
+            <input type="range" class="set-slider" id="sub-shadow-size" min="0" max="8" step="1" value="1">
+            <span class="set-value" id="sub-shadow-size-v">1px</span>
+          </div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">字幕底衬</span></div>
+          <div class="set-control"><button class="set-toggle" id="sub-bg"></button></div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">底衬颜色</span></div>
+          <div class="set-control"><input type="color" class="set-color" id="sub-bg-color" value="#000000"></div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">底衬不透明度</span></div>
+          <div class="set-control">
+            <input type="range" class="set-slider" id="sub-bg-opacity" min="0" max="100" step="5" value="50">
+            <span class="set-value" id="sub-bg-opacity-v">50%</span>
+          </div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">垂直位置</span><span class="hint">0=顶部，100=底部</span></div>
+          <div class="set-control">
+            <input type="range" class="set-slider" id="sub-pos" min="5" max="95" step="1" value="88">
+            <span class="set-value" id="sub-pos-v">88</span>
+          </div>
+        </div>
+
+        <div class="set-divider"></div>
+        <div class="set-section">同步与加载</div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">字幕偏移</span><span class="hint">正值=延后，负值=提前（ms）</span></div>
+          <div class="set-control">
+            <input type="range" class="set-slider" id="sub-delay" min="-20000" max="20000" step="100" value="0">
+            <span class="set-value" id="sub-delay-v">0ms</span>
+          </div>
+        </div>
+
+        <div class="set-row">
+          <div class="set-label"><span class="name">自动加载字幕</span></div>
+          <div class="set-control">
+            <select class="set-select" id="sub-auto">
+              <option value="fuzzy">自动（按文件名模糊匹配）</option>
+              <option value="exact">严格匹配</option>
+              <option value="all">加载全部字幕</option>
+              <option value="no">关闭</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">1:1 还原设置面板「字幕」分区的外观控件，并实时驱动字幕覆盖层渲染（复刻 panels/subtitle-style.js 的 applySubtitleStyle）。亮色为设置窗口真实可选主题。</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+  const hexToRgba = (hex,a)=>{
+    if(!hex||typeof hex!=='string') return `rgba(0,0,0,${a})`;
+    let h=hex.replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join('');
+    const r=parseInt(h.slice(0,2),16)||0, g=parseInt(h.slice(2,4),16)||0, b=parseInt(h.slice(4,6),16)||0;
+    return `rgba(${r},${g},${b},${a})`;
+  };
+
+  // 复刻 applySubtitleStyle（subtitle-style.js）
+  function applySubtitleStyle(props={}){
+    const el = $('subtitle-overlay');
+    const size = Number(props['sub-font-size']||0);
+    const color = props['sub-color']||'#FFFFFF';
+    const bold = props['sub-bold']?'700':'600';
+    const outlineSize = Number(props['sub-outline-size']||0);
+    const outlineColor = props['sub-outline-color']||'#000000';
+    const shadowSize = Number(props['sub-shadow-size']||0);
+    const bgOn = !!props['sub-bg'];
+    const bgColor = props['sub-bg-color']||'#000000';
+    const bgOpacity = clamp(Number(props['sub-bg-opacity']!=null?props['sub-bg-opacity']:50),0,100)/100;
+    const pos = clamp(Number(props['sub-pos']!=null?props['sub-pos']:88),5,95);
+    const primaryBottom = 100 - pos;
+
+    const shadowParts=[];
+    if(shadowSize>0) shadowParts.push(`0 ${shadowSize}px ${shadowSize*2}px rgba(0,0,0,.9)`);
+    const textShadow = shadowParts.length?shadowParts.join(', '):'0 1px 2px rgba(0,0,0,.95)';
+
+    if(size) el.style.fontSize = size+'px';
+    el.style.color = color;
+    el.style.fontWeight = bold;
+    if(outlineSize>0){ el.style.webkitTextStroke = `${outlineSize}px ${outlineColor}`; el.style.paintOrder='stroke fill'; }
+    else { el.style.webkitTextStroke=''; el.style.paintOrder=''; }
+    el.style.textShadow = textShadow;
+    if(bgOn){ el.style.background=hexToRgba(bgColor,bgOpacity); el.style.padding='0.18em 0.55em'; el.style.borderRadius='0.45em'; el.style.boxDecorationBreak='clone'; el.style.webkitBoxDecorationBreak='clone'; }
+    else { el.style.background=''; el.style.padding=''; el.style.borderRadius=''; el.style.boxDecorationBreak=''; el.style.webkitBoxDecorationBreak=''; }
+    el.style.bottom = Math.max(2, primaryBottom)+'%';
+  }
+
+  const PROP_KEYS = ['sub-font-size','sub-color','sub-bold','sub-outline-size','sub-outline-color','sub-shadow-size','sub-bg','sub-bg-color','sub-bg-opacity','sub-pos'];
+  function readProps(){
+    const p={};
+    p['sub-font-size']=+$('sub-font-size').value;
+    p['sub-color']=$('sub-color').value;
+    p['sub-bold']=$('sub-bold').classList.contains('on');
+    p['sub-outline-size']=+$('sub-outline-size').value;
+    p['sub-outline-color']=$('sub-outline-color').value;
+    p['sub-shadow-size']=+$('sub-shadow-size').value;
+    p['sub-bg']=$('sub-bg').classList.contains('on');
+    p['sub-bg-color']=$('sub-bg-color').value;
+    p['sub-bg-opacity']=+$('sub-bg-opacity').value;
+    p['sub-pos']=+$('sub-pos').value;
+    return p;
+  }
+  function syncLabels(){
+    $('sub-font-size-v').textContent=$('sub-font-size').value;
+    $('sub-outline-size-v').textContent=$('sub-outline-size').value+'px';
+    $('sub-shadow-size-v').textContent=$('sub-shadow-size').value+'px';
+    $('sub-bg-opacity-v').textContent=$('sub-bg-opacity').value+'%';
+    $('sub-pos-v').textContent=$('sub-pos').value;
+  }
+  function update(){ syncLabels(); applySubtitleStyle(readProps()); }
+
+  // 绑定外观控件
+  PROP_KEYS.forEach(k=>{
+    const el=$(k);
+    if(!el) return;
+    if(el.type==='range') el.addEventListener('input', update);
+    else if(el.type==='color') el.addEventListener('input', update);
+    else el.addEventListener('click', ()=>{ el.classList.toggle('on'); update(); });
+  });
+  // 同步与加载（仅演示，不影响预览）
+  $('sub-delay').addEventListener('input', ()=>{ $('sub-delay-v').textContent=$('sub-delay').value+'ms'; });
+
+  // 主题
+  document.getElementById('themeSeg').addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#themeSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.body.classList.toggle('light', b.dataset.v==='light');
+    document.body.classList.toggle('dark', b.dataset.v==='dark');
+  });
+
+  update();
+</script>
+</body>
+</html>
