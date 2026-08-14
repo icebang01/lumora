@@ -40,6 +40,7 @@
   --radius-l: 16px;
 
   --playlist-panel-w: min(380px, 85vw);
+  --eq-panel-w: 420px;        /* EQ 面板宽度令牌；style.css:6201 width: min(var(--eq-panel-w,420px), calc(100vw-40px)) 引用 */
 
   --osc-h: 92px;
   --titlebar-h: 34px;

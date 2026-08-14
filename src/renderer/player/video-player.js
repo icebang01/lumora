@@ -351,7 +351,6 @@ export async function createVideoPlayer(bootstrapData, ctx) {
     /** 切到视频舞台：显示视频画面（音乐模式已移除，此调用保持幂等） */
     applyStage() {
       document.body.classList.remove('audio-only');
-      document.body.classList.add('has-video');
     },
   };
 }

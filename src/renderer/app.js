@@ -246,13 +246,20 @@ async function boot() {
   // 交叉淡入淡出：副声部提升为主声部时，推进播放列表索引并链式预滚再下一首，
   // 保证连续接歌也无缝（仅音乐引擎产生该事件）。
   if (musicPlayer && musicPlayer.engine) {
-    musicPlayer.engine.addEventListener('crossfade-committed', () => {
+    musicPlayer.engine.addEventListener('crossfade-committed', (e) => {
       const next = nextPlaylistIndex(1);
       if (next >= 0) {
         setActiveIndex(next);
         persistPlaylist();
         renderPlaylist();
       }
+      // 刷新音乐舞台 UI 到新曲目：commitCrossfade 不发 player:loaded，
+      // 而 enterAudioMode（封面/歌词/标题/专辑主色/桌面歌词/MediaSession 刷新）
+      // 仅由 player:loaded 触发，故此处需显式用新曲 info 驱动一次轻量舞台刷新。
+      // enterAudioMode 幂等（重复 add('audio-mode')/musicAudio(true) 无害），
+      // 会自动重拉封面 + 加载歌词 + 提取 --album-accent。
+      const info = e && e.detail && e.detail.info;
+      if (info) enterAudioMode(info);
       maybeStartCrossfade();
     });
   }
