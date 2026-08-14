@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumora · 投屏面板 CAST_PANEL_MOCK</title>
+<style>
+:root{
+  /* —— 与 src/renderer/style.css 完全一致的设计令牌（暗色为默认，与真实 cast 窗口一致）—— */
+  --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-mid:#8b7bff;
+  --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+  --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --radius-s:8px; --radius-l:16px;
+  --control-bg:rgba(255,255,255,.06); --control-bg-strong:rgba(255,255,255,.12);
+  --scroll-thumb:rgba(255,255,255,.18); --surface-sidebar:rgba(0,0,0,.22);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei UI","Hiragino Sans GB",system-ui,sans-serif;
+  --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+
+  /* cast 窗口本体：真实源码恒为暗色玻璃，不随 app 主题变化；
+     这里用令牌封装，浅色主题下给出“主题化”提案（源码尚未实现），暗色保持 1:1 还原。 */
+  --cast-window-bg:rgba(12,13,18,.94);
+  --cast-window-border:var(--hairline-strong);
+  --scene-bg:#07080c;
+  --scene-glow:rgba(124,140,255,.10);
+}
+body.light{
+  --hairline:rgba(10,12,20,.10); --hairline-strong:rgba(10,12,20,.16);
+  --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+  --control-bg:rgba(10,12,20,.05); --control-bg-strong:rgba(10,12,20,.08);
+  --scroll-thumb:rgba(10,12,20,.16); --surface-sidebar:rgba(10,12,20,.05);
+  /* 浅色主题化提案：亮玻璃 cast 窗口（真实源码仍是暗色，此为设计提案） */
+  --cast-window-bg:rgba(250,251,255,.96);
+  --cast-window-border:rgba(10,12,20,.14);
+  --scene-bg:#e7e9f1;
+  --scene-glow:rgba(124,140,255,.16);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--font);font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased;color:var(--text-1);
+  background:var(--scene-bg);transition:background .3s var(--ease),color .3s var(--ease);overflow:hidden}
+
+/* —— 顶部说明 + 演示控制条 —— */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:14px;
+  padding:14px 20px;background:linear-gradient(180deg,rgba(0,0,0,.35),transparent);backdrop-filter:blur(6px)}
+body.light .topbar{background:linear-gradient(180deg,rgba(255,255,255,.5),transparent)}
+.topbar .title{font-weight:700;font-size:14px;letter-spacing:.01em}
+.topbar .title b{background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+.topbar .meta{font-size:11px;color:var(--text-3)}
+.topbar .spacer{flex:1 1 auto}
+.ctrl{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;
+  background:var(--control-bg);border:1px solid var(--hairline);font-size:12px}
+.ctrl .lbl{color:var(--text-3)}
+.seg{display:inline-flex;border-radius:9px;overflow:hidden;border:1px solid var(--hairline)}
+.seg button{border:0;background:transparent;color:var(--text-2);font-family:var(--font);font-size:12px;
+  padding:6px 12px;cursor:pointer;transition:background .14s var(--ease),color .14s var(--ease)}
+.seg button.on{background:rgba(124,140,255,.22);color:var(--text-1)}
+.seg button:not(.on):hover{background:var(--control-bg-strong)}
+
+/* —— 应用场景（投屏面板后面的播放器舞台，仅作氛围） —— */
+.scene{position:fixed;inset:0;
+  background:
+    radial-gradient(60% 50% at 50% 26%,var(--scene-glow),transparent 70%),
+    radial-gradient(40% 38% at 14% 82%,rgba(110,231,255,.06),transparent 60%),
+    radial-gradient(40% 38% at 86% 82%,rgba(255,122,198,.06),transparent 60%);}
+.scene .nowplaying{position:fixed;left:22px;bottom:84px;display:flex;align-items:center;gap:12px;
+  padding:10px 14px;border-radius:14px;background:var(--cast-window-bg);border:1px solid var(--cast-window-border);
+  box-shadow:0 12px 30px rgba(0,0,0,.4);backdrop-filter:blur(20px)}
+.scene .np-cover{width:40px;height:40px;border-radius:9px;background:var(--brand-gradient)}
+.scene .np-t{font-size:12.5px;font-weight:600}
+.scene .np-s{font-size:11px;color:var(--text-3)}
+
+/* ============ #cast-panel（1:1 还原 style.css:3692） ============ */
+#cast-panel{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center}
+.cast-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fade-in .2s var(--ease) both}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+.cast-window{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(420px,90vw);max-width:calc(100vw - 40px);max-height:calc(100vh - 130px);
+  display:flex;flex-direction:column;
+  background:var(--cast-window-bg);
+  backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);
+  border:1px solid var(--cast-window-border);border-radius:var(--radius-l);
+  box-shadow:0 26px 70px rgba(0,0,0,.72);overflow:hidden;animation:pop-in .26s var(--ease) both}
+@keyframes pop-in{from{opacity:0;transform:translate(-50%,-46%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+  border-bottom:1px solid var(--hairline);font-size:14px;font-weight:600}
+.playlist-close{margin-left:auto;width:26px;height:26px;display:grid;place-items:center;border:0;border-radius:8px;
+  background:var(--control-bg);color:var(--text-2);cursor:pointer;font-size:13px;transition:background .14s var(--ease),color .14s var(--ease)}
+.playlist-close:hover{background:#e5484d;color:#fff}
+
+.cast-body{flex:1 1 auto;display:flex;flex-direction:column;overflow:hidden}
+.cast-scroller{flex:1 1 auto;overflow-y:auto;min-height:0;padding:8px;display:flex;flex-direction:column;gap:4px}
+.cast-scroller::-webkit-scrollbar{width:8px}
+.cast-scroller::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+
+.cast-status{padding:10px 16px;font-size:12px;color:var(--text-3);border-bottom:1px solid var(--hairline)}
+.cast-status.connected{color:#7ee0a8}
+.cast-empty{padding:26px 18px;text-align:center;color:var(--text-3);font-size:12.5px;line-height:1.6}
+
+.cast-device{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;transition:background .14s var(--ease)}
+.cast-device:hover{background:var(--control-bg)}
+.cast-device.connected{box-shadow:inset 2px 0 0 var(--accent-mid);background:rgba(124,140,255,.10)}
+.cast-device-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cast-device-head{display:flex;align-items:center;gap:8px;min-width:0}
+.cast-device-name{font-size:13px;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cast-device-type{flex:0 0 auto;font-size:10px;line-height:1;padding:2px 7px;border-radius:999px;
+  border:1px solid var(--hairline-strong);color:var(--text-2);background:var(--control-bg)}
+.cast-device-type.type-chromecast{color:#f4b400;border-color:rgba(244,180,0,.5);background:rgba(244,180,0,.10)}
+.cast-device-type.type-dlna{color:#7fd0a8;border-color:rgba(127,208,168,.45);background:rgba(127,208,168,.10)}
+.cast-device-type.type-dial{color:#8ab4ff;border-color:rgba(138,180,255,.45);background:rgba(138,180,255,.10)}
+.cast-device-model{font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cast-connect-btn{flex:0 0 auto;padding:6px 14px;border:1px solid rgba(124,140,255,.4);border-radius:9px;
+  background:rgba(124,140,255,.12);color:#dfe2ff;font-size:12px;cursor:pointer;
+  transition:background .14s var(--ease),border-color .14s var(--ease)}
+.cast-connect-btn:hover:not(:disabled){background:rgba(124,140,255,.24)}
+.cast-connect-btn:disabled{opacity:.5;cursor:default;border-color:var(--hairline);color:var(--text-3)}
+
+#cast-controls{padding:12px 14px;border-top:1px solid var(--hairline);display:flex;flex-direction:column;gap:12px}
+.cast-hint{font-size:12px;color:var(--text-3);line-height:1.6}
+.cast-actions{display:flex;flex-direction:column;gap:8px}
+.cast-action-btn{width:100%;padding:10px;border:1px solid var(--hairline);border-radius:11px;
+  background:var(--control-bg);color:var(--text-1);font-size:13px;cursor:pointer;
+  transition:background .14s var(--ease),border-color .14s var(--ease)}
+.cast-action-btn:hover{background:var(--control-bg-strong)}
+.cast-action-btn.primary{background:linear-gradient(90deg,rgba(124,140,255,.32),rgba(110,231,255,.22));
+  border-color:rgba(124,140,255,.5);color:#fff}
+.cast-action-btn.primary:hover{background:linear-gradient(90deg,rgba(124,140,255,.46),rgba(110,231,255,.32))}
+.cast-action-btn.danger{border-color:rgba(229,72,77,.4);color:#ff8a8e}
+.cast-action-btn.danger:hover{background:rgba(229,72,77,.16)}
+.cast-url-row{display:flex;gap:8px}
+.cast-url-input{flex:1 1 auto;min-width:0;padding:9px 11px;border:1px solid var(--hairline);border-radius:10px;
+  background:var(--surface-sidebar);color:var(--text-1);font-size:12.5px;outline:none}
+.cast-url-input:focus{border-color:var(--accent)}
+.cast-transport{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.cast-tbtn{padding:8px 4px;border:1px solid var(--hairline);border-radius:9px;background:var(--control-bg);
+  color:var(--text-1);font-size:12px;cursor:pointer;transition:background .14s var(--ease)}
+.cast-tbtn:hover{background:var(--control-bg-strong)}
+.cast-vol-row{display:flex;align-items:center;gap:10px}
+.cast-vol-label{font-size:12px;color:var(--text-3);white-space:nowrap}
+.cast-vol{flex:1 1 auto;accent-color:var(--accent)}
+.cast-vol-val{font-size:12px;color:var(--text-2);width:28px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* 响应式：窄窗不溢出（与 style.css max-width 一致，此处补充高度保护） */
+@media(max-height:560px){.cast-window{max-height:calc(100vh - 90px)}}
+.footnote{position:fixed;left:0;right:0;bottom:0;z-index:60;text-align:center;padding:8px;
+  font-size:11px;color:var(--text-3);background:linear-gradient(0deg,rgba(0,0,0,.3),transparent)}
+body.light .footnote{background:linear-gradient(0deg,rgba(255,255,255,.5),transparent)}
+.footnote b{color:var(--accent-cyan);font-weight:600}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="title">Lumora · <b>投屏面板</b></div>
+  <div class="meta">CAST_PANEL_MOCK · 1:1 还原 style.css:3692–3812 · 含 DIAL 新功能展示</div>
+  <div class="spacer"></div>
+  <div class="ctrl"><span class="lbl">主题</span>
+    <div class="seg" id="theme-seg">
+      <button data-t="dark" class="on">深色</button>
+      <button data-t="light">浅色</button>
+    </div>
+  </div>
+  <div class="ctrl"><span class="lbl">状态</span>
+    <div class="seg" id="state-seg">
+      <button data-s="searching" class="on">搜索中</button>
+      <button data-s="connected">已连接</button>
+    </div>
+  </div>
+</div>
+
+<!-- 应用场景：投屏面板后面的播放器舞台（氛围用） -->
+<div class="scene">
+  <div class="nowplaying">
+    <div class="np-cover"></div>
+    <div><div class="np-t">星际穿越 · Interstellar</div><div class="np-s">正在播放 · 00:12:03 / 02:49:04</div></div>
+  </div>
+</div>
+
+<!-- ============ 投屏面板（与真实结构完全一致） ============ -->
+<div id="cast-panel">
+  <div class="cast-backdrop" id="cast-backdrop"></div>
+  <div class="cast-window" id="cast-window">
+    <div class="panel-head draggable">
+      <span>投屏到设备</span>
+      <button class="playlist-close" id="cast-close" title="关闭">✕</button>
+    </div>
+    <div class="cast-body">
+      <div class="cast-status" id="cast-status">正在搜索局域网设备…</div>
+      <div class="cast-scroller" id="cast-list"></div>
+      <div id="cast-controls"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footnote">DIAL 设备（NVIDIA SHIELD）已置顶展示 —— 本次新增协议支持；真实窗口恒为暗色玻璃，<b>浅色为设计提案</b>。</div>
+
+<script>
+/* —— 设备数据：DIAL 置顶展示新功能；其余为 Chromecast / DLNA —— */
+const devices = [
+  { udn:'uuid:dial-shield', friendlyName:'客厅 SHIELD Android TV', type:'dial',    manufacturer:'NVIDIA',   modelName:'Shield Android TV' },
+  { udn:'uuid:cc-ultra',    friendlyName:'客厅的 Chromecast Ultra', type:'chromecast', manufacturer:'Google', modelName:'Chromecast Ultra' },
+  { udn:'uuid:dlna-mi',     friendlyName:'客厅小米电视',            type:'dlna',    manufacturer:'Xiaomi',  modelName:'Mi Box S' },
+];
+let connectedUdn = 'uuid:dial-shield';   // 默认 DIAL 已连接，展示新功能
+let state = 'searching';
+
+const typeLabel = t => t==='chromecast' ? 'Chromecast' : t==='dial' ? 'DIAL' : 'DLNA';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtTime = s => { s=Math.max(0,Math.floor(s||0)); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
+  return (h?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(x).padStart(2,'0'); };
+
+function render(){
+  const status = document.getElementById('cast-status');
+  const connected = state==='connected';
+
+  if(connected){
+    const dev = devices.find(d=>d.udn===connectedUdn);
+    status.className = 'cast-status connected';
+    status.textContent = `已连接：${dev.friendlyName} · playing · ${fmtTime(723)}/${fmtTime(1064)}`;
+  }else{
+    status.className = 'cast-status';
+    status.textContent = devices.length ? `发现 ${devices.length} 台设备` : '正在搜索局域网设备…';
+  }
+
+  const list = document.getElementById('cast-list');
+  list.innerHTML = '';
+  if(!devices.length){
+    const e=document.createElement('div'); e.className='cast-empty';
+    e.textContent='未发现投屏设备。请确保电视/盒子已开机并连入同一 Wi-Fi，且开启了 DLNA、Chromecast 或 DIAL 投屏。';
+    list.appendChild(e);
+  }
+  devices.forEach(d=>{
+    const row=document.createElement('div');
+    row.className='cast-device'+(d.udn===connectedUdn?' connected':'');
+    const info=document.createElement('div'); info.className='cast-device-info';
+    info.innerHTML=
+      `<span class="cast-device-head">`+
+        `<span class="cast-device-name">${esc(d.friendlyName)}</span>`+
+        `<span class="cast-device-type type-${d.type}">${typeLabel(d.type)}</span>`+
+      `</span>`+
+      `<span class="cast-device-model">${esc([d.manufacturer,d.modelName].filter(Boolean).join(' '))}</span>`;
+    const btn=document.createElement('button'); btn.className='cast-connect-btn';
+    if(d.udn===connectedUdn){ btn.textContent='已连接'; btn.disabled=true; }
+    else { btn.textContent='连接'; btn.addEventListener('click',()=>{ connectedUdn=d.udn; render(); }); }
+    row.append(info,btn); list.appendChild(row);
+  });
+
+  const controls=document.getElementById('cast-controls'); controls.innerHTML='';
+  if(connected) buildControls(controls);
+  else { const h=document.createElement('div'); h.className='cast-hint';
+    h.textContent='连接设备后即可投屏当前正在播放的内容，或投屏任意网络串流地址。';
+    controls.appendChild(h); }
+}
+
+function buildControls(wrap){
+  const actions=document.createElement('div'); actions.className='cast-actions';
+  const cur=document.createElement('button'); cur.className='cast-action-btn primary'; cur.textContent='投屏当前内容';
+  actions.appendChild(cur);
+  const urlRow=document.createElement('div'); urlRow.className='cast-url-row';
+  const inp=document.createElement('input'); inp.type='url'; inp.className='cast-url-input';
+  inp.placeholder='投屏网络串流地址（http/rtsp/rtmp…）';
+  const ub=document.createElement('button'); ub.className='cast-action-btn'; ub.textContent='投屏';
+  urlRow.append(inp,ub); actions.appendChild(urlRow); wrap.appendChild(actions);
+
+  const tr=document.createElement('div'); tr.className='cast-transport';
+  ['暂停','继续','停止','同步进度'].forEach(l=>{ const b=document.createElement('button');
+    b.className='cast-tbtn'; b.textContent=l; tr.appendChild(b); }); wrap.appendChild(tr);
+
+  const vr=document.createElement('div'); vr.className='cast-vol-row';
+  const vl=document.createElement('span'); vl.className='cast-vol-label'; vl.textContent='电视音量';
+  const vol=document.createElement('input'); vol.type='range'; vol.min='0'; vol.max='100'; vol.value='100'; vol.className='cast-vol';
+  const vv=document.createElement('span'); vv.className='cast-vol-val'; vv.textContent='100';
+  vol.addEventListener('input',()=>{ vv.textContent=vol.value; });
+  vr.append(vl,vol,vv); wrap.appendChild(vr);
+
+  const disc=document.createElement('button'); disc.className='cast-action-btn danger'; disc.textContent='断开连接';
+  disc.addEventListener('click',()=>{ connectedUdn=null; state='searching';
+    document.querySelectorAll('#state-seg button').forEach(b=>b.classList.toggle('on',b.dataset.s==='searching'));
+    render(); });
+  wrap.appendChild(disc);
+}
+
+/* —— 演示控制：主题 + 状态 —— */
+document.getElementById('theme-seg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  document.body.classList.toggle('light', b.dataset.t==='light');
+  document.querySelectorAll('#theme-seg button').forEach(x=>x.classList.toggle('on',x===b));
+});
+document.getElementById('state-seg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  state=b.dataset.s;
+  if(state==='searching') connectedUdn=null;       // 切回搜索时断开，展示设备列表态
+  else if(!connectedUdn) connectedUdn='uuid:dial-shield';
+  document.querySelectorAll('#state-seg button').forEach(x=>x.classList.toggle('on',x===b));
+  render();
+});
+document.getElementById('cast-close').addEventListener('click',()=>{
+  document.getElementById('cast-panel').style.opacity=.35;
+  document.querySelector('.footnote').textContent='（演示）点击“状态：搜索中/已连接”可重新唤起面板。';
+});
+
+render();
+</script>
+</body>
+</html>
