@@ -6,7 +6,7 @@
 > 环境前提：本机需 `git` 已对齐 `origin/main`（443 恢复后 `git push` 快进；或 `git fetch && git reset --hard origin/main`），
 > 且 `npm install` 后 `npm run rebuild-mf`（如需 MF 原生引擎）。
 >
-> 关联状态：设计交付 **19/19 mock + DESIGN.md A.2 全闭环**；设计令牌两处真 bug 已修并推送
+> 关联状态：设计交付 **20/20 mock + DESIGN.md A.2 全闭环**；设计令牌两处真 bug 已修并推送
 > （`--dl-accent` 回退对齐品牌 `#7c8cff` `855f8d3` / `--accent-2` 未定义→`--accent-pink` `3374dae`）；A.3 已知漂移全部闭环；
 > Crossfade 渲染端单测 14/14 绿（harness 已修，`4e35b35`）；**443 推送已完成**（远端 main = `fa784c6` = 本地 HEAD，全量同步）。
 > 下列项均为 sandbox-impossible，需本机目测。
@@ -73,7 +73,7 @@
 
 | 项 | 状态 | 阻塞 |
 |---|---|---|
-| 设计交付（19/19 mock + DESIGN.md + A.3 闭环） | ✅ 完成 | — |
+| 设计交付（20/20 mock + DESIGN.md + A.3 闭环） | ✅ 完成 | — |
 | 设计令牌修复（--dl-accent / --accent-2） | ✅ 已修并推送（`855f8d3`/`3374dae`） | 源码层，无需真机 |
 | Crossfade 渲染端单测 | ✅ 14/14 绿（`4e35b35` 修 harness） | 主进程调度见 §4 |
 | 443 推送 | ✅ 已完成（远端=`fa784c6`=本地 HEAD，全量同步） | — |
