@@ -6282,7 +6282,11 @@ body.audio-mode.eq-open .eq-window {
 }
 .eq-slider::-webkit-slider-runnable-track {
   width: 6px; border-radius: 3px;
-  background: linear-gradient(to top, var(--accent, #7c8cff) 0%, var(--fill-track) 0%);
+  background: linear-gradient(to top,
+    var(--accent, #7c8cff) 0%,
+    var(--accent, #7c8cff) var(--fill, 0%),
+    var(--fill-track) var(--fill, 0%),
+    var(--fill-track) 100%);
 }
 .eq-slider::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;

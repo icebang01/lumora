@@ -53,6 +53,14 @@ function _bandLabel(f) {
   return f >= 1000 ? `${f / 1000}k` : `${f}`;
 }
 
+/** 设置单条竖向 EQ 滑块的填充比例(--fill)，使 WebKit/Chrome 的轨道填充与
+ *  Firefox 的 ::-moz-range-progress 一致(从底部 min 到滑块当前值位置)。
+ *  原 CSS 渐变两色标同 0% 导致 Chrome 只显示 --fill-track、accent 填充丢失。 */
+function _setEqSliderFill(s, v) {
+  const pct = ((v - EQ_MIN) / (EQ_MAX - EQ_MIN)) * 100;
+  s.style.setProperty('--fill', pct.toFixed(2) + '%');
+}
+
 function _buildEqPanel() {
   if (_built) return;
   _built = true;
@@ -126,8 +134,9 @@ function _refreshEqControls(eq) {
     sliders.querySelectorAll('.eq-slider').forEach((s) => {
       const i = Number(s.dataset.band);
       const v = eq.bands[i] || 0;
-      // 不抢占用户正在拖动的滑块
+      // 不抢占用户正在拖动的滑块的值，但填充比例需实时跟随(含拖拽中)
       if (document.activeElement !== s) s.value = String(v);
+      _setEqSliderFill(s, v);
       const g = sliders.querySelector(`[data-gain="${i}"]`);
       if (g) g.textContent = (v > 0 ? '+' : '') + v;
     });
