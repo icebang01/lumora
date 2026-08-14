@@ -20,6 +20,7 @@ import { isLiked, toggleLiked, onLikeChange } from '../core/likes.js';
 import { toggleEqPanel, closeEqPanel } from '../panels/eq.js';
 import { setIdleMode } from '../panels/idle.js';
 import { togglePlaylistPanel } from '../panels/playlist.js';
+import { baseName } from '../../shared/path-base.js';
 import { toggleSettings } from '../panels/settings.js';
 import { openLyricsSearch } from '../panels/lyrics-search.js';
 
@@ -2479,6 +2480,3 @@ function _syncPlayIcons(paused) {
   if (mIconPause) mIconPause.classList.toggle('hidden', paused);
 }
 
-function baseName(p) {
-  return String(p || '').split(/[\\/]/).pop();
-}

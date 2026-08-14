@@ -11,6 +11,8 @@
  *   - onApply(lines, lrcMeta, info)：用户选中候选并保存成功后回调，由调用方渲染歌词。
  */
 
+import { escapeHtml as esc } from '../../shared/escape-html.js';
+
 let overlayEl = null;
 let cardEl = null;
 let statusEl = null;
@@ -31,11 +33,6 @@ function fmtDur(sec) {
   return `${m}:${String(r).padStart(2, '0')}`;
 }
 
-function esc(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}
 
 function ensureDom() {
   if (overlayEl) return;

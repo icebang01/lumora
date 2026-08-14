@@ -8,6 +8,7 @@
  */
 import { isLiked, toggleLiked, onLikeChange } from '../core/likes.js';
 import { collectDroppedPaths, endExternalDrag, naturalCompare } from '../input.js';
+import { baseName } from '../../shared/path-base.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -246,7 +247,6 @@ let dragSrcIndex = null;        // 当前被拖拽的播放列表项索引
 let lastDropAt = 0;             // 最近一次落点时间戳，用于抑制拖拽后的误触单击
 let _likeFilter = false;        // 是否只看「我喜欢的」
 const _itemEls = new Map();     // path -> 列表项 DOM，便于收藏变化时就地更新
-function baseName(p) { return String(p).split(/[\\/]/).pop(); }
 
 /* ---------------- 自定义滚动条（替代原生细条，解决点击难/不跟手） ---------------- */
 let _scrollBar = null;          // 自定义滚动条外层

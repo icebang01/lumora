@@ -5,6 +5,8 @@
  * 用法：setupCast({ player, osd });  toggleCastPanel() 由 app.js 暴露给右键菜单/命令总线。
  */
 import { fmtTime } from '../core/player.js';
+import { escapeHtml as esc } from '../../shared/escape-html.js';
+import { baseName } from '../../shared/path-base.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -50,10 +52,6 @@ const player = new Proxy({}, {
 });
 const osd = { message: (...a) => CTX.osd && CTX.osd.message(...a) };
 
-function baseName(p) { return String(p).split(/[\\/]/).pop(); }
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
 function isNetworkUrl(p) { return /^[a-z][a-z0-9+.-]*:\/\//i.test(p || ''); }
 
 /* ---------------- 面板开关 ---------------- */

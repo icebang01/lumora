@@ -4,6 +4,7 @@
  * 用法:setupIdlePanel({ player, osd });(boot 时注入)
  */
 import { closePlaylistPanel, togglePlaylistPanel, requestThumbnail } from './playlist.js';
+import { baseName } from '../../shared/path-base.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,7 +31,6 @@ const _playlist = new Proxy([], {
 });
 function getPlaylistIndex() { return CTX.getPlaylistIndex ? CTX.getPlaylistIndex() : -1; }
 function playlistGoto(i) { if (CTX.playlistGoto) CTX.playlistGoto(i); }
-function baseName(p) { return String(p).split(/[\\/]/).pop(); }
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|wma|ogg|opus|ac3|dts|eac3|mka|ape|tta|tak|alac|wv)$/i;
 function isAudioPath(p) { return AUDIO_EXT.test(String(p || '')); }

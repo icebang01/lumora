@@ -6,6 +6,8 @@
  * 品牌色强调（v1 的渐变竖条改为内联强调色），面板保留卡片化质感。
  */
 
+import { escapeHtml as esc } from '../../shared/escape-html.js';
+
 const FT_BARS = 60;
 
 export class StatsPanel {
@@ -292,6 +294,3 @@ function shorten(s, n) {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}

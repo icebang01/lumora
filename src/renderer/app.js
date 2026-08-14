@@ -10,6 +10,8 @@
  * 命令，五个入口自动全都支持。
  */
 
+import { escapeHtml as esc } from '../shared/escape-html.js';
+import { baseName } from '../shared/path-base.js';
 import { KeybindManager } from './ui/keys.js';
 import { Osd } from './ui/osd.js';
 import { Osc } from './ui/osc.js';
@@ -1209,16 +1211,6 @@ function toggleKeymap(force) {
     if (isLicensesVisible()) toggleLicenses(false);
     if (isSettingsVisible()) toggleSettings(false);
   }
-}
-
-/* ================================================================== */
-/* 工具                                                                */
-/* ================================================================== */
-
-function baseName(p) { return String(p).split(/[\\/]/).pop(); }
-
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 /* ================================================================== */

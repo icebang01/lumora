@@ -6,6 +6,7 @@
  */
 
 import { groupOf, describeBind, keyDisplay } from './keys.js';
+import { escapeHtml as esc } from '../../shared/escape-html.js';
 
 /** 组的展示顺序：常用的排前面 */
 const ORDER = [
@@ -179,6 +180,3 @@ export class KeymapPanel {
   }
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
