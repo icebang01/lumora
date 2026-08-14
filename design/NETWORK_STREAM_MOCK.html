@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumora — Network Stream Dialog (DESIGN.md 交付 · 网络串流弹窗)</title>
+<style>
+  :root{
+    --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-glow:rgba(124,140,255,.45);
+    --ease:cubic-bezier(0.16,1,0.3,1); --radius-l:16px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--font);-webkit-font-smoothing:antialiased;color:var(--text-1)}
+
+  /* 演示舞台：暗色媒体背景，对话框居中浮于其上 */
+  .stage{position:fixed; inset:0; overflow:hidden;
+    background:
+      radial-gradient(62% 52% at 50% 40%, rgba(124,140,255,.10), transparent 70%),
+      radial-gradient(42% 40% at 18% 64%, rgba(110,231,255,.05), transparent 62%),
+      radial-gradient(42% 40% at 82% 64%, rgba(255,122,198,.05), transparent 62%),
+      #0b0c12;}
+  .stage::before{ content:""; position:absolute; left:10%; right:10%; top:18%; bottom:18%;
+    border-radius:16px; border:1px solid rgba(255,255,255,.06);
+    background:linear-gradient(135deg, rgba(124,140,255,.08), rgba(255,122,198,.05));
+    box-shadow:inset 0 0 60px rgba(0,0,0,.4);}
+  .stage-hint{ position:absolute; left:12%; top:22%; color:rgba(255,255,255,.18); font-size:13px; letter-spacing:.04em;}
+
+  /* ===== 网络串流弹窗 ===== */
+  #network-stream-dialog{ position:fixed; inset:0; z-index:52; display:flex; align-items:center; justify-content:center; }
+  .ns-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.5); animation:fade-in .18s var(--ease) both; }
+  @keyframes fade-in{ from{opacity:0;} to{opacity:1;} }
+  .ns-window{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(520px,90vw); display:flex; flex-direction:column;
+    background:rgba(13,14,20,.94); backdrop-filter:blur(30px) saturate(180%); -webkit-backdrop-filter:blur(30px) saturate(180%);
+    border:1px solid var(--hairline-strong); border-radius:var(--radius-l);
+    box-shadow:0 26px 70px rgba(0,0,0,.72); overflow:hidden; animation:pop-in .26s var(--ease) both;
+  }
+  @keyframes pop-in{ from{opacity:0; transform:translate(-50%,-50%) scale(.96);} to{opacity:1; transform:translate(-50%,-50%) scale(1);} }
+
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--hairline); font-size:14px; font-weight:600; }
+  .ghost-btn{ padding:5px 12px; background:rgba(255,255,255,.07); border:1px solid var(--hairline); border-radius:7px; color:var(--text-2); font-family:var(--font); font-size:11.5px; cursor:pointer; transition:background .14s var(--ease), color .14s var(--ease); }
+  .ghost-btn:hover{ background:rgba(255,255,255,.13); color:var(--text-1); }
+
+  .ns-body{ padding:18px 20px 6px; }
+  .ns-label{ display:block; font-size:11px; font-weight:600; letter-spacing:.04em; color:var(--text-3); margin-bottom:8px; }
+  .ns-input{
+    width:100%; box-sizing:border-box; padding:10px 12px;
+    background:rgba(255,255,255,.06); border:1px solid var(--hairline-strong); border-radius:9px;
+    color:var(--text-1); font-family:var(--font-mono); font-size:13px; outline:none;
+    transition:border-color .14s var(--ease), box-shadow .14s var(--ease);
+  }
+  .ns-input::placeholder{ color:rgba(255,255,255,.30); }
+  .ns-input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+  .ns-input.invalid{ border-color:var(--accent-pink); box-shadow:0 0 0 3px rgba(255,122,198,.30); }
+  .ns-error{ margin-top:8px; font-size:12px; color:var(--accent-pink); display:none; }
+  .ns-error.show{ display:block; }
+  .ns-hint{ margin:10px 0 0; font-size:11.5px; color:var(--text-3); line-height:1.6; }
+  .ns-foot{ display:flex; justify-content:flex-end; gap:10px; padding:12px 20px 18px; }
+  .primary-btn{
+    padding:7px 18px; background:linear-gradient(100deg,var(--accent-cyan),var(--accent) 60%,var(--accent-pink));
+    border:0; border-radius:8px; color:#0b0c12; font-family:var(--font); font-size:12.5px; font-weight:700; cursor:pointer;
+    transition:filter .14s var(--ease), transform .14s var(--ease);
+  }
+  .primary-btn:hover{ filter:brightness(1.08); }
+  .primary-btn:active{ transform:translateY(1px); }
+  .primary-btn:disabled{ opacity:.5; cursor:not-allowed; filter:none; }
+
+  /* ===== 演示控制条（非产品 UI） ===== */
+  .demo-bar{ position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:99; display:flex; gap:8px; padding:8px 10px; background:rgba(20,22,32,.78); backdrop-filter:blur(14px) saturate(150%); border:1px solid rgba(255,255,255,.12); border-radius:999px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+  .demo-bar button{ font:inherit; font-size:12px; color:rgba(255,255,255,.82); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:999px; padding:7px 14px; cursor:pointer; transition:background .15s var(--ease), color .15s var(--ease); }
+  .demo-bar button:hover{ background:rgba(255,255,255,.12); color:#fff; }
+  .demo-bar button.on{ background:linear-gradient(135deg,#6ee7ff,var(--accent) 55%,#ff7ac6); color:#0b0c12; border-color:transparent; }
+  .demo-tag{ position:fixed; top:14px; left:16px; z-index:99; font-size:11px; letter-spacing:.04em; color:rgba(255,255,255,.5); background:rgba(20,22,32,.6); border:1px solid rgba(255,255,255,.1); padding:5px 10px; border-radius:8px; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="stage-hint">▣ 媒体画面（示意）</div>
+</div>
+
+<div class="demo-tag">Lumora · Network Stream Dialog · DESIGN.md 交付</div>
+
+<div id="network-stream-dialog">
+  <div class="ns-backdrop"></div>
+  <div class="ns-window">
+    <div class="panel-head">
+      <span>打开网络串流</span>
+      <button class="ghost-btn" type="button">关闭</button>
+    </div>
+    <div class="ns-body">
+      <label class="ns-label" for="ns-input">媒体地址</label>
+      <input id="ns-input" class="ns-input" type="url" spellcheck="false" autocomplete="off"
+             placeholder="https://example.com/video.m3u8  或 rtmp:// / rtsp:// / ftp:// …">
+      <div id="ns-error" class="ns-error">无法识别该地址，请检查协议（http/https/rtmp/rtsp/ftp/mms）后重试。</div>
+      <p class="ns-hint">支持 http(s) / rtmp / rtsp / ftp / mms 等可直接播放的网络地址。</p>
+    </div>
+    <div class="ns-foot">
+      <button class="ghost-btn" type="button">取消</button>
+      <button id="ns-ok" class="primary-btn" type="button">播放</button>
+    </div>
+  </div>
+</div>
+
+<div class="demo-bar">
+  <button id="btn-fill">填入示例地址</button>
+  <button id="btn-error">错误态演示</button>
+</div>
+
+<script>
+  const input = document.getElementById('ns-input');
+  const err = document.getElementById('ns-error');
+  const okBtn = document.getElementById('ns-ok');
+
+  document.getElementById('btn-fill').addEventListener('click', (e) => {
+    input.value = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+    input.classList.remove('invalid');
+    err.classList.remove('show');
+    okBtn.disabled = false;
+    e.target.classList.add('on');
+    document.getElementById('btn-error').classList.remove('on');
+    input.focus();
+  });
+  document.getElementById('btn-error').addEventListener('click', (e) => {
+    input.value = 'htp://broken-link';
+    input.classList.add('invalid');
+    err.classList.add('show');
+    okBtn.disabled = true;
+    e.target.classList.add('on');
+    document.getElementById('btn-fill').classList.remove('on');
+  });
+</script>
+</body>
+</html>
