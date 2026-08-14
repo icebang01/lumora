@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumora · Music Stage Mock (dark)</title>
+<style>
+:root{
+  --accent:#7c8cff; --accent-bright:#9aa5ff; --accent-cyan:#6ee7ff;
+  --accent-pink:#ff7ac6; --accent-mid:#8b7bff; --like-color:#ff5d8f;
+  --accent-glow:rgba(124,140,255,.45);
+  --surface-0:rgba(14,15,20,.72); --surface-1:rgba(22,24,32,.86);
+  --surface-2:rgba(32,35,46,.94); --hairline:rgba(255,255,255,.09);
+  --hairline-strong:rgba(255,255,255,.16);
+  --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+  --control-bg:rgba(255,255,255,.06); --control-bg-strong:rgba(255,255,255,.12);
+  --hover-bg:rgba(255,255,255,.12); --fill-track:rgba(255,255,255,.14);
+  --scroll-thumb:rgba(255,255,255,.18); --surface-sidebar:rgba(0,0,0,.22);
+  --ease:cubic-bezier(.16,1,.3,1); --radius-s:8px; --radius-m:12px; --radius-l:16px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei UI","Hiragino Sans GB",system-ui,sans-serif;
+  --font-mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
+  --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--font);font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  color:var(--text-1);overflow:hidden}
+/* stage */
+.stage{position:fixed;inset:0;display:flex;flex-direction:column;
+  background:
+    radial-gradient(62% 52% at 50% 30%,rgba(124,140,255,.10),transparent 70%),
+    radial-gradient(42% 40% at 16% 72%,rgba(110,231,255,.055),transparent 62%),
+    radial-gradient(42% 40% at 84% 72%,rgba(255,122,198,.055),transparent 62%),
+    linear-gradient(180deg,#131521,#0b0d16);
+}
+/* ambient drifting blobs */
+.ambient{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:.5}
+.ambient i{position:absolute;width:420px;height:420px;border-radius:50%;filter:blur(80px);
+  background:var(--brand-gradient);opacity:.22;animation:drift 18s ease-in-out infinite}
+.ambient i:nth-child(1){left:-120px;top:-80px;animation-delay:0s}
+.ambient i:nth-child(2){right:-140px;bottom:-120px;background:linear-gradient(135deg,#ff7ac6,#7c8cff);animation-delay:-6s}
+.ambient i:nth-child(3){left:40%;top:30%;background:linear-gradient(135deg,#6ee7ff,#8b7bff);animation-delay:-12s}
+@keyframes drift{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,-30px) scale(1.12)}}
+
+.content{position:relative;flex:1;display:flex;gap:42px;align-items:center;justify-content:center;
+  padding:48px 56px;min-height:0;flex-wrap:wrap}
+/* art + vinyl */
+.art{width:min(360px,40vw);aspect-ratio:1;flex:none;position:relative}
+.cover{position:absolute;inset:0;border-radius:20px;background:var(--brand-gradient);
+  box-shadow:0 40px 100px rgba(0,0,0,.55);overflow:hidden}
+.cover::after{content:"";position:absolute;inset:0;background:
+  radial-gradient(60% 60% at 30% 25%,rgba(255,255,255,.35),transparent 60%),
+  radial-gradient(50% 50% at 75% 80%,rgba(0,0,0,.35),transparent 60%)}
+.vinyl{position:absolute;inset:8%;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,#1a1c26 0 36%,#0a0b11 36% 100%);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.06),0 20px 50px rgba(0,0,0,.5);
+  animation:spin 9s linear infinite;animation-play-state:paused}
+.stage.playing .vinyl{animation-play-state:running}
+.vinyl::before{content:"";position:absolute;inset:40%;border-radius:50%;background:var(--brand-gradient)}
+.vinyl::after{content:"";position:absolute;inset:46.5%;border-radius:50%;background:#0b0c12;
+  box-shadow:0 0 0 2px rgba(255,255,255,.12)}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* tonearm */
+.tonearm{position:absolute;top:6%;right:8%;width:8px;height:46%;border-radius:8px;
+  background:linear-gradient(180deg,#f2f3f7,#c8ccd6);transform-origin:top center;transform:rotate(18deg);
+  transition:transform .6s var(--ease);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.tonearm::after{content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
+  width:16px;height:14px;border-radius:4px;background:#2a2c36}
+.stage.playing .tonearm{transform:rotate(-12deg)}
+
+/* meta + lyrics */
+.meta{width:min(440px,42vw);display:flex;flex-direction:column;gap:6px;min-width:0}
+.meta .t{font-size:30px;font-weight:700;letter-spacing:-.01em}
+.meta .a{font-size:16px;color:var(--text-2)}
+.meta .al{font-size:13px;color:var(--text-3)}
+.lyrics{margin-top:18px;height:230px;overflow:hidden;position:relative;
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 18%,#000 78%,transparent)}
+.lyrics .ln{font-size:16px;font-weight:600;color:var(--text-3);padding:7px 0;transition:color .3s var(--ease),transform .3s var(--ease)}
+.lyrics .ln.cur{color:var(--text-1);transform:scale(1.04);transform-origin:left}
+.lyrics .ln.cur .tr{color:var(--accent-bright)}
+.lyrics .ln .tr{display:block;font-size:12.5px;font-weight:400;color:var(--text-3);margin-top:2px}
+.lyr-bar{display:flex;gap:6px;align-items:center;margin-top:14px;flex-wrap:wrap}
+.lbtn{font-family:var(--font);font-size:11px;color:var(--text-2);background:var(--control-bg);
+  border:0;border-radius:999px;padding:5px 11px;cursor:pointer;transition:all .15s var(--ease)}
+.lbtn:hover{background:var(--hover-bg);color:var(--text-1)}
+.lbtn.on{color:var(--accent-bright);background:rgba(124,140,255,.14)}
+
+/* spectrum */
+.spectrum{display:flex;align-items:flex-end;gap:3px;height:34px;margin:10px 0 2px}
+.spectrum i{width:4px;border-radius:3px;background:var(--brand-gradient);height:20%;
+  animation:eq 1.1s ease-in-out infinite;animation-play-state:paused}
+.stage.playing .spectrum i{animation-play-state:running}
+.spectrum i:nth-child(odd){animation-duration:.9s}
+.spectrum i:nth-child(3n){animation-duration:1.4s}
+@keyframes eq{0%,100%{height:18%}50%{height:90%}}
+
+/* controls bar */
+.controls{position:relative;flex:none;display:flex;align-items:center;gap:14px;padding:14px 22px;
+  background:var(--surface-1);border-top:1px solid var(--hairline);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%)}
+.controls .track{display:flex;align-items:center;gap:14px;min-width:0;flex:1}
+.cbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  background:var(--control-bg);color:var(--text-1);font-size:16px;transition:background .15s var(--ease),color .15s var(--ease);border:0}
+.cbtn:hover{background:var(--hover-bg)}
+.cbtn.play{width:52px;height:52px;background:var(--brand-gradient);color:#0b0d14;font-size:22px;box-shadow:0 6px 18px rgba(139,123,255,.4)}
+.cbtn.play:active{transform:scale(.96)}
+.cbtn.liked{color:var(--like-color)}
+.cbtn.active{color:var(--accent)}
+.spacer{flex:1}
+.vol{display:flex;align-items:center;gap:8px}
+.vol .bar{width:90px;height:5px;border-radius:999px;background:var(--fill-track);position:relative;overflow:hidden}
+.vol .bar::before{content:"";position:absolute;inset:0 30% 0 0;background:var(--brand-gradient)}
+.speed{font-family:var(--font-mono);font-size:12px;color:var(--text-2);background:var(--control-bg);
+  border:0;border-radius:999px;padding:6px 12px;cursor:pointer}
+/* responsive */
+@media(max-width:760px){
+  .content{gap:24px;padding:28px 20px;flex-direction:column;overflow-y:auto}
+  .art{width:min(240px,56vw)}
+  .meta{width:94vw}
+  .lyrics{height:160px}
+  .controls{flex-wrap:wrap;justify-content:center}
+}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="ambient"><i></i><i></i><i></i></div>
+
+  <div class="content">
+    <div class="art">
+      <div class="cover"></div>
+      <div class="vinyl"></div>
+      <div class="tonearm"></div>
+    </div>
+
+    <div class="meta">
+      <div class="t">夜空中最亮的星</div>
+      <div class="a">逃跑计划</div>
+      <div class="al">世界 · 2011</div>
+
+      <div class="spectrum">
+        <i style="animation-delay:0s"></i><i style="animation-delay:.1s"></i><i style="animation-delay:.2s"></i>
+        <i style="animation-delay:.05s"></i><i style="animation-delay:.3s"></i><i style="animation-delay:.15s"></i>
+        <i style="animation-delay:.25s"></i><i style="animation-delay:.08s"></i><i style="animation-delay:.35s"></i>
+        <i style="animation-delay:.12s"></i><i style="animation-delay:.28s"></i><i style="animation-delay:.18s"></i>
+        <i style="animation-delay:.4s"></i><i style="animation-delay:.22s"></i><i style="animation-delay:.32s"></i>
+      </div>
+
+      <div class="lyrics" id="lyrics">
+        <div class="ln">夜空中最亮的星</div>
+        <div class="ln">能否听清</div>
+        <div class="ln cur">那仰望的人<span class="tr">Can you hear the one who looks up</span></div>
+        <div class="ln">心底的孤独和叹息<span class="tr">the loneliness and sighs deep in the heart</span></div>
+        <div class="ln">夜空中最亮的星</div>
+        <div class="ln">能否记起<span class="tr">Can you remember</span></div>
+        <div class="ln">曾与我同行<span class="tr">once walked with me</span></div>
+        <div class="ln">消失在风里的身影</div>
+      </div>
+
+      <div class="lyr-bar">
+        <button class="lbtn" data-off="-5">-5s</button>
+        <button class="lbtn" data-off="-0.5">-0.5s</button>
+        <button class="lbtn on" id="trBtn">译</button>
+        <button class="lbtn" id="autoBtn">自动</button>
+        <button class="lbtn" data-off="0.5">+0.5s</button>
+        <button class="lbtn" data-off="5">+5s</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="track">
+      <button class="cbtn" title="循环">🔁</button>
+      <button class="cbtn" title="随机">🔀</button>
+      <button class="cbtn" title="上一首">⏮</button>
+      <button class="cbtn play" id="playBtn" title="播放/暂停">▶</button>
+      <button class="cbtn" title="下一首">⏭</button>
+      <button class="cbtn liked" title="我喜欢">♥</button>
+      <div class="spacer"></div>
+      <button class="speed">1.0×</button>
+      <button class="cbtn" title="睡眠定时">🌙</button>
+      <div class="vol"><span>🔊</span><div class="bar"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const stage=document.getElementById('stage'),playBtn=document.getElementById('playBtn');
+playBtn.addEventListener('click',()=>{
+  const playing=stage.classList.toggle('playing');
+  playBtn.textContent=playing?'❚❚':'▶';
+});
+// lyric line advance (demo)
+let cur=2;const lines=document.querySelectorAll('#lyrics .ln');
+document.getElementById('trBtn').addEventListener('click',e=>e.target.classList.toggle('on'));
+setInterval(()=>{
+  if(!stage.classList.contains('playing'))return;
+  lines[cur].classList.remove('cur');
+  cur=(cur+1)%lines.length;
+  lines[cur].classList.add('cur');
+  const box=document.getElementById('lyrics');
+  box.scrollTo({top:lines[cur].offsetTop-box.offsetHeight/2,behavior:'smooth'});
+},2600);
+</script>
+</body>
+</html>
