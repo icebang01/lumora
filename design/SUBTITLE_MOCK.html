@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · 字幕层 Mock（双轨渲染 + 在线搜索）</title>
+<style>
+  :root {
+    --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-mid:#8b7bff; --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
+    --accent-2:var(--accent-pink); /* 真源 .subsearch-btn/.danmaku-btn 用 --accent-2 但 style.css 未定义；此处收敛为 accent-pink（见 footnote） */
+    --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --surface-2:rgba(32,35,46,.94); --control-bg:rgba(255,255,255,.07); --hover-bg:rgba(255,255,255,.11);
+    --surface-sidebar:rgba(0,0,0,.22);
+    --ease:cubic-bezier(.16,1,.3,1); --radius-s:8px; --radius-m:12px; --radius-l:16px;
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  body.light {
+    --hairline:rgba(10,12,20,.08); --hairline-strong:rgba(10,12,20,.14);
+    --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+    --surface-2:rgba(248,249,252,.96); --control-bg:rgba(10,12,20,.05); --hover-bg:rgba(10,12,20,.09);
+    --surface-sidebar:rgba(10,12,20,.05);
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { font-family:var(--font); color:var(--text-1); overflow:hidden;
+    background:
+      radial-gradient(1100px 700px at 20% -10%, #1b2030 0%, transparent 55%),
+      radial-gradient(900px 600px at 110% 120%, #221a30 0%, transparent 55%), #0a0b10;
+  }
+  body.light { background:radial-gradient(1100px 700px at 20% -10%, #e8ecff 0%, transparent 55%), radial-gradient(900px 600px at 110% 120%, #ffe9f6 0%, transparent 55%), #eef0f6; }
+
+  .topbar { position:fixed; top:0; left:0; right:0; height:54px; z-index:90; display:flex; align-items:center; gap:14px; padding:0 18px; background:rgba(10,11,16,.6); backdrop-filter:blur(18px) saturate(160%); border-bottom:1px solid var(--hairline); }
+  .topbar .brand { font-size:16px; font-weight:700; background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar .meta { font-size:11.5px; color:var(--text-3); }
+  .topbar .spacer { flex:1; }
+  .seg { display:inline-flex; padding:3px; gap:2px; background:rgba(255,255,255,.06); border:1px solid var(--hairline); border-radius:10px; }
+  .seg button { border:0; background:transparent; color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; padding:5px 11px; border-radius:7px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease); }
+  .seg button:hover { color:var(--text-1); }
+  .seg button.on { background:var(--accent); color:#fff; box-shadow:0 2px 10px var(--accent-glow); }
+
+  .scene { position:absolute; inset:54px 0 0 0; display:flex; align-items:center; justify-content:center; padding:24px;
+    background:radial-gradient(800px 500px at 50% 40%, rgba(124,140,255,.10), transparent 60%), conic-gradient(from 200deg at 50% 50%, #14202e, #251a30, #101a26, #14202e);
+  }
+  /* 视频画面 + 双轨字幕渲染层（镜像 player._updateSubtitle + #subtitle-overlay） */
+  .video-frame { position:relative; width:min(760px,72vw); aspect-ratio:16/9; border-radius:var(--radius-l); overflow:hidden;
+    background:linear-gradient(160deg,#0d1420,#1a1326 60%,#0c1018); box-shadow:0 30px 80px rgba(0,0,0,.55), 0 0 0 1px var(--hairline); }
+  .video-frame .vf-sky { position:absolute; inset:0; background:radial-gradient(420px 260px at 70% 25%, rgba(124,140,255,.25), transparent 60%), radial-gradient(360px 220px at 25% 80%, rgba(255,122,198,.18), transparent 60%); }
+  .video-frame .vf-label { position:absolute; left:16px; top:14px; color:rgba(255,255,255,.5); font-size:12px; }
+  /* 字幕渲染层（底部堆叠：第二字幕在上、主字幕在下） */
+  .sub-layer { position:absolute; left:0; right:0; bottom:22px; display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none; }
+  .sub-line { max-width:88%; text-align:center; font-weight:600; color:#fff; line-height:1.32;
+    text-shadow:0 1px 2px rgba(0,0,0,.9); -webkit-text-stroke:1px rgba(0,0,0,.55); padding:1px 8px; }
+  .sub-main { font-size:21px; }
+  .sub-second { font-size:15px; color:#dfe6ff; opacity:.92; }
+  .sub-badge { position:absolute; right:14px; bottom:12px; font-size:10.5px; color:rgba(255,255,255,.55);
+    background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.14); border-radius:6px; padding:3px 8px; }
+
+  /* ===== 在线字幕搜索窗口（镜像 style.css:3025-3185 + subtitles.js） ===== */
+  .subsearch-window {
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(640px,90vw); max-width:calc(100vw - 40px); max-height:calc(100vh - 60px);
+    display:flex; flex-direction:column;
+    background:rgba(12,13,18,.96); backdrop-filter:blur(30px) saturate(180%);
+    border:1px solid var(--hairline-strong); border-radius:var(--radius-l);
+    box-shadow:0 26px 70px rgba(0,0,0,.72); overflow:hidden; z-index:80;
+  }
+  body.light .subsearch-window { background:rgba(248,249,252,.98); box-shadow:0 26px 70px rgba(10,12,20,.28); }
+  .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--hairline); font-size:13px; font-weight:600; color:var(--text-1); }
+  .ghost-btn { border:1px solid var(--hairline); background:var(--control-bg); color:var(--text-2); font-family:var(--font); font-size:12px; padding:5px 12px; border-radius:8px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease),border-color .14s var(--ease); }
+  .ghost-btn:hover { background:var(--hover-bg); color:var(--text-1); }
+  .subsearch-body { display:flex; flex-direction:column; padding:16px 18px 18px; overflow:hidden; min-height:0; }
+  .subsearch-toolbar { display:flex; gap:8px; align-items:center; }
+  .subsearch-input { flex:1 1 auto; min-width:0; height:36px; padding:0 12px; font-size:13px; color:var(--text-1); background:var(--control-bg); border:1px solid var(--hairline); border-radius:var(--radius-m); outline:none; transition:border-color .15s var(--ease),background .15s var(--ease); }
+  body.light .subsearch-input { color:var(--text-1); }
+  .subsearch-input:focus { border-color:var(--accent); background:var(--hover-bg); }
+  .subsearch-input::placeholder { color:var(--text-3); }
+  .subsearch-btn { height:36px; padding:0 16px; font-size:13px; font-weight:600; color:#fff; background:linear-gradient(135deg,var(--accent),var(--accent-2)); border:none; border-radius:var(--radius-m); cursor:pointer; white-space:nowrap; transition:filter .15s var(--ease),transform .1s var(--ease); }
+  .subsearch-btn:hover { filter:brightness(1.08); }
+  .subsearch-btn:active { transform:scale(.97); }
+  .subsearch-btn.ghost { color:var(--text-2); background:var(--control-bg); border:1px solid var(--hairline); }
+  .subsearch-btn.ghost:hover { background:var(--hover-bg); color:var(--text-1); }
+  .subsearch-status { margin:12px 2px 4px; font-size:12px; min-height:16px; color:var(--text-3); }
+  .subsearch-status.good { color:#4ade80; }
+  .subsearch-status.warn { color:#fbbf24; }
+  .subsearch-status.bad { color:#f87171; }
+  .subsearch-results { margin-top:6px; overflow-y:auto; border:1px solid var(--hairline); border-radius:var(--radius-m); background:var(--surface-sidebar); max-height:240px; }
+  .subsearch-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border-bottom:1px solid var(--hairline); cursor:pointer; transition:background .12s var(--ease); }
+  .subsearch-item:last-child { border-bottom:none; }
+  .subsearch-item:hover { background:var(--control-bg); }
+  .sri-main { display:flex; align-items:center; gap:10px; min-width:0; flex:1 1 auto; }
+  .sri-lang { font-size:15px; line-height:1; }
+  .sri-source { flex:0 0 auto; font-size:10px; font-weight:600; line-height:1; padding:2px 5px; border-radius:4px; letter-spacing:.04em; color:var(--text-3); background:var(--control-bg); border:1px solid var(--hairline); }
+  .sri-source.sri-proxy { color:#ffd27a; background:rgba(255,180,40,.12); border-color:rgba(255,180,40,.3); }
+  .sri-source.sri-opensubtitles { color:#9fd0ff; background:rgba(80,160,255,.12); border-color:rgba(80,160,255,.3); }
+  .sri-name { font-size:13px; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sri-meta { display:flex; align-items:center; gap:10px; flex:0 0 auto; font-size:11px; color:var(--text-3); }
+  .sri-meta .sri-release { max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sri-sub { flex:0 0 auto; height:24px; padding:0 9px; font-size:11px; font-weight:600; color:var(--accent-bright); background:rgba(124,140,255,.12); border:1px solid rgba(124,140,255,.4); border-radius:6px; cursor:pointer; }
+  .subsearch-empty { padding:20px 14px; text-align:center; font-size:12.5px; color:var(--text-3); }
+
+  .footnote { position:fixed; left:18px; bottom:14px; right:18px; z-index:90; font-size:11px; color:var(--text-3); line-height:1.6; }
+</style>
+</head>
+<body class="dark">
+  <div class="topbar">
+    <span class="brand">Lumora · 字幕层</span>
+    <span class="meta">panels/subtitles.js · 双轨字幕渲染层 + 在线字幕搜索</span>
+    <span class="spacer"></span>
+    <div class="seg" id="themeSeg">
+      <button data-v="dark" class="on">暗</button>
+      <button data-v="light">亮</button>
+    </div>
+  </div>
+
+  <div class="scene">
+    <div class="video-frame">
+      <div class="vf-sky"></div>
+      <div class="vf-label">视频画面（mpv 原生渲染 / ffmpeg cues 覆盖层）</div>
+      <!-- 双轨字幕渲染层：第二字幕（上） + 主字幕（下） -->
+      <div class="sub-layer">
+        <div class="sub-line sub-second">What we do in life echoes in eternity.</div>
+        <div class="sub-line sub-main">我们在生命中做的事，会在永恒中回响。</div>
+      </div>
+      <div class="sub-badge">双字幕 · 主：简体中文 · 副：English</div>
+    </div>
+  </div>
+
+  <!-- 在线字幕搜索窗口 -->
+  <div class="subsearch-window">
+    <div class="panel-head">
+      <span>在线字幕（OpenSubtitles / 射手网 / 字幕库 / SubHD）</span>
+      <button class="ghost-btn">关闭</button>
+    </div>
+    <div class="subsearch-body">
+      <div class="subsearch-toolbar">
+        <input class="subsearch-input" type="text" value="Oppenheimer 2023" />
+        <button class="subsearch-btn">搜索</button>
+        <button class="subsearch-btn ghost">自动匹配当前视频</button>
+      </div>
+      <div class="subsearch-status good">找到 8 条字幕</div>
+      <div class="subsearch-results" id="results"></div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    1:1 还原字幕层：① 视频内「双轨字幕渲染层」—— 主字幕（简体中文）+ 第二字幕（English）底部堆叠，mpv 走原生渲染、ffmpeg 走 cues 覆盖层；② 在线字幕搜索窗口 —— 片名预填、搜索 / 自动匹配、结果含语言旗标 + 来源标签（代理/OS/射手/字幕库/SubHD）+ 下载数 + 版本，点击整行加载主字幕、「副」按钮加载为第二字幕同屏显示。<br>
+    注：真源 `.subsearch-btn`/`.danmaku-btn` 引用 `--accent-2` 但 style.css 未定义；mock 收敛为 `--accent-pink` 渲染按钮渐变。覆盖层默认暗色，亮色为提案。
+  </div>
+
+<script>
+  // 镜像 subtitles.js renderSubResults 的数据结构
+  const RESULTS = [
+    { lang:'zh', langName:'chi', name:'Oppenheimer.2023.1080p.BluRay.x264-SPARKS', source:'opensubtitles', downloads:18234, release:'Oppenheimer.2023.1080p' },
+    { lang:'zh', langName:'chi', name:'奥本海默.Oppenheimer.2023.简体中文', source:'zimuku', downloads:9310, release:'奥本海默.2023' },
+    { lang:'en', langName:'eng', name:'Oppenheimer.2023.1080p.WEB-DL.en', source:'proxy', downloads:4502, release:'WEB-DL.en' },
+    { lang:'zh', langName:'chi', name:'Oppenheimer.2023.简体.中英双语', source:'subhd', downloads:7712, release:'双语' },
+    { lang:'en', langName:'eng', name:'Oppenheimer.2023.EXTENDED.en', source:'opensubtitles', downloads:2888, release:'EXTENDED.en' },
+    { lang:'ja', langName:'jpn', name:'オッペンハイマー 2023 字幕', source:'shooter', downloads:1503, release:'jpn' },
+    { lang:'zh', langName:'chi', name:'Oppenheimer.2023.1080p.简体修正版', source:'zimuku', downloads:6211, release:'修正版' },
+    { lang:'fr', langName:'fre', name:'Oppenheimer.2023.FRENCH', source:'proxy', downloads:980, release:'FRENCH' },
+  ];
+  const SRC_TAG = { proxy:'代理', opensubtitles:'OS', shooter:'射手', zimuku:'字幕库', subhd:'SubHD' };
+  const FLAG = { zh:'🇨🇳', en:'🇬🇧', ja:'🇯🇵', fr:'🇫🇷' };
+
+  function row(r){
+    const flag = FLAG[r.lang] || r.lang;
+    const tag = SRC_TAG[r.source] || '';
+    return `<div class="subsearch-item">`+
+      `<div class="sri-main"><span class="sri-lang">${flag}</span>`+
+      `<span class="sri-name" title="${r.name}">${r.name}</span>`+
+      (tag?`<span class="sri-source sri-${r.source}">${tag}</span>`:'')+`</div>`+
+      `<div class="sri-meta"><span>${r.langName.toUpperCase()}</span>`+
+      (r.downloads?`<span>↓ ${r.downloads.toLocaleString()}</span>`:'')+
+      (r.release?`<span class="sri-release" title="${r.release}">${r.release.slice(0,28)}</span>`:'')+`</div>`+
+      `<button class="sri-sub" title="作为第二字幕加载">副</button></div>`;
+  }
+  document.getElementById('results').innerHTML = RESULTS.map(row).join('');
+
+  document.getElementById('themeSeg').addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#themeSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.body.classList.toggle('light', b.dataset.v==='light');
+    document.body.classList.toggle('dark', b.dataset.v==='dark');
+  });
+</script>
+</body>
+</html>

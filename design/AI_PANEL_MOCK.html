@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · AI 助手面板 Mock</title>
+<style>
+  :root {
+    --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-mid:#8b7bff; --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
+    --hairline:rgba(255,255,255,.09);
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --ease:cubic-bezier(.16,1,.3,1); --radius-s:8px; --radius-m:12px;
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { font-family:var(--font); color:var(--text-1); overflow:hidden;
+    background:radial-gradient(1100px 700px at 20% -10%, #1b2030 0%, transparent 55%), radial-gradient(900px 600px at 110% 120%, #221a30 0%, transparent 55%), #0a0b10; }
+
+  .topbar { position:fixed; top:0; left:0; right:0; height:54px; z-index:90; display:flex; align-items:center; gap:14px; padding:0 18px; background:rgba(10,11,16,.6); backdrop-filter:blur(18px) saturate(160%); border-bottom:1px solid var(--hairline); }
+  .topbar .brand { font-size:16px; font-weight:700; background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar .meta { font-size:11.5px; color:var(--text-3); }
+  .topbar .spacer { flex:1; }
+
+  .scene { position:absolute; inset:54px 0 0 0; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(800px 500px at 50% 40%, rgba(124,140,255,.10), transparent 60%), conic-gradient(from 200deg at 50% 50%, #14202e, #251a30, #101a26, #14202e); }
+  .scene .frame-label { color:rgba(255,255,255,.5); font-size:13px; }
+
+  /* ===== AI 面板（镜像 ui/ai-panel.js + style.css:3550-3603，右侧玻璃抽屉） ===== */
+  #ai-panel {
+    position:fixed; top:0; right:0; bottom:0; width:384px; max-width:92vw;
+    display:flex; flex-direction:column;
+    background:rgba(14,15,22,.82); backdrop-filter:blur(22px) saturate(160%);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+    border-left:1px solid rgba(255,255,255,.08);
+    box-shadow:-18px 0 60px rgba(0,0,0,.45);
+    z-index:80;
+  }
+  .ai-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.08); }
+  .ai-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:.3px; }
+  .ai-head-actions { display:flex; gap:8px; }
+  .ghost-btn { border:1px solid var(--hairline); background:rgba(255,255,255,.06); color:rgba(255,255,255,.7); font-family:var(--font); font-size:12px; padding:5px 12px; border-radius:8px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease); }
+  .ghost-btn:hover { background:rgba(255,255,255,.12); color:#fff; }
+  .ai-messages { flex:1 1 auto; min-height:0; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+  .ai-msg { display:flex; }
+  .ai-user { justify-content:flex-end; }
+  .ai-assistant, .ai-tool { justify-content:flex-start; }
+  .ai-bubble { max-width:86%; padding:9px 12px; border-radius:12px; font-size:13px; line-height:1.5; word-break:break-word; white-space:pre-wrap; }
+  .ai-user .ai-bubble { background:linear-gradient(135deg,#6ee7ff,#7c8cff); color:#0b0d14; border-bottom-right-radius:4px; }
+  .ai-assistant .ai-bubble { background:rgba(255,255,255,.08); color:#eef1f7; border-bottom-left-radius:4px; }
+  .ai-tool-note { font-size:11.5px; color:var(--text-3); padding:2px 4px; }
+  .ai-tool-note.ok { color:#5ee6a8; }
+  .ai-tool-note.err { color:#ff8585; }
+  .ai-thinking { padding:6px 16px; font-size:12px; color:var(--text-3); }
+  .ai-input-row { display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--hairline); }
+  .ai-input { flex:1 1 auto; min-width:0; height:38px; padding:0 12px; border-radius:9px; border:1px solid var(--hairline); background:rgba(255,255,255,.07); color:#eef1f7; font-size:13px; outline:none; }
+  .ai-input:focus { border-color:#7c8cff; }
+  .ai-input::placeholder { color:var(--text-3); }
+  .ai-send { height:38px; padding:0 16px; border:none; border-radius:9px; background:linear-gradient(135deg,#6ee7ff,#7c8cff); color:#0b0d14; font-weight:600; cursor:pointer; }
+  .ai-send:hover { filter:brightness(1.05); }
+
+  .footnote { position:fixed; left:18px; bottom:14px; right:18px; z-index:90; font-size:11px; color:rgba(255,255,255,.42); line-height:1.6; }
+</style>
+</head>
+<body class="dark">
+  <div class="topbar">
+    <span class="brand">Lumora · AI 助手面板</span>
+    <span class="meta">ui/ai-panel.js · 右侧玻璃抽屉 · player:ai:* 事件流渲染</span>
+    <span class="spacer"></span>
+  </div>
+
+  <div class="scene"><span class="frame-label">视频画面（AI 面板为播放覆盖层，永远暗色；亮色方案不适用于此浮层）</span></div>
+
+  <!-- AI 面板（镜像 index.html:632 + ai-panel.js onEvent 渲染逻辑） -->
+  <div id="ai-panel">
+    <div class="ai-head">
+      <span class="ai-title">AI 助手</span>
+      <div class="ai-head-actions">
+        <button class="ghost-btn" title="清空对话">清空</button>
+        <button class="ghost-btn" title="关闭">关闭</button>
+      </div>
+    </div>
+    <div class="ai-messages">
+      <div class="ai-msg ai-assistant"><div class="ai-bubble">你好，我是 Lumora AI 助手。说"加载字幕""加载弹幕"或"帮我调试"试试，也可以让我记住你的习惯。</div></div>
+
+      <div class="ai-msg ai-user"><div class="ai-bubble">帮我把这部电影的字幕下下来</div></div>
+      <div class="ai-msg ai-tool"><div class="ai-tool-note ok">✓ 加载字幕（已匹配 简体中文）</div></div>
+      <div class="ai-msg ai-assistant"><div class="ai-bubble">已为当前视频匹配并加载「简体中文」字幕（OpenSubtitles）。需要我把英文字幕也加上，做成双字幕吗？</div></div>
+
+      <div class="ai-msg ai-user"><div class="ai-bubble">也加上英文，顺便打开弹幕</div></div>
+      <div class="ai-msg ai-tool"><div class="ai-tool-note ok">✓ 加载字幕（English，第二字幕轨）</div></div>
+      <div class="ai-msg ai-tool"><div class="ai-tool-note ok">✓ 加载弹幕（B站 匹配成功）</div></div>
+      <div class="ai-msg ai-assistant"><div class="ai-bubble">已叠加英文第二字幕，并开启 B站弹幕。帧率偏低时弹幕会自动降密度，不影响播放。</div></div>
+
+      <div class="ai-msg ai-user"><div class="ai-bubble">画面偏暗，调一下</div></div>
+      <div class="ai-msg ai-tool"><div class="ai-tool-note ok">✓ 设置（brightness +8 / contrast +4）</div></div>
+      <div class="ai-msg ai-assistant"><div class="ai-bubble">已微调亮度与对比度。如果还想更通透，可以试试「色调映射 = Mobius」。</div></div>
+
+      <div class="ai-msg ai-assistant"><div class="ai-bubble">⚠️ 当前模型（local-model）可能不支持工具调用。\n\n建议：\n1. 更换模型（如 deepseek-chat / gpt-4o-mini）\n2. 或在「设置 → AI 助手」检查 API 地址与模型名</div></div>
+    </div>
+    <div class="ai-thinking">思考中…</div>
+    <div class="ai-input-row">
+      <input class="ai-input" type="text" placeholder="说点什么，比如：加载字幕 / 加载弹幕 / 帮我调试" />
+      <button class="ai-send">发送</button>
+    </div>
+  </div>
+
+  <div class="footnote">
+    1:1 还原 AI 助手面板（纯 UI，接到主进程 player:ai:* IPC 事件流）：用户气泡（青→紫渐变）/ 助手气泡（暗玻璃）/ 工具执行笔记（⏳ 进行中 → ✓/✗ 回灌，含 加载字幕·加载弹幕·设置 等 TOOL_LABELS）。<br>
+    底部错误分支对 model_not_found / api_key / timeout / tool_calls 给出中文友好诊断。面板为播放覆盖层，永远暗色（亮色提案不适用）。
+  </div>
+</body>
+</html>

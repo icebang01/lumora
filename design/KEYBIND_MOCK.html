@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumora · 键位编辑器 Mock</title>
+<style>
+  :root {
+    --accent:#7c8cff; --accent-cyan:#6ee7ff; --accent-pink:#ff7ac6; --accent-mid:#8b7bff; --accent-bright:#9aa5ff; --accent-glow:rgba(124,140,255,.45);
+    --hairline:rgba(255,255,255,.09); --hairline-strong:rgba(255,255,255,.16);
+    --text-1:rgba(255,255,255,.96); --text-2:rgba(255,255,255,.68); --text-3:rgba(255,255,255,.42);
+    --surface-2:rgba(32,35,46,.94); --control-bg:rgba(255,255,255,.07); --hover-bg:rgba(255,255,255,.11);
+    --ease:cubic-bezier(.16,1,.3,1); --radius-s:8px; --radius-m:12px; --radius-l:16px;
+    --brand-gradient:linear-gradient(135deg,#6ee7ff,#8b7bff 55%,#ff7ac6);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --warn:#ffb454;
+  }
+  body.light {
+    --hairline:rgba(10,12,20,.08); --hairline-strong:rgba(10,12,20,.14);
+    --text-1:rgba(18,20,28,.95); --text-2:rgba(18,20,28,.64); --text-3:rgba(18,20,28,.50);
+    --surface-2:rgba(248,249,252,.96); --control-bg:rgba(10,12,20,.05); --hover-bg:rgba(10,12,20,.09);
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { font-family:var(--font); color:var(--text-1); overflow:hidden;
+    background:radial-gradient(1100px 700px at 20% -10%, #1b2030 0%, transparent 55%), radial-gradient(900px 600px at 110% 120%, #221a30 0%, transparent 55%), #0a0b10; }
+  body.light { background:radial-gradient(1100px 700px at 20% -10%, #e8ecff 0%, transparent 55%), radial-gradient(900px 600px at 110% 120%, #ffe9f6 0%, transparent 55%), #eef0f6; }
+
+  .topbar { position:fixed; top:0; left:0; right:0; height:54px; z-index:90; display:flex; align-items:center; gap:14px; padding:0 18px; background:rgba(10,11,16,.6); backdrop-filter:blur(18px) saturate(160%); border-bottom:1px solid var(--hairline); }
+  .topbar .brand { font-size:16px; font-weight:700; background:var(--brand-gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar .meta { font-size:11.5px; color:var(--text-3); }
+  .topbar .spacer { flex:1; }
+  .seg { display:inline-flex; padding:3px; gap:2px; background:rgba(255,255,255,.06); border:1px solid var(--hairline); border-radius:10px; }
+  .seg button { border:0; background:transparent; color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; padding:5px 11px; border-radius:7px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease); }
+  .seg button:hover { color:var(--text-1); }
+  .seg button.on { background:var(--accent); color:#fff; box-shadow:0 2px 10px var(--accent-glow); }
+
+  .scene { position:absolute; inset:54px 0 0 0; display:flex; align-items:center; justify-content:center; padding:24px;
+    background:radial-gradient(800px 500px at 50% 40%, rgba(124,140,255,.10), transparent 60%), conic-gradient(from 200deg at 50% 50%, #14202e, #251a30, #101a26, #14202e); }
+
+  /* ===== 键位编辑器（镜像 ui/keybind-editor.js + style.css:2373-3325） ===== */
+  .kb-window {
+    width:min(560px,90vw); max-height:calc(100vh - 90px); display:flex; flex-direction:column;
+    background:var(--surface-2); backdrop-filter:blur(28px) saturate(170%);
+    border:1px solid var(--hairline-strong); border-radius:var(--radius-l);
+    box-shadow:0 26px 70px rgba(0,0,0,.6); overflow:hidden; z-index:80;
+  }
+  body.light .kb-window { box-shadow:0 26px 70px rgba(10,12,20,.25); }
+  .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--hairline); font-size:13px; font-weight:600; }
+  .ghost-btn { border:1px solid var(--hairline); background:var(--control-bg); color:var(--text-2); font-family:var(--font); font-size:12px; padding:5px 12px; border-radius:8px; cursor:pointer; transition:background .14s var(--ease),color .14s var(--ease),border-color .14s var(--ease); }
+  .ghost-btn:hover { background:var(--hover-bg); color:var(--text-1); }
+  .kb-body { padding:14px 16px 18px; overflow-y:auto; min-height:0; }
+  .keybind-toolbar { display:flex; justify-content:flex-end; gap:8px; padding:4px 2px 14px; border-bottom:1px solid var(--hairline); margin-bottom:8px; }
+  .set-action.danger { color:#ff8a8a; background:rgba(255,80,80,.12); border-color:rgba(255,80,80,.34); }
+  .set-action.danger:hover { background:rgba(255,80,80,.2); }
+  .set-action.ghost { color:var(--text-2); background:var(--control-bg); border:1px solid var(--hairline-strong); }
+  .set-action.ghost:hover { background:var(--hover-bg); color:var(--text-1); }
+  .km-search { margin:0 0 10px; }
+  .set-text { font-family:var(--font); font-size:12px; color:var(--text-1); background:var(--control-bg); border:1px solid var(--hairline); border-radius:8px; padding:6px 10px; outline:none; }
+  .set-text:focus { border-color:var(--accent); }
+  .km-search-input { width:100%; box-sizing:border-box; }
+  .km-group { break-inside:avoid; margin-bottom:15px; }
+  .km-group-title { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
+  .km-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:3px 0; font-size:12px; color:var(--text-2); }
+  .set-row.km-row .set-label { display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .set-row.km-row .name { font-size:12.5px; color:var(--text-1); }
+  .set-row.km-row .hint { font-size:10.5px; color:var(--text-3); }
+  .set-control { display:flex; align-items:center; gap:6px; flex:none; }
+  .set-keycmd { min-width:168px !important; width:180px !important; }
+  .set-keybtn { font-family:var(--font-mono); font-size:12px; min-width:96px; padding:6px 10px; color:var(--text-1); background:var(--control-bg); border:1px solid var(--hairline-strong); border-radius:8px; cursor:pointer; transition:border-color .14s var(--ease),box-shadow .14s var(--ease),background .14s var(--ease); }
+  .set-keybtn:hover { border-color:var(--accent-glow); }
+  .set-keybtn.recording { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); background:rgba(124,140,255,.14); color:var(--accent-bright); }
+  .set-keybtn.user { color:var(--accent-bright); border-color:rgba(124,140,255,.4); }
+  .set-keybtn .default-hint { font-size:10.5px; color:var(--text-3); margin-left:6px; }
+  .km-row.changed { background:rgba(124,140,255,.06); border-radius:var(--radius-s); }
+  .km-row.removed .name { opacity:.55; text-decoration:line-through; }
+  .km-conflict-warn { display:none; margin-left:6px; color:var(--warn); font-size:12px; }
+  .km-row.conflict .km-conflict-warn { display:inline; }
+  .km-row.conflict { box-shadow:inset 3px 0 0 var(--warn); }
+  .km-row.conflict .name { color:#ffce8a; }
+  .set-action.ghost.mini { padding:4px 9px; font-size:12px; }
+
+  .footnote { position:fixed; left:18px; bottom:14px; right:18px; z-index:90; font-size:11px; color:var(--text-3); line-height:1.6; }
+</style>
+</head>
+<body class="dark">
+  <div class="topbar">
+    <span class="brand">Lumora · 键位编辑器</span>
+    <span class="meta">ui/keybind-editor.js · 对话框 · 重绑定 / 冲突检测 / 恢复默认</span>
+    <span class="spacer"></span>
+    <div class="seg" id="themeSeg">
+      <button data-v="dark" class="on">暗</button>
+      <button data-v="light">亮</button>
+    </div>
+  </div>
+
+  <div class="scene">
+    <div class="kb-window">
+      <div class="panel-head">
+        <span>键位编辑器</span>
+        <button class="ghost-btn">关闭</button>
+      </div>
+      <div class="kb-body">
+        <div class="keybind-toolbar">
+          <button class="set-action danger">恢复默认</button>
+          <button class="set-action ghost">导出键位表</button>
+        </div>
+        <div class="km-search"><input class="set-text km-search-input" type="search" placeholder="搜索命令或按键…" aria-label="搜索键位"></div>
+        <div class="km-list" id="list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    1:1 还原快捷键编辑器：以「默认键位表」为蓝本，每行 = 一个默认键，改键 / 改命令 / 解除绑定落在该行上；序列化只写「与默认不同」的行，其余交 DEFAULT_KEYBINDS 兜底（默认更新仍自动生效）。<br>
+    演示三种状态：① <b>changed</b>（紫底 + 亮紫按键 + 默认键提示 + ↺ 恢复）② <b>removed</b>（删除线 + 「已解除绑定」）③ <b>conflict</b>（琥珀左条 + 名称变琥珀 + ⚠ 同一按键绑到不同命令，mpv 以后写入者为准）。搜索框即时过滤命令 / 按键。亮色为提案（编辑器在设置体系内，默认暗色 chrome）。
+  </div>
+
+<script>
+  // 镜像 keybind-editor.js GROUP_ORDER + COMMAND_PRESETS（抽取代表性行）
+  const GROUPS = [
+    { title:'播放控制', rows:[
+      { name:'播放 / 暂停', key:'Space', def:'Space', cmd:'cycle pause' },
+      { name:'全屏切换', key:'f', def:'f', cmd:'cycle fullscreen' },
+      { name:'窗口置顶', key:'T', def:'T', cmd:'cycle ontop', changed:true },
+    ]},
+    { title:'时间跳转', rows:[
+      { name:'快进 5 秒', key:'Right', def:'Right', cmd:'seek 5' },
+      { name:'后退 5 秒', key:'Left', def:'Left', cmd:'seek -5' },
+      { name:'快进 60 秒', key:'Ctrl+Right', def:'Ctrl+Right', cmd:'seek 60' },
+    ]},
+    { title:'速度', rows:[
+      { name:'速度 +10%', key:'.', def:'.', cmd:'multiply speed 1.1' },
+      { name:'速度 −10%', key:',', def:',', cmd:'multiply speed 0.9091' },
+      { name:'速度重置 (1.0)', key:'Backspace', def:'Backspace', cmd:'set speed 1.0' },
+    ]},
+    { title:'音量', rows:[
+      { name:'音量 +5', key:'Up', def:'Up', cmd:'add volume 5' },
+      { name:'音量 −5', key:'Down', def:'Down', cmd:'add volume -5', conflict:true },
+      { name:'静音切换', key:'m', def:'m', cmd:'cycle mute' },
+    ]},
+    { title:'轨道', rows:[
+      { name:'切换音轨', key:'j', def:'j', cmd:'cycle audio' },
+      { name:'切换字幕', key:'k', def:'k', cmd:'cycle sub' },
+      { name:'字幕延迟 +0.1s', key:'z', def:'z', cmd:'add sub-delay 100' },
+    ]},
+    { title:'截图', rows:[
+      { name:'截图', key:'s', def:'s', cmd:'screenshot' },
+      { name:'连拍截图', key:'S', def:'S', cmd:'screenshot-sequence', removed:true },
+    ]},
+    { title:'退出', rows:[
+      { name:'退出', key:'Ctrl+q', def:'Ctrl+q', cmd:'quit' },
+      { name:'退出并记住进度', key:'q', def:'q', cmd:'quit-watch-later' },
+    ]},
+  ];
+
+  function rowHtml(r, idx){
+    const changedCls = r.changed?' changed':'';
+    const removedCls = r.removed?' removed':'';
+    const conflictCls = r.conflict?' conflict':'';
+    const kb = r.removed ? '解除' : escapeHtml(r.key);
+    const kbCls = 'set-keybtn' + (r.removed?'':(r.changed?' user':''));
+    const reset = (r.changed || r.removed) ? `<button type="button" class="set-action ghost mini" title="恢复默认">↺</button>` : '';
+    const hint = r.removed ? '已解除绑定（默认 '+escapeHtml(r.def)+'）' : '默认键 '+escapeHtml(r.def);
+    return `<div class="set-row km-row${changedCls}${removedCls}${conflictCls}" data-idx="${idx}">`+
+      `<div class="set-label"><span class="name">${escapeHtml(r.name)}<span class="km-conflict-warn" title="同一按键已绑定不同命令，mpv 以后写入者为准">⚠</span></span><span class="hint">${hint}</span></div>`+
+      `<div class="set-control"><select class="set-text set-keycmd"><option selected>${escapeHtml(r.cmd)}</option><option>自定义…</option></select>`+
+      `<button type="button" class="${kbCls}">${kb}</button>${reset}</div></div>`;
+  }
+  function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  const list = document.getElementById('list');
+  list.innerHTML = GROUPS.map(g =>
+    `<div class="km-group"><div class="km-group-title">${g.title}</div>`+
+    g.rows.map((r,i)=>rowHtml(r, i)).join('')+`</div>`
+  ).join('');
+
+  document.getElementById('themeSeg').addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#themeSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.body.classList.toggle('light', b.dataset.v==='light');
+    document.body.classList.toggle('dark', b.dataset.v==='dark');
+  });
+</script>
+</body>
+</html>
