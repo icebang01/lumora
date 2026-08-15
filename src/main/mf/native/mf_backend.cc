@@ -562,12 +562,11 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     // 不在此设输出 PIXEL_ASPECT_RATIO（设非原生尺寸 MF 也会失败）。
     outType->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
     outType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE);
-    // 2026-08: 指定 BT.709 色彩空间——10bit HDR 源(HEVC Main10/BT.2020)解码器
-    // 默认按源色彩空间输出 YUV,渲染端 WebGL 恒按 BT.709 转换 → 画面发绿。
-    // 请求解码器输出时转换到 BT.709(尊重该属性的解码器会做色彩转换)。
-    outType->SetUINT32(MF_MT_YUV_MATRIX, MFVideoTransferMatrix_BT709);
-    outType->SetUINT32(MF_MT_VIDEO_PRIMARIES, MFVideoPrimaries_BT709);
-    outType->SetUINT32(MF_MT_TRANSFER_FUNCTION, MFVideoTransFunc_709);
+    // 关键：不强制色彩空间。MF 解码器默认按源色彩空间输出（HDR10 源 = BT.2020 + PQ），
+    // 渲染端 WebGL 已具备完整 HDR 管线（PQ/SMPTE2084 EOTF 解码 + BT.2390 色调映射 +
+    // 自动识别 HDR 显示器/广色域），会按 ffprobe 探到的真实 colorSpace/HDR 信息正确处理。
+    // 若此处强加 BT.709，会要求解码器把 HDR10 数据降色到 BT.709，但渲染端仍按源 bt2020+PQ
+    // 解码 → 色彩空间冲突 → 画面发绿/过暗。故不再设置矩阵/原色/传输函数，保留源色彩空间。
 
     HRESULT hr = _reader->SetCurrentMediaType(_videoStreamIndex, nullptr, outType);
     if (FAILED(hr)) { outType->Release(); return hr; }

@@ -341,7 +341,7 @@ async function bootstrap() {
   // 渲染端 boot() 触发 loadFile 可能早于 startMpv（ready-to-show 后延迟
   // 300ms），若 mpvBackend 为 null，loadFile 的 mpv 分支会被跳过，文件
   // 永远不进 mpv → time-pos 恒 0。详见 createMpvBackend 的注释。
-  if (useMpv && !mpvBackend) {
+  if (!mpvBackend) {
     const mpvPath = resolveMpvPath();
     if (mpvPath) createMpvBackend('video', { mpvPath });
   }
