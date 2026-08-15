@@ -278,7 +278,10 @@ class MediaPipeline extends EventEmitter {
 
     // 源可能是 nv12/p010/yuvj420p/12bit 之类，收敛成管线认识的平面格式。
     // ffmpeg 会自动插入转换滤镜，比在着色器里穷举每种格式划算得多。
-    const outFmt = normalizePixFmt(v.pixfmt, v.bitDepth);
+    let outFmt = normalizePixFmt(v.pixfmt, v.bitDepth);
+    // 2026-08: 渲染端 WebGL 按 8bit 假设(10bit 整数纹理路径未完成,实测
+    // yuv420p10le 数据到达渲染端全黑)——统一收敛到 8bit 平面格式
+    outFmt = outFmt.replace('10le', '');
 
     // 输出尺寸：SAR 拉伸后宽度会变；子采样格式还要求边长是偶数，
     // 否则 ffmpeg 实际吐出的行数与我们算的对不上，切帧会整体错位
