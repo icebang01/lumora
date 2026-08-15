@@ -212,6 +212,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   int _vidReadLog = 0;   // 视频 ReadSample 诊断计数（VLOG 用）
   bool _hwDetected = false;   // 首帧硬件解码状态是否已探测
   std::string _hwAccelActual = "pending";  // 实际生效：d3d11 / software
+  GUID _videoSubType = GUID_NULL;          // 实际协商出的视频子类型（NV12/P010/NV21/YV12/I420）
 
   // ---- 线程 / 同步 ----
   std::thread _thread;
@@ -531,6 +532,7 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
 
   HRESULT ConfigureVideoOutput() {
     if (!_reader || _videoStreamIndex == MF_SOURCE_READER_FIRST_VIDEO_STREAM) return E_FAIL;
+    _videoSubType = GUID_NULL;  // 每次打开新文件重置，避免上一文件的协商格式残留
 
     int w = _nativeW, h = _nativeH;
     if (w <= 0) w = 1280;
@@ -579,6 +581,9 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       if (SUCCEEDED(MFGetAttributeSize(cur, MF_MT_FRAME_SIZE, &cw, &ch)) && cw && ch) {
         _width = static_cast<int>(cw); _height = static_cast<int>(ch);
       } else { _width = w; _height = h; }
+      // 记录真实协商出的像素格式，后续 ProcessVideoSample 按实际格式转 I420，
+      // 避免 HDR/杜比源解码器给出 P010/NV21 我们却按 NV12 解交织导致紫绿偏色。
+      if (FAILED(cur->GetGUID(MF_MT_SUBTYPE, &_videoSubType))) _videoSubType = GUID_NULL;
       cur->Release();
     } else { _width = w; _height = h; }
     _trueH = _height;
@@ -592,6 +597,9 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       if (_outW < 2) _outW = 2;
       if (_outH < 2) _outH = 2;
     }
+
+    fprintf(stderr, "[lumen][mf] video subtype negotiated: %s (%dx%d -> %dx%d)\n",
+            subTypeName(_videoSubType), _width, _height, _outW, _outH);
 
     outType->Release();
     return S_OK;
@@ -776,6 +784,56 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     }
   }
 
+  // 2026-08: HDR/杜比源解码器常协商出 P010（10-bit NV12-like）而非 NV12；
+  // 也有一些硬件路径输出 NV21（VU 交错）。以下先把这些格式转成中间 NV12，
+  // 再复用现有 NV12→I420 路径，避免色度平面错位/互换导致紫绿偏色。
+  static void convertP010ToNV12(const uint8_t* p010, int w, int h, int srcStride,
+                                uint8_t* nv12, int dstStride) {
+    const uint16_t* srcY = reinterpret_cast<const uint16_t*>(p010);
+    const uint16_t* srcUV = reinterpret_cast<const uint16_t*>(p010 + srcStride * h);
+    const int srcSamplesPerRow = srcStride / 2;
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) {
+        nv12[y * dstStride + x] = static_cast<uint8_t>(srcY[y * srcSamplesPerRow + x] >> 2);
+      }
+    }
+    uint8_t* dstUV = nv12 + dstStride * h;
+    for (int y = 0; y < h / 2; y++) {
+      for (int x = 0; x < w / 2; x++) {
+        dstUV[y * dstStride + 2 * x] = static_cast<uint8_t>(srcUV[y * srcSamplesPerRow + 2 * x] >> 2);
+        dstUV[y * dstStride + 2 * x + 1] = static_cast<uint8_t>(srcUV[y * srcSamplesPerRow + 2 * x + 1] >> 2);
+      }
+    }
+  }
+
+  static void convertNV21ToNV12(const uint8_t* nv21, int w, int h, int srcStride,
+                                uint8_t* nv12, int dstStride) {
+    for (int y = 0; y < h; y++) {
+      memcpy(nv12 + y * dstStride, nv21 + y * srcStride, w);
+    }
+    const uint8_t* srcUV = nv21 + srcStride * h;
+    uint8_t* dstUV = nv12 + dstStride * h;
+    for (int y = 0; y < h / 2; y++) {
+      for (int x = 0; x < w / 2; x++) {
+        // NV21 是 VU 交错：把 V 放到 U 位置，U 放到 V 位置，即得 NV12
+        dstUV[y * dstStride + 2 * x] = srcUV[y * srcStride + 2 * x + 1];
+        dstUV[y * dstStride + 2 * x + 1] = srcUV[y * srcStride + 2 * x];
+      }
+    }
+  }
+
+  // 把 GUID 子类型转成可读的静态字符串（仅用于诊断日志）。
+  static const char* subTypeName(const GUID& g) {
+    if (g == MFVideoFormat_NV12) return "NV12";
+    if (g == MFVideoFormat_NV21) return "NV21";
+    if (g == MFVideoFormat_P010) return "P010";
+    if (g == MFVideoFormat_YV12) return "YV12";
+    if (g == MFVideoFormat_I420) return "I420";
+    if (g == MFVideoFormat_YUY2) return "YUY2";
+    if (g == MFVideoFormat_UYVY) return "UYVY";
+    return "unknown";
+  }
+
   void ProcessVideoSample(IMFSample* sample, LONGLONG /*time*/) {
     // 首帧探测硬件解码是否真正生效（让 DXVA/D3D11 回退可被观测）。
     // 硬件 MFT 产生的 sample 会带 MFSampleExtension_Device 属性；软件回退则不带。
@@ -807,6 +865,33 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     }
     if (stride == 0) stride = _width;
 
+    // 若解码器实际给出的不是 NV12（HDR/杜比源常见 P010，部分硬件路径给 NV21），
+    // 先转成中间 NV12，再复用后续 NV12→I420 逻辑。_trueH 用于色度平面偏移。
+    const uint8_t* srcPtr = p0;
+    int srcStride = stride;
+    std::vector<uint8_t> nv12Temp;
+    if (_videoSubType == MFVideoFormat_P010 || _videoSubType == MFVideoFormat_NV21) {
+      const size_t tempSize = static_cast<size_t>(_width) * _trueH
+                            + static_cast<size_t>(_width) * (_trueH / 2);
+      nv12Temp.resize(tempSize);
+      if (_videoSubType == MFVideoFormat_P010) {
+        convertP010ToNV12(p0, _width, _trueH, stride, nv12Temp.data(), _width);
+      } else {
+        convertNV21ToNV12(p0, _width, _trueH, stride, nv12Temp.data(), _width);
+      }
+      srcPtr = nv12Temp.data();
+      srcStride = _width;
+    } else if (_videoSubType != GUID_NULL && _videoSubType != MFVideoFormat_NV12) {
+      // 未知格式：记日志并跳过该帧（避免以错误格式解读造成花屏/偏色）。
+      static int logged = 0;
+      if (logged < 5) {
+        fprintf(stderr, "[lumen][mf] unsupported video subtype %s, drop frame\n", subTypeName(_videoSubType));
+        logged++;
+      }
+      buf->Unlock(); buf->Release();
+      return;
+    }
+
     const int w = _width, h = _height;        // 源（解码原生，逻辑尺寸）
     const int dstW = _outW, dstH = _outH;     // 输出（可能降采样到 maxWidth）
     const bool needScale = (dstW != w) || (dstH != h);
@@ -824,21 +909,21 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     }
 
     uint8_t* Y = out;
-    const uint8_t* uv = p0 + static_cast<size_t>(stride) * _trueH;
+    const uint8_t* uv = srcPtr + static_cast<size_t>(srcStride) * _trueH;
     uint8_t* U = out + ySize;
     uint8_t* V = U + uvSize;
 
     if (!needScale) {
       // 1:1 路径：Y 平面逐行拷贝（考虑 stride 对齐）
       for (int y = 0; y < h; y++) {
-        memcpy(Y + static_cast<size_t>(y) * w, p0 + static_cast<size_t>(y) * stride, static_cast<size_t>(w));
+        memcpy(Y + static_cast<size_t>(y) * w, srcPtr + static_cast<size_t>(y) * srcStride, static_cast<size_t>(w));
       }
       // NV12 → I420：解交织 UV（UV 行跨距 = Y 行跨距；色度起始需按「实际解码高度」
       // _trueH 定位，而非承诺高度 _height——MF 常把高度补齐到宏块倍数（如 1080→1088），
       // 否则色度会偏移到错误行、画面下半部出现色彩/错位伪影。
       for (int y = 0; y < h; y++) {
         int cy = y / 2;
-        const uint8_t* srow = uv + static_cast<size_t>(cy) * stride;
+        const uint8_t* srow = uv + static_cast<size_t>(cy) * srcStride;
         uint8_t* urow = U + static_cast<size_t>(cy) * cw;
         uint8_t* vrow = V + static_cast<size_t>(cy) * cw;
         for (int x = 0; x < w; x++) {
@@ -851,8 +936,8 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       // 降采样路径：MF 解码器不支持输出缩放，故在拷贝环节按 maxWidth 做 box 平均
       // 下采样 NV12 → I420。源色度按 _trueH 定位（与 1:1 路径同口径），下采样到
       // dstW×dstH，避免给解码器设非原生尺寸导致视频轨整条丢失（>1920 源静默丢轨）。
-      downscalePlane(p0, w, h, stride, Y, dstW, dstH);
-      downscaleChromaNV12(uv, w / 2, h / 2, stride, U, V, cw, ch);
+      downscalePlane(srcPtr, w, h, srcStride, Y, dstW, dstH);
+      downscaleChromaNV12(uv, w / 2, h / 2, srcStride, U, V, cw, ch);
     }
 
     if (locked2d) {
