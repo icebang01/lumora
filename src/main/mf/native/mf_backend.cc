@@ -93,7 +93,28 @@ using TsfnType = Napi::TypedThreadSafeFunction<void, FrameEvent, TsfnCallback>;
 // 侧抛异常时，node-addon-api 尝试 Error::New 转错误可能因无 pending error 而 Fatal
 // （FATAL ERROR: Error::New napi_get_last_error_info，实测第 5 帧后崩、解码事件全断）。
 // 吞掉异常 + 打印诊断，保证解码线程事件不断流。delete ev 放 catch 外，任何路径都释放。
-static void TsfnCallback(Napi::Env env, Napi::Function jsCb, void* /*context*/, FrameEvent* ev) {
+// TSFN 上下文:每次 start 新分配一个(旧 TSFN 的残留事件持旧 context,
+// StopInternal 时置 stopped=true → 残留回调直接丢弃,不碰 N-API)。
+// 旧 context 在旧 TSFN 残留清空前保持存活(泄漏 16B/次 start,可忽略)。
+struct TsfnCtx {
+  std::atomic<bool> stopped{false};
+};
+
+// ThreadSafeFunction 在主线程回调：把 FrameEvent 翻译成 JS 对象并调用分发函数。
+// 2026-08 修复：整个回调包 try/catch（NAPI_CPP_EXCEPTIONS 已开）——TSFN 回调里 JS
+// 侧抛异常时，node-addon-api 尝试 Error::New 转错误可能因无 pending error 而 Fatal
+// （FATAL ERROR: Error::New napi_get_last_error_info，实测第 5 帧后崩、解码事件全断）。
+// 吞掉异常 + 打印诊断，保证解码线程事件不断流。delete ev 放 catch 外，任何路径都释放。
+// 2026-08 二次修复:stop/seek 重载后,旧 TSFN 已 Abort/Release 但主线程队列里残留的
+// FrameEvent 仍会执行回调——此时 env 已不可用,调用任何 N-API(连 Object::New)都
+// Fatal(实测:8K 加载切换必现)。context 按 start 代际隔离(per-start 新分配),
+// 回调开头检查对应 ctx.stopped,残留项直接丢弃。
+static void TsfnCallback(Napi::Env env, Napi::Function jsCb, void* context, FrameEvent* ev) {
+  TsfnCtx* ctx = static_cast<TsfnCtx*>(context);
+  if (ctx && ctx->stopped.load()) {
+    delete ev;
+    return;
+  }
   try {
     // TSFN 回调传对象给 JS 必须用 EscapableHandleScope + Escape(HandleScope 内
     // 创建的对象作用域结束即失效,大 Buffer 高频创建时悬空引用会导致
@@ -232,6 +253,9 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   FrameSlot _frameSlots[FRAME_SLOTS] = {};
   std::atomic<int> _frameSlotIdx{0};
   std::atomic<int64_t> _frameIdSeq{0};
+  // 2026-08: 当前 TSFN 的 ctx(per-start 新分配;StopInternal 置 stopped 并清空,
+  // 旧 ctx 泄漏至残留回调结束)
+  TsfnCtx* _activeCtx = nullptr;
   Napi::Value ReadFrame(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     if (info.Length() < 1) return env.Null();
@@ -366,7 +390,11 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     _poolFrameSize = 0;
     _poolSlot = 0;
 
-    _tsfn = TsfnType::New(env, cb, "mf-events", 0, 1, nullptr);
+    // 2026-08: per-start TSFN 上下文——旧 ctx 由 StopInternal 置 stopped,
+    // 残留回调持旧 ctx(泄漏 16B/次,可忽略);新 start 用新 ctx 保证事件正常
+    TsfnCtx* ctx = new TsfnCtx();
+    _activeCtx = ctx;
+    _tsfn = TsfnType::New(env, cb, "mf-events", 0, 1, ctx);
     _running = true;
     _thread = std::thread(&MediaFoundationReader::WorkerLoop, this);
     return env.Undefined();
@@ -938,6 +966,10 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
 
   void StopInternal() {
     _running = false;
+    // 2026-08: 置当前 TSFN ctx 停止标志——残留回调(持旧 ctx)直接丢弃;
+    // 旧 ctx 泄漏至残留回调清空(16B,可忽略)
+    if (_activeCtx) _activeCtx->stopped.store(true);
+    _activeCtx = nullptr;
     if (_thread.joinable()) _thread.join();
     if (_tsfn) {
       _tsfn.Abort();
