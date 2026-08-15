@@ -156,8 +156,13 @@ function normalizeColorSpace(stream) {
     fcc: 'bt601',
   };
   if (map[raw]) return map[raw];
+  // 无标记时不再按分辨率推断 bt2020:实测无标记 4K 杜比测试片为 bt709 语义,
+  // 按分辨率推断 bt2020 → 渲染端做 bt2020→bt709 色域转换 → 画面偏绿发灰
+  // (mpv/ffmpeg 对无标记内容默认 bt709 → 颜色正常)。仅当传输函数明确为
+  // HDR(PQ/HLG)才推断 bt2020(真 HDR 内容一定带 transfer 标记)。
+  const trc = (stream.color_transfer || '').toLowerCase();
+  if (/pq|smpte2084|hlg|arib-std-b67/.test(trc)) return 'bt2020';
   const h = Number(stream.height) || 0;
-  if (h >= 1600) return 'bt2020';
   if (h >= 600) return 'bt709';
   return 'bt601';
 }
