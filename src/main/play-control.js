@@ -55,14 +55,6 @@ async function loadFile(filePath, opts = {}) {
 
     setCurrentInfo(info);
 
-    // Dolby Vision 检测：MF/ffmpeg 引擎无法正确解码 DV（RPU 动态元数据不暴露给应用层、
-    // Profile 5 为 IPTPQc2 色彩空间而非 YUV，硬解出来必紫绿偏色）。检测到 DV 源时回退 mpv
-    // （内置 libplacebo + Dolby Vision 支持）。渲染端 colorSpace/HDR 信息来自 ffprobe，
-    // 此处仅做引擎路由决策，不改动渲染端色彩处理。
-    const _v0 = info.video && info.video[0];
-    const _isDV = !!(_v0 && _v0.hdrVariant === 'dolby-vision');
-    const needMpvForDV = _isDV && !useMpv();
-
     // 解码后端选择：默认 trust ffprobe 的 audioOnly；渲染端可显式传入 source 覆盖——
     // source:'music' 强制 ffmpeg 纯音频、绝不启动 mpv（与「音乐模式不启动 mpv」语义一致）；
     // source:'video' 走 mpv 分支。覆盖逻辑保证双引擎切换的语义不被探测结果意外反转。
@@ -106,7 +98,7 @@ async function loadFile(filePath, opts = {}) {
       loadEpoch = pipeline().start(resumeAt);
       loadOutput = pipeline().videoOutput || null;
       setLastKnownTime(resumeAt);
-    } else if ((useMpv() || needMpvForDV) && mpvBackend()) {
+    } else if (useMpv() && mpvBackend()) {
       // 视频：mpv 懒启动（boot 仅构造 backend 对象，未 spawn 进程；
       // 仅首个视频文件才在此真正拉起 mpv 子进程）
       if (!mpvBackend().ready) {
