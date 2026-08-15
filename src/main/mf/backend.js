@@ -28,6 +28,8 @@ const { clamp } = require('../clamp');
 const EventEmitter = require('events');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
+const { resolveBinary } = require('../ffmpeg/binaries');
 
 /**
  * 懒加载原生模块。多候选路径覆盖「开发态」与「打包态」：
@@ -241,7 +243,10 @@ class MfBackend extends EventEmitter {
 
     this._applyMeta(meta);
     if (!meta.hasAudio) {
-      console.warn('[lumen][mf] 未检测到可解码音频流（ATMOS/E-AC3/TrueHD 可能需要系统杜比解码器，视频仍会播放）');
+      // 2026-08: MF 无杜比解码器(MFT)——启动 ffmpeg 软解音频 fallback(内置
+      // truehd/eac3/ac3/dts 解码器,零系统依赖),MF 视频 + ffmpeg 音频并行
+      console.warn('[lumen][mf] MF 无杜比解码器,启用 ffmpeg 音频 fallback(软解杜比音轨)');
+      this._startFfmpegAudioFallback();
     }
     this._reader.start(
       (ev) => this._onNative(ev),
@@ -257,9 +262,8 @@ class MfBackend extends EventEmitter {
       epoch: this.epoch,
       startTime: this.startTime,
       video: this.videoOutput ? { ...this.videoOutput, hwaccel: this.hwaccel } : null,
-      audio: this.currentAudio
-        ? { sampleRate: AUDIO_SAMPLE_RATE, channels: this._nativeChannels }
-        : null,
+      // 2026-08: 音频恒可用(原生或 ffmpeg fallback 至少一路),渲染端按 audio-chunk 播
+      audio: { sampleRate: AUDIO_SAMPLE_RATE, channels: 2 },
     });
     return this.epoch;
   }
@@ -300,7 +304,10 @@ class MfBackend extends EventEmitter {
 
     this._applyMeta(meta);
     if (!meta.hasAudio) {
-      console.warn('[lumen][mf] 未检测到可解码音频流（ATMOS/E-AC3/TrueHD 可能需要系统杜比解码器，视频仍会播放）');
+      // 2026-08: MF 无杜比解码器(MFT)——启动 ffmpeg 软解音频 fallback(内置
+      // truehd/eac3/ac3/dts 解码器,零系统依赖),MF 视频 + ffmpeg 音频并行
+      console.warn('[lumen][mf] MF 无杜比解码器,启用 ffmpeg 音频 fallback(软解杜比音轨)');
+      this._startFfmpegAudioFallback();
     }
     this._reader.start(
       (ev) => this._onNative(ev),
@@ -316,9 +323,8 @@ class MfBackend extends EventEmitter {
       epoch: this.epoch,
       startTime: this.startTime,
       video: null,
-      audio: this.currentAudio
-        ? { sampleRate: AUDIO_SAMPLE_RATE, channels: this._nativeChannels }
-        : null,
+      // 2026-08: 音频恒可用(原生或 ffmpeg fallback 至少一路)
+      audio: { sampleRate: AUDIO_SAMPLE_RATE, channels: 2 },
     });
     return this.epoch;
   }
@@ -367,11 +373,79 @@ class MfBackend extends EventEmitter {
   stop() {
     this.epoch++;
     if (this._reader) this._reader.stop();
+    this._killFfmpegAudio();
   }
 
   /** 交叉淡入淡出取消时直接停掉副声部（对齐 MediaPipeline._killProcs 的语义）。 */
   _killProcs() {
     if (this._reader) this._reader.stop();
+    this._killFfmpegAudio();
+  }
+
+  /* ---------------- ffmpeg 音频 fallback(2026-08) ---------------- */
+  // MF 的 SourceReader 需要系统 MFT 解码器,Windows 无杜比组件时 TrueHD/E-AC3/
+  // AC3/DTS 音轨 hasAudio=false 无声。ffmpeg 内置全部杜比解码器——音频走 ffmpeg
+  // 软解(输出 f32le 48000Hz 2ch,与原生音频同形),视频仍走 MF 原生,两路并行。
+
+  _startFfmpegAudioFallback() {
+    this._killFfmpegAudio();
+    if (!this.info || !this.info.path) return;
+    const ffmpegPath = resolveBinary('ffmpeg');
+    if (!ffmpegPath) {
+      console.warn('[lumen][mf] 找不到 ffmpeg,音频 fallback 不可用(杜比音轨将无声)');
+      return;
+    }
+    const args = [
+      '-hide_banner', '-loglevel', 'error', '-nostdin',
+      '-i', this.info.path,
+      '-map', `0:a:${this.audioTrack || 0}`,
+      '-f', 'f32le', '-acodec', 'pcm_f32le',
+      '-ar', String(AUDIO_SAMPLE_RATE),
+      '-ac', '2',
+      '-',
+    ];
+    const proc = spawn(ffmpegPath, args, { windowsHide: true });
+    this._ffmpegAudioProc = proc;
+    const unitBytes = AUDIO_CHUNK_FRAMES * 2 * 4;
+    let acc = Buffer.alloc(0);
+    this._audioFrameCount = 0;
+    proc.stdout.on('data', (d) => {
+      acc = acc.length ? Buffer.concat([acc, d]) : d;
+      while (acc.length >= unitBytes) {
+        const chunk = acc.subarray(0, unitBytes);
+        acc = acc.subarray(unitBytes);
+        this._audioFrameCount += AUDIO_CHUNK_FRAMES;
+        const pts = this.startTime + (this._audioFrameCount / AUDIO_SAMPLE_RATE) * this.speed;
+        this._audioEmitted++;
+        this.emit('audio-chunk', {
+          data: chunk, pts,
+          seq: this.audioSeq++,
+          epoch: this.epoch,
+          voice: this.voice,
+          frames: AUDIO_CHUNK_FRAMES,
+          sampleRate: AUDIO_SAMPLE_RATE,
+          channels: 2,
+        });
+      }
+    });
+    proc.stderr.on('data', (d) => {
+      const t = d.toString().trim();
+      if (t) console.warn('[lumen][mf] ffmpeg 音频:', t.slice(0, 120));
+    });
+    proc.on('error', (e) => console.warn('[lumen][mf] ffmpeg 音频 fallback 错误:', e.message));
+    proc.on('close', (code) => {
+      if (this._ffmpegAudioProc === proc) this._ffmpegAudioProc = null;
+      if (code !== 0 && code !== null) {
+        console.warn(`[lumen][mf] ffmpeg 音频 fallback 退出 code=${code}`);
+      }
+    });
+  }
+
+  _killFfmpegAudio() {
+    if (this._ffmpegAudioProc) {
+      try { this._ffmpegAudioProc.kill(); } catch { /* 已退出 */ }
+      this._ffmpegAudioProc = null;
+    }
   }
 
   /* ---------------- 原生事件翻译 ---------------- */
