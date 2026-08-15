@@ -789,19 +789,21 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   // 再复用现有 NV12→I420 路径，避免色度平面错位/互换导致紫绿偏色。
   static void convertP010ToNV12(const uint8_t* p010, int w, int h, int srcStride,
                                 uint8_t* nv12, int dstStride) {
+    // P010: 10-bit data occupies the upper 10 bits of each 16-bit WORD
+    // (low 6 bits zero). To get 8-bit, shift right by 8.
     const uint16_t* srcY = reinterpret_cast<const uint16_t*>(p010);
     const uint16_t* srcUV = reinterpret_cast<const uint16_t*>(p010 + srcStride * h);
     const int srcSamplesPerRow = srcStride / 2;
     for (int y = 0; y < h; y++) {
       for (int x = 0; x < w; x++) {
-        nv12[y * dstStride + x] = static_cast<uint8_t>(srcY[y * srcSamplesPerRow + x] >> 2);
+        nv12[y * dstStride + x] = static_cast<uint8_t>(srcY[y * srcSamplesPerRow + x] >> 8);
       }
     }
     uint8_t* dstUV = nv12 + dstStride * h;
     for (int y = 0; y < h / 2; y++) {
       for (int x = 0; x < w / 2; x++) {
-        dstUV[y * dstStride + 2 * x] = static_cast<uint8_t>(srcUV[y * srcSamplesPerRow + 2 * x] >> 2);
-        dstUV[y * dstStride + 2 * x + 1] = static_cast<uint8_t>(srcUV[y * srcSamplesPerRow + 2 * x + 1] >> 2);
+        dstUV[y * dstStride + 2 * x] = static_cast<uint8_t>(srcUV[y * srcSamplesPerRow + 2 * x] >> 8);
+        dstUV[y * dstStride + 2 * x + 1] = static_cast<uint8_t>(srcUV[y * srcSamplesPerRow + 2 * x + 1] >> 8);
       }
     }
   }
