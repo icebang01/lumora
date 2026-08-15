@@ -584,6 +584,8 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
       // 记录真实协商出的像素格式，后续 ProcessVideoSample 按实际格式转 I420，
       // 避免 HDR/杜比源解码器给出 P010/NV21 我们却按 NV12 解交织导致紫绿偏色。
       if (FAILED(cur->GetGUID(MF_MT_SUBTYPE, &_videoSubType))) _videoSubType = GUID_NULL;
+      fprintf(stderr, "[lumen][mf] ConfigureVideoOutput: negotiated subtype=%s size=%dx%d\n",
+              subTypeName(_videoSubType), _width, _height);
       cur->Release();
     } else { _width = w; _height = h; }
     _trueH = _height;
@@ -872,6 +874,14 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     const uint8_t* srcPtr = p0;
     int srcStride = stride;
     std::vector<uint8_t> nv12Temp;
+    {
+      static int diagLogged = 0;
+      if (diagLogged < 5) {
+        fprintf(stderr, "[lumen][mf] ProcessVideoSample: subtype=%s stride=%d size=%dx%d trueH=%d locked2d=%d\n",
+                subTypeName(_videoSubType), stride, _width, _height, _trueH, locked2d ? 1 : 0);
+        diagLogged++;
+      }
+    }
     if (_videoSubType == MFVideoFormat_P010 || _videoSubType == MFVideoFormat_NV21) {
       const size_t tempSize = static_cast<size_t>(_width) * _trueH
                             + static_cast<size_t>(_width) * (_trueH / 2);
