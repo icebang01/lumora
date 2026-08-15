@@ -332,6 +332,23 @@ class MfBackend extends EventEmitter {
   seek(time) {
     const dur = this.info ? this.info.duration : 0;
     const t = clamp(time, 0, dur > 0 ? dur - 0.05 : time);
+    // 2026-08: seek 前重建 reader——连续 seek 时旧 reader 的读取状态/EOF 会使
+    // SetCurrentPosition 失效(实测第二次 seek 后 tp 仍跳片尾)。open 内部完整
+    // 执行 ReleaseReader + CreateReader + Configure,新 reader 无状态,seek 可靠。
+    if (this._reader) {
+      try {
+        this._reader.open(this.info.path, {
+          videoTrack: this.videoTrack,
+          audioTrack: this.audioTrack,
+          maxWidth: this._maxWidth,
+          audioOnly: this._audioOnly,
+          hwaccel: this.hwaccel,
+        });
+        console.log(`[lumen][mf] seek 重建 reader OK → start(${t})`);
+      } catch (e) {
+        console.warn('[lumen][mf] seek 重建 reader 失败:', e.message);
+      }
+    }
     return this.start(t);
   }
 
@@ -397,6 +414,7 @@ class MfBackend extends EventEmitter {
     }
     const args = [
       '-hide_banner', '-loglevel', 'error', '-nostdin',
+      '-ss', this.startTime.toFixed(6),  // 2026-08: seek 后 fallback 必须从目标时间解码
       '-i', this.info.path,
       '-map', `0:a:${this.audioTrack || 0}`,
       '-f', 'f32le', '-acodec', 'pcm_f32le',

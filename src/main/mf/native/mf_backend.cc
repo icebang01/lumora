@@ -373,6 +373,21 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     _speed = speed;
     _videoThrottled = vThr;
     _audioThrottled = aThr;
+
+    // 2026-08: seek 修复——SetCurrentPosition 必须在读取空闲时调用(旧 WorkerLoop
+    // 已 join),且先 Flush 清空旧读取队列,否则位置设置不生效(实测 seek(1) 后
+    // 仍在旧位置播放)。Flush 放主线程(Start 调用线程)而非 WorkerLoop——此前在
+    // WorkerLoop 里 Flush 会导致 SourceReader 停摆(ReadSample 不再产出)。
+    if (_startTime > 0.001) {
+      HRESULT hrF = _reader->Flush(MF_SOURCE_READER_ALL_STREAMS);
+      PROPVARIANT var;
+      PropVariantClear(&var);
+      var.vt = VT_I8;
+      var.hVal.QuadPart = static_cast<LONGLONG>(_startTime * 1e7);
+      HRESULT hrS = _reader->SetCurrentPosition(GUID_NULL, var);
+      PropVariantClear(&var);
+      fprintf(stderr, "[mf] seek t=%.2f flush=%08x setpos=%08x\n", _startTime, hrF, hrS);
+    }
     _videoFrameIndex = 0;
     _audioFrameCount = 0;
     _audioStaging.clear();
@@ -615,15 +630,9 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
   void WorkerLoop() {
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
-    // seek 到起始时间（100ns 单位）
-    if (_startTime > 0.001) {
-      PROPVARIANT var;
-      PropVariantClear(&var);
-      var.vt = VT_I8;
-      var.hVal.QuadPart = static_cast<LONGLONG>(_startTime * 1e7);
-      _reader->SetCurrentPosition(GUID_NULL, var);
-      PropVariantClear(&var);
-    }
+    // 2026-08: seek 位置已在 Start(主线程)通过 Flush+SetCurrentPosition 设置,
+    // WorkerLoop 只负责读取(此处不再重复 SetCurrentPosition——旧实现放这里
+    // 因读取状态未清而无效,实测 seek 后仍在旧位置)。
 
     while (_running.load()) {
       bool did = false;
