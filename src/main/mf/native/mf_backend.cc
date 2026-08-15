@@ -545,6 +545,12 @@ class MediaFoundationReader : public Napi::ObjectWrap<MediaFoundationReader> {
     // 不在此设输出 PIXEL_ASPECT_RATIO（设非原生尺寸 MF 也会失败）。
     outType->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
     outType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE);
+    // 2026-08: 指定 BT.709 色彩空间——10bit HDR 源(HEVC Main10/BT.2020)解码器
+    // 默认按源色彩空间输出 YUV,渲染端 WebGL 恒按 BT.709 转换 → 画面发绿。
+    // 请求解码器输出时转换到 BT.709(尊重该属性的解码器会做色彩转换)。
+    outType->SetUINT32(MF_MT_YUV_MATRIX, MFVideoTransferMatrix_BT709);
+    outType->SetUINT32(MF_MT_VIDEO_PRIMARIES, MFVideoPrimaries_BT709);
+    outType->SetUINT32(MF_MT_TRANSFER_FUNCTION, MFVideoTransFunc_709);
 
     HRESULT hr = _reader->SetCurrentMediaType(_videoStreamIndex, nullptr, outType);
     if (FAILED(hr)) { outType->Release(); return hr; }
