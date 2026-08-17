@@ -23,8 +23,7 @@
     "gen-testmedia": "node tools/gen-testmedia.js",
     "fetch-deps": "node tools/fetch-ffmpeg.js",
     "dist": "electron-builder --publish=never",
-    "release": "electron-builder --publish=always",
-    "rebuild-mf": "node tools/rebuild-mf.js"
+    "release": "electron-builder --publish=always"
   },
   "keywords": [
     "player",

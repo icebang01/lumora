@@ -33,7 +33,7 @@
 
 - 产品展示名：`src/renderer/index.html`（`<title>`、idle 标题）、`app.js`（关于页、开源声明正文）、`index.js`（窗口标题、错误框、降级提示、文件关联 ProgID `Lumora.MediaFile` 与显示名）、`style.css` 头注等。
 - 包标识：`package.json` 的 `name` → `lumora`、`productName` → `Lumora`、`appId` → `com.lumora.player`；截图默认名 `lumora-%F-%P`。
-- 文档：`COMMERCIALIZATION.md` / `DESIGN.md` / `THIRD_PARTY_LICENSES.md` / `MEDIAFOUNDATION_ENGINE.md` 品牌名同步。
+- 文档：`COMMERCIALIZATION.md` / `DESIGN.md` / `THIRD_PARTY_LICENSES.md` 品牌名同步。
 
 ### 2.3 内部标识符保留（非商标载体，改名有破坏风险）
 

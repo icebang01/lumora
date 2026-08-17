@@ -124,7 +124,7 @@
 11. HLS/DASH + 字幕/画质面板
 
 **阶段 3 — 后端切换（可选，长期）**
-12. 实现 Media Foundation 引擎，替换 mpv 二进制（路线 A，彻底去 GPL）
+12. ~~实现 Media Foundation 引擎（路线 A 去 GPL）~~ —— 已移除：Lumora 现全程使用 mpv（GPLv2+ 二进制）以获得完整编解码 / 8K / Dolby Vision 支持，去 GPL 路线不再采用
 
 ---
 

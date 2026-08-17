@@ -3,7 +3,7 @@
  *
  * 继承 PlaybackEngine（src/renderer/core/engine.js），共享属性表、
  * 兼容桩与通用 helper；本文件只保留 mpv 特定的 IPC 交互逻辑。
- * 对外接口与 MediaFoundationEngine 一致，app.js / osc.js / stats.js 改动最小。
+ * 对外接口与 ffmpeg 引擎的 Player 接收端一致，app.js / osc.js / stats.js 改动最小。
  * 不再需要的子系统（Transport/AudioOutput/MasterClock/FrameQueue/VideoRenderer）
  * 用基类兼容桩替代，保证 stats 面板不会 NPE。
  */

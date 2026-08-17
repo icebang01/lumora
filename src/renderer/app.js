@@ -204,7 +204,7 @@ async function boot() {
   requestAnimationFrame(danmakuLoop);
 
   // 装配两个独立播放器模块（见 player/）：
-  //   video-player.js —— 视频引擎（mpv/ffmpeg/mediafoundation）+ 视频反馈 + 质量徽章 + 加载遮罩
+  //   video-player.js —— 视频引擎（mpv/ffmpeg）+ 视频反馈 + 质量徽章 + 加载遮罩
   //   music-player.js —— 音乐引擎（ffmpeg 纯音频）+ 音频舞台（封面/歌词/唱片）
   // 每个模块自持引擎；共享 UI（OSC/统计/脚本）经 player 代理指向「活跃引擎」，
   // 加载时按来源在 video / music 间切换（见 app-events player:loaded）。

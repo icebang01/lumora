@@ -511,13 +511,8 @@ function loadPlayer() {
     .replace("import { fmtTime, trackLabel } from './player.js';",
       "const fmtTime = (...a) => shared.fmtTime(...a); const trackLabel = (...a) => shared.trackLabel(...a);")
     .replace('export class PlaybackEngine', 'class PlaybackEngine')
-    .replace('export class MediaFoundationEngine', 'class MediaFoundationEngine')
     .replace("export { fmtTime, trackLabel };", '')
     + '\nglobalThis.__PlaybackEngine = PlaybackEngine;';
-  // MediaFoundationEngine 类并行 AI 正在移除(工作区已删但远程 HEAD 可能还在)——条件化赋值
-  if (engineSrc.includes('class MediaFoundationEngine')) {
-    engineSrc += '\nglobalThis.__MediaFoundationEngine = MediaFoundationEngine;';
-  }
   vm.runInContext(engineSrc, sbE);
   shared.PlaybackEngine = sbE.__PlaybackEngine;
 

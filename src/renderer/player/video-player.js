@@ -6,7 +6,7 @@
  *
  * 用法:
  *   const video = await createVideoPlayer(bootstrapData, ctx);
- *   video.engine          // 视频引擎实例(MpvPlayer/Player/MediaFoundationEngine)
+ *   video.engine          // 视频引擎实例(MpvPlayer/Player)
  *   video.applyStage()    // 切到视频舞台(has-video)
  *   await video.stop()    // 停止(委托主进程)
  */
@@ -25,19 +25,15 @@ const $ = (id) => document.getElementById(id);
 
 /**
  * 按配置选择视频引擎:
- *   - mpv            (默认,进程内 GPU 解码,最稳,支持 8K)
+ *   - mpv            (默认,进程内 GPU 解码,最稳,支持 8K / Dolby Vision)
  *   - ffmpeg         内置 LGPL 解码管线(ffmpeg 子进程 → WebSocket → WebGL2)
- *   - mediafoundation 路线 A(Windows Media Foundation,去 GPL):原生层把 NV12
- *                     解交织成 I420,经同一套 WebSocket 推给渲染端,Player 的
- *                     yuv420p 路径零改动复用;复用 engine-ffmpeg 类使 canvas
- *                     显示、字幕覆盖层与诊断全部生效。
  */
 function createVideoEngine(bootstrapData) {
   const engineName = (bootstrapData.config.values.engine) || 'mpv';
-  // 记录真实引擎名（供调试 HUD 等读取；mediafoundation 复用 engine-ffmpeg 样式类）
+  // 记录真实引擎名（供调试 HUD 等读取）
   document.body.dataset.engine = engineName;
-  if (engineName === 'mediafoundation' || engineName === 'ffmpeg') {
-    // ffmpeg 与 mediafoundation 后端共用同一套 WebSocket → WebGL2 接收端（Player）。
+  if (engineName === 'ffmpeg') {
+    // ffmpeg 引擎走同一套 WebSocket → WebGL2 接收端（Player）。
     const canvas = document.getElementById('video-canvas');
     document.body.classList.add('engine-ffmpeg');
     return new Player(canvas);

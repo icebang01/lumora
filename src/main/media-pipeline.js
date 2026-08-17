@@ -4,7 +4,7 @@
  * 用法：setCtx({ getConfig, getPipeline, setPipeline, getSecondaryPipeline,
  *   setSecondaryPipeline, getMediaServer, getCurrentInfo, getLastKnownTime,
  *   sendToRenderer })（bootstrap 时注入；pipeline 是 index.js 顶层变量，
- *   读写走 getter/setter 保持单一事实源）。engine==='mediafoundation' 时不调用。
+ *   读写走 getter/setter 保持单一事实源）。mpv 视频走 mpv 后端；本管线负责纯音频与 ffmpeg 引擎的视频/兜底。
  *
  * 交叉淡入淡出：用第二个并发 MediaPipeline（副声部，voice=1）解码下一曲目的
  * 音频头，与主声部（voice=0）同时混音；提升为主声部时无需重新 seek（副声部
@@ -100,25 +100,11 @@ function wirePipeline(pipeline, { isPrimary = false } = {}) {
 }
 
 /**
- * 按当前 engine 选择解码后端：
- *   - mpv / ffmpeg           → MediaPipeline（ffmpeg 子进程管线，LGPL）
- *   - mediafoundation（默认）→ MfBackend（Windows Media Foundation，路线 A 去 GPL）
- * 副声部（交叉淡入淡出）也走这里，保证 MF 模式下连副声部都不引入 ffmpeg 二进制。
- * 原生模块在 MfBackend 内懒加载，非 Windows / 未编译时仅在构造时抛清晰错误；
- * 此时此处自动降级回 ffmpeg 管线（保持去 GPL 语义）。
+ * 创建解码后端：MediaPipeline（ffmpeg 子进程管线，LGPL）。
+ * 视频默认走 mpv 后端（由 play-control 依据 useMpv 路由）；本管线负责
+ * 纯音频（音乐模式）与 ffmpeg 引擎的视频/兜底，以及交叉淡入淡出副声部。
  */
 function createDecodeBackend(opts = {}) {
-  const engine = getConfig() ? getConfig().get('engine') : null;
-  if (engine === 'mediafoundation') {
-    try {
-      const { MfBackend } = require('./mf/backend');
-      const mf = new MfBackend(opts);
-      if (mf.available) return mf;
-      console.warn('[lumen][mf] MediaFoundation 后端不可用，降级 ffmpeg 管线');
-    } catch (e) {
-      console.warn('[lumen][mf] MediaFoundation 后端构造失败，降级 ffmpeg 管线:', e.message);
-    }
-  }
   return new MediaPipeline({
     ffmpegPath: getConfig() ? (getConfig().get('ffmpeg-dir') || null) : null,
     hwaccel: getConfig() ? getConfig().get('hwdec') : 'auto',
@@ -145,7 +131,7 @@ function startCrossfade(info, reqId = 0) {
   CTX._cfReqId = reqId;
   let sec = getSecondaryPipeline();
   if (!sec) {
-    // 副声部只解音频，无需硬解试探；与主声部同款后端（MF 模式也走 MfBackend）
+    // 副声部只解音频，无需硬解试探；与主声部同款后端（ffmpeg MediaPipeline）
     sec = createDecodeBackend({ hwaccel: 'no' });
     setSecondaryPipeline(sec);
   }

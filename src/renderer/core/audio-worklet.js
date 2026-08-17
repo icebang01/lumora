@@ -154,7 +154,7 @@ class LumenAudioProcessor extends AudioWorkletProcessor {
     this.tick = 0;
 
     // —— 变速保音高（WSOLA）——
-    // MF 引擎按原始 48k 输出 PCM（不变调），倍速的"时间伸缩"在消费侧用
+    // 解码端按原始 48k 输出 PCM（不变调），倍速的"时间伸缩"在消费侧用
     // WSOLA（波形相似重叠相加）完成：保持音高、只缩放时长。ffmpeg 引擎已在
     // 解码侧用 atempo 保音高（pitched=true），这里直接直出、不再二次变速。
     // 窗口/跳跃常量在构造期固定，运行时零分配。
@@ -308,7 +308,7 @@ class LumenAudioProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    // WSOLA 分支：MF 引擎原始 48k PCM，消费侧按时域伸缩保音高。
+    // WSOLA 分支：解码端原始 48k PCM，消费侧按时域伸缩保音高。
     // consumedFrames 记的是"墙钟帧数"（声卡实际播放帧），与 1:1 分支一致，
     // 主线程 mediaTime = basePts + consumed/48k * speed 因此仍正确（无需改时钟）。
     this._wsolaProcess(output, frames, ch);

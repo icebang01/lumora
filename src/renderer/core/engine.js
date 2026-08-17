@@ -1,17 +1,16 @@
 /**
  * PlaybackEngine —— 播放引擎抽象契约。
  *
- * 所有后端（mpv / Media Foundation / …）必须遵守同一份接口，前端的
- * OSC / stats / 键位 / 脚本才能无感切换。设计依据见 MEDIAFOUNDATION_ENGINE.md。
+ * 所有后端（mpv / ffmpeg / …）必须遵守同一份接口，前端的
+ * OSC / stats / 键位 / 脚本才能无感切换。
  *
  * 本文件提供：
  *   - PlaybackEngine：基类，封装共享属性表、兼容桩、通用派生属性计算、
  *     通用 helper（observeProperty / _notify / _coerce / _cycleAbLoop /
  *     _currentChapter / _measuredFps）。
  *
- * 路线 A（mediafoundation）已落地：渲染端复用 ffmpeg 管线同款 Player
- * （WebSocket → WebGL2），主进程由 src/main/mf/backend.js 的 MfBackend
- * 驱动原生 Media Foundation 解码，本文件不再需要占位实现。
+ * 渲染端视频引擎：mpv（MpvPlayer）走 mpv 直上屏；ffmpeg 走 WebSocket → WebGL2
+ * 的 Player 接收端。两者遵守本契约，前端 OSC / stats / 键位才能无感切换。
  *
  * 引擎工厂 createEngine() 放在 app.js，避免本文件反向依赖 mpv-player.js
  * 造成循环导入。

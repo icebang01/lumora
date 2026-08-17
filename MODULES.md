@@ -16,7 +16,7 @@
 | `ipc-updater.js` | — | **IPC·更新域**：updater:get-state / updater:check / updater:install | `register(ctx)` |
 | `updater.js` | — | **自动更新**（electron-updater，GitHub Releases）：dev 模式禁用；启动静默检查；发现→autoDownload；downloaded 后等用户确认安装；事件 updater:status / updater:progress | `setCtx` `setup` `checkForUpdates` `installUpdate` `getState` |
 | `windows.js` | 463 | **双窗口管理**（2026-08 拆出）：computeWindowSize/createWindow/syncWindows/resyncNow/setFullscreen/ensureVideoWindow/attachRendererDiagnostics + 窗口同步事件链；ctx 注入 **win/videoWin getter/setter**（单一事实源留在 index.js，sendToRenderer/startMpv 也走 ctx） | `setCtx` `createWindow` `resyncNow` `setFullscreen` `ensureVideoWindow` |
-| `media-pipeline.js` | 75 | **ffmpeg 引擎解码编排**（2026-08 拆出）：setupPipeline（MediaPipeline 事件接线 + 背压）；ctx 注入 **pipeline getter/setter**（单一事实源留在 index.js）+ getConfig/getMediaServer/getCurrentInfo/getLastKnownTime/sendToRenderer；engine==='mediafoundation' 时不调用 | `setCtx` `setupPipeline` |
+| `media-pipeline.js` | 75 | **ffmpeg 引擎解码编排**（2026-08 拆出）：setupPipeline（MediaPipeline 事件接线 + 背压）；ctx 注入 **pipeline getter/setter**（单一事实源留在 index.js）+ getConfig/getMediaServer/getCurrentInfo/getLastKnownTime/sendToRenderer | `setCtx` `setupPipeline` |
 | `mpv-launch.js` | 132 | **MPV 后端启动**（2026-08 拆出）：resolveMpvPath/createMpvBackend/startMpv；ctx 注入 **mpvBackend getter/setter**（单一事实源留在 index.js）+ getConfig/sendToRenderer；createMpvBackend 必须在窗口创建前调用（渲染端 boot() 可能先于 startMpv 触发 loadFile） | `setCtx` `resolveMpvPath` `createMpvBackend` `startMpv` |
 | `play-control.js` | 195 | **播放控制**：loadFile（ffprobe 探测/续播/引擎分支/loaded 下发）、applyAspectRatio、currentDar | `setCtx` `loadFile` `applyAspectRatio` |
 | `pip.js` | 183 | **画中画**：togglePip/控制浮窗/退出还原 + sanitizeInfo | `setCtx` `togglePip` `getPipMode` `sanitizeInfo` |

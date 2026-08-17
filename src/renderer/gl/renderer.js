@@ -106,7 +106,7 @@ export class VideoRenderer {
     this.texKernel = null;
 
     this.srcWidth = 0; this.srcHeight = 0;
-    this.srcSar = 1;   // 像素宽高比（SAR）；仅 MF 引擎传非 1，渲染端按 srcWidth*srcSar 做 DAR 适配
+    this.srcSar = 1;   // 像素宽高比（SAR）；当前引擎均在帧内烘焙 DAR，默认 1
     this.pixfmt = 'yuv420p';
     this.hasFloatFBO = false;
 
@@ -428,7 +428,7 @@ export class VideoRenderer {
 
     // 源显示宽 = 存储宽 × SAR（像素宽高比）。anamorphic 素材（如 1440x1080 SAR
     // 4:3）经此换算成 1920 显示宽，contain 适配后正确显示为 16:9；方形像素源
-    // sar=1 时退化为原行为。MF 引擎传真实 SAR，ffmpeg 引擎已在帧内烘焙 DAR
+    // sar=1 时退化为原行为（当前引擎均在帧内烘焙 DAR，SAR 恒为 1）
     // （sar=1），不致二次拉伸。
     const vw = this.srcWidth * (this.srcSar || 1);
     const vh = this.srcHeight;

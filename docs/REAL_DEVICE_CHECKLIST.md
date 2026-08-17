@@ -4,7 +4,7 @@
 > 无法自动验证。本清单把这些都列成可逐步执行、带「通过标准」的脚本，供在本机（Windows + 独立显卡）运行。
 >
 > 环境前提：本机需 `git` 已对齐 `origin/main`（443 恢复后 `git push` 快进；或 `git fetch && git reset --hard origin/main`），
-> 且 `npm install` 后 `npm run rebuild-mf`（如需 MF 原生引擎）。
+> 且 `npm install` 后 `npm run fetch-deps`（拉取 ffmpeg/mpv 二进制）。
 >
 > 关联状态：设计交付 **20/20 mock + DESIGN.md A.2 全闭环**；设计令牌两处真 bug 已修并推送
 > （`--dl-accent` 回退对齐品牌 `#7c8cff` `855f8d3` / `--accent-2` 未定义→`--accent-pink` `3374dae`）；A.3 已知漂移全部闭环；
@@ -27,9 +27,9 @@
   - 无元素溢出视口（参考 `e7a27a6` 已修 `.eq-window`/`#stats-panel` 窄窗溢出）。
 - **已知风险**：`style-vinyl`/`style-glass` 在极窄窗下唱机绝对定位曾未确认（memory 红线：未在真机目测前不擅改视觉）。
 
-## 2. MF 引擎视频连续性（默认引擎 = mediafoundation）
+## 2. mpv 视频连续性（默认引擎）
 
-- **前置**：`config.js` 默认引擎已为 `mediafoundation`；原生 `.node` 未编译或非 Windows 时自动回退 ffmpeg（不启动 mpv）。
+- **前置**：Lumora 默认使用 mpv 引擎（GPU 解码，支持 8K / Dolby Vision）。
 - **步骤**：
   1. 播一段 **5.1 声道 / HDR / 4K / 隔行** 视频，确认完整播完无中断（此前验证过 5.1 音频 `recvAudio #1700≈72s`）。
   2. 中途 **seek** 多次（含大跨度），确认无黑闪、无音画错位。

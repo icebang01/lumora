@@ -95,7 +95,7 @@ const header = `/**
  * 从 index.js 拆出（2026-08）：setupPipeline（MediaPipeline 事件接线 + 背压）。
  * 用法：setCtx({ getConfig, getPipeline, setPipeline, getMediaServer, getCurrentInfo,
  *   getLastKnownTime, sendToRenderer })（bootstrap 时注入；pipeline 是 index.js 顶层变量，
- *   读写走 getter/setter 保持单一事实源）。engine==='mediafoundation' 时不调用。
+ *   读写走 getter/setter 保持单一事实源）。
  */
 const { MediaPipeline } = require('./ffmpeg/decoder');
 const { PacketType } = require('../shared/protocol');
@@ -126,9 +126,9 @@ const anchor = "const mpvLaunch = require('./mpv-launch');";
 if (!idx.includes(anchor)) throw new Error('找不到 mpvLaunch require 锚点');
 idx = idx.replace(anchor, anchor + "\r\nconst mediaPipeline = require('./media-pipeline');");
 
-const callOld = "  if (engine !== 'mediafoundation') setupPipeline();";
+const callOld = "  if (engine !== 'mpv') setupPipeline();";
 if (!idx.includes(callOld)) throw new Error('找不到 setupPipeline 调用点');
-idx = idx.replace(callOld, "  if (engine !== 'mediafoundation') mediaPipeline.setupPipeline();");
+idx = idx.replace(callOld, "  if (engine !== 'mpv') mediaPipeline.setupPipeline();");
 
 fs.writeFileSync(INDEX, idx);
 console.log('index.js 手术完成（bootstrap 的 setCtx 需手动补 mediaPipeline.setCtx）');
